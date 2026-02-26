@@ -3,11 +3,14 @@
 #define DOCTEST_CONFIG_USE_STD_HEADERS
 #include "third_party/doctest/doctest.h"
 
+#include "polonio/common/source.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -134,4 +137,34 @@ TEST_CASE("CLI: flag-like arg is treated as unknown command") {
     auto result = run_polonio({"--help"});
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("Unknown command") != std::string::npos);
+}
+
+namespace {
+
+std::string create_temp_file_with_content(const std::string& prefix, const std::string& content) {
+    std::string path = create_temp_file(prefix);
+    std::ofstream stream(path, std::ios::binary);
+    stream << content;
+    stream.close();
+    return path;
+}
+
+} // namespace
+
+TEST_CASE("Source::from_file loads entire file contents") {
+    const std::string input = "hello world\nsecond line\r\n";
+    auto path = create_temp_file_with_content("polonio_source", input);
+    auto src = polonio::Source::from_file(path);
+    CHECK(src.path() == path);
+    CHECK(src.content() == input);
+    CHECK(src.size() == input.size());
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Source::from_file throws when file is missing") {
+    auto missing = (std::filesystem::temp_directory_path() / "polonio_missing_source_file").string();
+    if (std::filesystem::exists(missing)) {
+        std::filesystem::remove(missing);
+    }
+    CHECK_THROWS_WITH_AS(polonio::Source::from_file(missing), doctest::Contains(missing.c_str()), std::runtime_error);
 }

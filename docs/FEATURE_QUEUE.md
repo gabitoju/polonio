@@ -10,7 +10,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M0-3) Parse `run <file.pol>` and shorthand `<file.pol>` (stub execution)
 
 ## Milestone 1 — Source model + errors
-- [TODO] (M1-1) Source loader with path + in-memory buffer
+- [DONE] (M1-1) Source loader with path + in-memory buffer
 - [TODO] (M1-2) Location/span tracking utilities
 - [TODO] (M1-3) Unified error formatting: `file:line:col: message`
 
