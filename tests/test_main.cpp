@@ -378,3 +378,38 @@ TEST_CASE("Lexer rejects single dot") {
     }
     CHECK(threw);
 }
+
+TEST_CASE("Lexer skips block comments between tokens") {
+    polonio::Lexer lexer("var /*comment*/ x");
+    auto tokens = lexer.scan_all();
+    std::vector<polonio::TokenKind> expected = {
+        polonio::TokenKind::Var,
+        polonio::TokenKind::Identifier,
+        polonio::TokenKind::EndOfFile,
+    };
+    CHECK(kinds(tokens) == expected);
+    CHECK(tokens[1].lexeme == "x");
+}
+
+TEST_CASE("Lexer skips multiline comments and tracks location") {
+    const char* input = "var x\n/* a\nb\nc */\nvar y";
+    polonio::Lexer lexer(input);
+    auto tokens = lexer.scan_all();
+    CHECK(tokens[0].span.start.line == 1);
+    CHECK(tokens[2].span.start.line == 5);
+    CHECK(tokens[2].span.start.column == 1);
+}
+
+TEST_CASE("Lexer errors on unterminated block comment") {
+    polonio::Lexer lexer("var x /* oops");
+    bool threw = false;
+    try {
+        lexer.scan_all();
+    } catch (const polonio::PolonioError& err) {
+        threw = true;
+        CHECK(err.kind() == polonio::ErrorKind::Lex);
+        CHECK(err.location().line == 1);
+        CHECK(err.location().column == 7);
+    }
+    CHECK(threw);
+}

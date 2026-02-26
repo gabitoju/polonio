@@ -17,7 +17,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 2 — Lexer
 - [DONE] (M2-1) Lexer: identifiers + keywords + numbers + strings
 - [DONE] (M2-2) Lexer: operators + punctuation + compound ops
-- [TODO] (M2-3) Lexer: block comments `/* ... */` + unterminated errors
+- [DONE] (M2-3) Lexer: block comments `/* ... */` + unterminated errors
 
 ## Milestone 3 — Expression parser
 - [TODO] (M3-1) AST nodes + expression parser (Pratt) for precedence

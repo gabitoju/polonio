@@ -110,12 +110,26 @@ bool Lexer::is_at_end() const {
 void Lexer::skip_whitespace() {
     while (!is_at_end()) {
         char c = peek();
-        if (c == ' ' || c == '\r' || c == '\t') {
+        if (c == ' ' || c == '\r' || c == '\t' || c == '\n') {
             advance();
             continue;
         }
-        if (c == '\n') {
+        if (c == '/' && peek_next() == '*') {
+            Location comment_start = location_;
             advance();
+            advance();
+            bool closed = false;
+            while (!is_at_end()) {
+                char d = advance();
+                if (d == '*' && peek() == '/') {
+                    advance();
+                    closed = true;
+                    break;
+                }
+            }
+            if (!closed) {
+                throw PolonioError(ErrorKind::Lex, "unterminated comment", path_, comment_start);
+            }
             continue;
         }
         break;
