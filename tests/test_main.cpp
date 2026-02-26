@@ -86,6 +86,20 @@ CommandResult run_polonio(const std::vector<std::string>& args) {
 
 } // namespace
 
+TEST_CASE("CLI: version command") {
+    auto result = run_polonio({"version"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "0.1.0\n");
+    CHECK(result.stderr_output.empty());
+}
+
+TEST_CASE("CLI: help command shows usage text") {
+    auto result = run_polonio({"help"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Usage:") != std::string::npos);
+    CHECK(result.stdout_output.find("polonio run") != std::string::npos);
+}
+
 TEST_CASE("CLI: run command stub message") {
     auto result = run_polonio({"run", "hello.pol"});
     CHECK(result.exit_code != 0);
@@ -94,6 +108,12 @@ TEST_CASE("CLI: run command stub message") {
 
 TEST_CASE("CLI: shorthand file invocation behaves like run") {
     auto result = run_polonio({"hello.pol"});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
+}
+
+TEST_CASE("CLI: shorthand treats unknown words as file path") {
+    auto result = run_polonio({"does-not-exist"});
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("not implemented") != std::string::npos);
 }

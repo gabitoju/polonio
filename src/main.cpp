@@ -54,7 +54,6 @@ int main(int argc, char** argv) {
 
     std::vector<std::string> args(argv + 1, argv + argc);
     const std::string& command = args[0];
-
     if (command == "help") {
         print_usage(std::cout);
         return EXIT_SUCCESS;
