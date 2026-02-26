@@ -285,3 +285,96 @@ TEST_CASE("Lexer tracks location across lines") {
     CHECK(tokens[2].span.start.line == 2);
     CHECK(tokens[2].span.start.column == 1);
 }
+
+TEST_CASE("Lexer handles punctuation tokens") {
+    polonio::Lexer lexer("()[]{} ,:;");
+    auto tokens = lexer.scan_all();
+    std::vector<polonio::TokenKind> expected = {
+        polonio::TokenKind::LeftParen,
+        polonio::TokenKind::RightParen,
+        polonio::TokenKind::LeftBracket,
+        polonio::TokenKind::RightBracket,
+        polonio::TokenKind::LeftBrace,
+        polonio::TokenKind::RightBrace,
+        polonio::TokenKind::Comma,
+        polonio::TokenKind::Colon,
+        polonio::TokenKind::Semicolon,
+        polonio::TokenKind::EndOfFile,
+    };
+    CHECK(kinds(tokens) == expected);
+    CHECK(tokens[0].lexeme == "(");
+    CHECK(tokens[5].lexeme == "}");
+    CHECK(tokens[6].lexeme == ",");
+}
+
+TEST_CASE("Lexer handles basic operators") {
+    polonio::Lexer lexer("= + - * / % < >");
+    auto tokens = lexer.scan_all();
+    std::vector<polonio::TokenKind> expected = {
+        polonio::TokenKind::Equal,
+        polonio::TokenKind::Plus,
+        polonio::TokenKind::Minus,
+        polonio::TokenKind::Star,
+        polonio::TokenKind::Slash,
+        polonio::TokenKind::Percent,
+        polonio::TokenKind::Less,
+        polonio::TokenKind::Greater,
+        polonio::TokenKind::EndOfFile,
+    };
+    CHECK(kinds(tokens) == expected);
+}
+
+TEST_CASE("Lexer handles multi-character operators with longest match") {
+    polonio::Lexer lexer("== != <= >= += -= *= /= %= .. ..=");
+    auto tokens = lexer.scan_all();
+    std::vector<polonio::TokenKind> expected = {
+        polonio::TokenKind::EqualEqual,
+        polonio::TokenKind::NotEqual,
+        polonio::TokenKind::LessEqual,
+        polonio::TokenKind::GreaterEqual,
+        polonio::TokenKind::PlusEqual,
+        polonio::TokenKind::MinusEqual,
+        polonio::TokenKind::StarEqual,
+        polonio::TokenKind::SlashEqual,
+        polonio::TokenKind::PercentEqual,
+        polonio::TokenKind::DotDot,
+        polonio::TokenKind::DotDotEqual,
+        polonio::TokenKind::EndOfFile,
+    };
+    CHECK(kinds(tokens) == expected);
+    CHECK(tokens[9].lexeme == "..");
+    CHECK(tokens[10].lexeme == "..=");
+}
+
+TEST_CASE("Lexer tokenizes mixed snippet") {
+    polonio::Lexer lexer("var x = 10 + 20 .. \"!\"");
+    auto tokens = lexer.scan_all();
+    std::vector<polonio::TokenKind> expected = {
+        polonio::TokenKind::Var,
+        polonio::TokenKind::Identifier,
+        polonio::TokenKind::Equal,
+        polonio::TokenKind::Number,
+        polonio::TokenKind::Plus,
+        polonio::TokenKind::Number,
+        polonio::TokenKind::DotDot,
+        polonio::TokenKind::String,
+        polonio::TokenKind::EndOfFile,
+    };
+    CHECK(kinds(tokens) == expected);
+    CHECK(tokens[1].lexeme == "x");
+    CHECK(tokens[7].lexeme == "\"!\"");
+}
+
+TEST_CASE("Lexer rejects single dot") {
+    polonio::Lexer lexer(".");
+    bool threw = false;
+    try {
+        lexer.scan_all();
+    } catch (const polonio::PolonioError& err) {
+        threw = true;
+        CHECK(err.kind() == polonio::ErrorKind::Lex);
+        CHECK(err.location().line == 1);
+        CHECK(err.location().column == 1);
+    }
+    CHECK(threw);
+}

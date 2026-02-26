@@ -27,6 +27,34 @@ enum class TokenKind {
     In,
     While,
     Return,
+    LeftParen,
+    RightParen,
+    LeftBracket,
+    RightBracket,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Colon,
+    Semicolon,
+    Equal,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Less,
+    Greater,
+    EqualEqual,
+    NotEqual,
+    LessEqual,
+    GreaterEqual,
+    PlusEqual,
+    MinusEqual,
+    StarEqual,
+    SlashEqual,
+    PercentEqual,
+    DotDot,
+    DotDotEqual,
     Number,
     String,
     EndOfFile,
@@ -56,6 +84,7 @@ private:
     Token identifier();
     Token number();
     Token string_literal();
+    Token symbol();
 
     Token make_token(TokenKind kind, const std::string& lexeme, const Location& start, const Location& end);
 
