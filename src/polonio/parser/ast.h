@@ -100,4 +100,54 @@ private:
     std::vector<std::pair<std::string, ExprPtr>> fields_;
 };
 
+class CallExpr : public Expr {
+public:
+    CallExpr(ExprPtr callee, std::vector<ExprPtr> args)
+        : callee_(std::move(callee)), args_(std::move(args)) {}
+
+    std::string dump() const override {
+        std::string out = "call(" + callee_->dump();
+        for (const auto& arg : args_) {
+            out += ", " + arg->dump();
+        }
+        out += ')';
+        return out;
+    }
+
+private:
+    ExprPtr callee_;
+    std::vector<ExprPtr> args_;
+};
+
+class IndexExpr : public Expr {
+public:
+    IndexExpr(ExprPtr object, ExprPtr index)
+        : object_(std::move(object)), index_(std::move(index)) {}
+
+    std::string dump() const override {
+        return "index(" + object_->dump() + ", " + index_->dump() + ")";
+    }
+
+    const ExprPtr& object() const { return object_; }
+
+private:
+    ExprPtr object_;
+    ExprPtr index_;
+};
+
+class AssignmentExpr : public Expr {
+public:
+    AssignmentExpr(ExprPtr target, std::string op, ExprPtr value)
+        : target_(std::move(target)), op_(std::move(op)), value_(std::move(value)) {}
+
+    std::string dump() const override {
+        return "assign(" + target_->dump() + ", " + op_ + ", " + value_->dump() + ")";
+    }
+
+private:
+    ExprPtr target_;
+    std::string op_;
+    ExprPtr value_;
+};
+
 } // namespace polonio

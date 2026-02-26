@@ -500,3 +500,38 @@ TEST_CASE("Parser errors on invalid object syntax") {
         CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
     }
 }
+
+TEST_CASE("Parser handles function calls") {
+    CHECK(parse_expr("f(1, 2)") == "call(ident(f), num(1), num(2))");
+    CHECK(parse_expr("f(1)(2)") == "call(call(ident(f), num(1)), num(2))");
+}
+
+TEST_CASE("Parser handles indexing") {
+    CHECK(parse_expr("arr[0]") == "index(ident(arr), num(0))");
+    CHECK(parse_expr("arr[0][1]") == "index(index(ident(arr), num(0)), num(1))");
+}
+
+TEST_CASE("Parser handles mixed call and index") {
+    CHECK(parse_expr("f(x)[0]") == "index(call(ident(f), ident(x)), num(0))");
+}
+
+TEST_CASE("Parser handles assignments") {
+    CHECK(parse_expr("x = 1") == "assign(ident(x), =, num(1))");
+    CHECK(parse_expr("x = y = 2") == "assign(ident(x), =, assign(ident(y), =, num(2)))");
+    CHECK(parse_expr("arr[0] += 3") == "assign(index(ident(arr), num(0)), +=, num(3))");
+}
+
+TEST_CASE("Parser rejects invalid assignment targets") {
+    {
+        polonio::Lexer lexer("1 = 2");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
+    }
+    {
+        polonio::Lexer lexer("(x + 1) = 2");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
+    }
+}

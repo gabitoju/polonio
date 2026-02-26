@@ -27,6 +27,7 @@ private:
     const Token& consume(TokenKind kind, const std::string& message);
 
     ExprPtr expression();
+    ExprPtr assignment();
     ExprPtr or_expr();
     ExprPtr and_expr();
     ExprPtr equality();
@@ -35,6 +36,7 @@ private:
     ExprPtr addition();
     ExprPtr multiplication();
     ExprPtr unary();
+    ExprPtr postfix();
     ExprPtr primary();
     ExprPtr array_literal();
     ExprPtr object_literal();

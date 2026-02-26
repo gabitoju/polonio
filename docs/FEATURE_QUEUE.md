@@ -22,7 +22,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 3 — Expression parser
 - [DONE] (M3-1) AST nodes + expression parser (Pratt) for precedence
 - [DONE] (M3-2) Parse array/object literals
-- [TODO] (M3-3) Parse calls + indexing + assignment expressions
+- [DONE] (M3-3) Parse calls + indexing + assignment expressions
 - [TODO] (M3-4) Add `--dump-ast` for expressions (dev flag)
 
 ## Milestone 4 — Statement parser
