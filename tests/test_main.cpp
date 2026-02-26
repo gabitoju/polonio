@@ -4,6 +4,7 @@
 #include "third_party/doctest/doctest.h"
 
 #include "polonio/common/source.h"
+#include "polonio/common/location.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -167,4 +168,35 @@ TEST_CASE("Source::from_file throws when file is missing") {
         std::filesystem::remove(missing);
     }
     CHECK_THROWS_WITH_AS(polonio::Source::from_file(missing), doctest::Contains(missing.c_str()), std::runtime_error);
+}
+
+TEST_CASE("Location start is beginning of file") {
+    polonio::Location loc = polonio::Location::start();
+    CHECK(loc.offset == 0);
+    CHECK(loc.line == 1);
+    CHECK(loc.column == 1);
+}
+
+TEST_CASE("Location advance across simple text") {
+    polonio::Location loc = polonio::Location::start();
+    loc = polonio::advance(loc, "abc");
+    CHECK(loc.offset == 3);
+    CHECK(loc.line == 1);
+    CHECK(loc.column == 4);
+}
+
+TEST_CASE("Location advance handles newline transitions") {
+    polonio::Location loc = polonio::Location::start();
+    loc = polonio::advance(loc, "a\nb");
+    CHECK(loc.offset == 3);
+    CHECK(loc.line == 2);
+    CHECK(loc.column == 2);
+}
+
+TEST_CASE("Location advance handles multiple newlines") {
+    polonio::Location loc = polonio::Location::start();
+    loc = polonio::advance(loc, "line1\n\nline2");
+    CHECK(loc.offset == 12);
+    CHECK(loc.line == 3);
+    CHECK(loc.column == 6);
 }
