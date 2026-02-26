@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -8,9 +9,18 @@
 
 namespace polonio {
 
+class Env;
+class Stmt;
+
 struct FunctionValue {
-    std::size_t id = 0;
-    bool operator==(const FunctionValue& other) const { return id == other.id; }
+    std::string name;
+    std::vector<std::string> params;
+    std::vector<std::shared_ptr<Stmt>> body;
+    std::shared_ptr<Env> closure;
+
+    bool operator==(const FunctionValue& other) const {
+        return name == other.name && params == other.params && body == other.body && closure == other.closure;
+    }
 };
 
 class Value {

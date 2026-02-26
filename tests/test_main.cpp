@@ -543,28 +543,28 @@ TEST_CASE("Parser rejects invalid assignment targets") {
 namespace {
 
 std::string parse_program(const std::string& input) {
-    polonio::Lexer lexer(input);
+    polonio::Lexer lexer(input, "test.pol");
     auto tokens = lexer.scan_all();
-    polonio::Parser parser(tokens);
+    polonio::Parser parser(tokens, "test.pol");
     auto program = parser.parse_program();
     return program.dump();
 }
 
 polonio::Value eval_runtime_expr(const std::string& input) {
-    polonio::Lexer lexer(input);
+    polonio::Lexer lexer(input, "test.pol");
     auto tokens = lexer.scan_all();
-    polonio::Parser parser(tokens);
+    polonio::Parser parser(tokens, "test.pol");
     auto expr = parser.parse_expression();
-    polonio::Interpreter interpreter;
+    polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), "test.pol");
     return interpreter.eval_expr(expr);
 }
 
 std::string run_program_output(const std::string& input) {
-    polonio::Lexer lexer(input);
+    polonio::Lexer lexer(input, "test.pol");
     auto tokens = lexer.scan_all();
-    polonio::Parser parser(tokens);
+    polonio::Parser parser(tokens, "test.pol");
     auto program = parser.parse_program();
-    polonio::Interpreter interpreter;
+    polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), "test.pol");
     interpreter.exec_program(program);
     return interpreter.output();
 }
@@ -749,7 +749,9 @@ TEST_CASE("Value reports type names") {
     polonio::Value object_value(obj);
     CHECK(object_value.type_name() == "object");
 
-    polonio::FunctionValue fn{1};
+    polonio::FunctionValue fn;
+    fn.name = "fn";
+    fn.closure = std::make_shared<polonio::Env>();
     polonio::Value fn_value(fn);
     CHECK(fn_value.type_name() == "function");
 }
@@ -856,4 +858,81 @@ TEST_CASE("Interpreter reports runtime errors") {
     }
 
     CHECK_THROWS_AS(run_program_output("var arr = [1]; arr[0] = 2"), polonio::PolonioError);
+}
+
+TEST_CASE("Interpreter executes functions with returns") {
+    const char* src = R"(
+function add(a, b)
+  return a + b
+end
+echo add(10, 20)
+)";
+    CHECK(run_program_output(src) == "30");
+}
+
+TEST_CASE("Interpreter treats missing arguments as null") {
+    const char* src = R"(
+function f(a, b)
+  if b == null
+    return 99
+  end
+  return b
+end
+echo f(1)
+)";
+    CHECK(run_program_output(src) == "99");
+}
+
+TEST_CASE("Interpreter supports recursive calls") {
+    const char* src = R"(
+function fact(n)
+  if n <= 1
+    return 1
+  end
+  return n * fact(n - 1)
+end
+echo fact(5)
+)";
+    CHECK(run_program_output(src) == "120");
+}
+
+TEST_CASE("Interpreter supports closures that capture variables") {
+    const char* src = R"(
+function make_adder(x)
+  function add(y)
+    return x + y
+  end
+  return add
+end
+var inc = make_adder(1)
+echo inc(41)
+)";
+    CHECK(run_program_output(src) == "42");
+}
+
+TEST_CASE("Interpreter handles return without value") {
+    const char* src = R"(
+function f()
+  return
+end
+var x = f()
+echo x
+)";
+    CHECK(run_program_output(src) == "");
+}
+
+TEST_CASE("Interpreter errors when calling a non-function") {
+    const char* src = R"(
+var x = 1
+echo x(1)
+)";
+    bool threw = false;
+    try {
+        run_program_output(src);
+    } catch (const polonio::PolonioError& err) {
+        threw = true;
+        CHECK(err.kind() == polonio::ErrorKind::Runtime);
+        CHECK(err.message().find("non-function") != std::string::npos);
+    }
+    CHECK(threw);
 }

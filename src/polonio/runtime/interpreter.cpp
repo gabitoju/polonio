@@ -4,6 +4,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include "polonio/common/error.h"
 
@@ -41,6 +42,10 @@ void Interpreter::exec_stmt(const StmtPtr& stmt) {
     }
     if (auto fn = std::dynamic_pointer_cast<FunctionStmt>(stmt)) {
         exec_function(*fn);
+        return;
+    }
+    if (auto if_stmt = std::dynamic_pointer_cast<IfStmt>(stmt)) {
+        exec_if(*if_stmt);
         return;
     }
     runtime_error("statement type not supported yet");
@@ -195,6 +200,9 @@ Value Interpreter::eval_binary(const BinaryExpr& binary) {
 }
 
 Value Interpreter::eval_assignment(const AssignmentExpr& assignment) {
+    if (std::dynamic_pointer_cast<IndexExpr>(assignment.target())) {
+        runtime_error("index assignment not supported yet");
+    }
     auto ident = std::dynamic_pointer_cast<IdentifierExpr>(assignment.target());
     if (!ident) {
         runtime_error("assignment target must be an identifier");
@@ -258,8 +266,46 @@ Value Interpreter::eval_assignment(const AssignmentExpr& assignment) {
     runtime_error("unsupported assignment operator: " + op);
 }
 
-Value Interpreter::eval_call(const CallExpr&) {
-    runtime_error("function calls are not supported yet");
+Value Interpreter::eval_call(const CallExpr& call) {
+    Value callee = eval_expr_internal(call.callee());
+    if (!std::holds_alternative<FunctionValue>(callee.storage())) {
+        runtime_error("attempt to call non-function value");
+    }
+    const auto& function = std::get<FunctionValue>(callee.storage());
+
+    std::vector<Value> args;
+    args.reserve(call.args().size());
+    for (const auto& arg_expr : call.args()) {
+        args.push_back(eval_expr_internal(arg_expr));
+    }
+
+    auto closure_env = function.closure ? function.closure : std::make_shared<Env>();
+    auto call_env = std::make_shared<Env>(closure_env);
+    for (std::size_t i = 0; i < function.params.size(); ++i) {
+        Value arg_value = i < args.size() ? args[i] : Value();
+        call_env->set_local(function.params[i], arg_value);
+    }
+    if (!function.name.empty()) {
+        call_env->set_local(function.name, callee);
+    }
+
+    auto previous_env = env_;
+    env_ = call_env;
+    call_depth_ += 1;
+    try {
+        exec_block(function.body);
+        env_ = previous_env;
+        call_depth_ -= 1;
+        return Value();
+    } catch (const ReturnSignal& signal) {
+        env_ = previous_env;
+        call_depth_ -= 1;
+        return signal.value();
+    } catch (...) {
+        env_ = previous_env;
+        call_depth_ -= 1;
+        throw;
+    }
 }
 
 Value Interpreter::eval_index(const IndexExpr& index) {
@@ -327,14 +373,43 @@ void Interpreter::exec_echo(const EchoStmt& stmt) {
 
 void Interpreter::exec_expr_stmt(const ExprStmt& stmt) { (void)eval_expr_internal(stmt.expr()); }
 
-void Interpreter::exec_return(const ReturnStmt&) {
-    runtime_error("return statements not supported outside functions yet");
+void Interpreter::exec_return(const ReturnStmt& stmt) {
+    if (call_depth_ == 0) {
+        runtime_error("return outside of function");
+    }
+    Value value;
+    if (stmt.has_value()) {
+        value = eval_expr_internal(stmt.value());
+    }
+    throw ReturnSignal(std::move(value));
 }
 
 void Interpreter::exec_function(const FunctionStmt& stmt) {
     FunctionValue fn_value;
-    fn_value.id = next_function_id_++;
+    fn_value.name = stmt.name();
+    fn_value.params = stmt.params();
+    fn_value.body = stmt.body();
+    fn_value.closure = env_;
     env_->set_local(stmt.name(), Value(fn_value));
+}
+
+void Interpreter::exec_if(const IfStmt& stmt) {
+    for (const auto& branch : stmt.branches()) {
+        Value condition = eval_expr_internal(branch.condition);
+        if (condition.is_truthy()) {
+            exec_block(branch.body);
+            return;
+        }
+    }
+    if (!stmt.else_body().empty()) {
+        exec_block(stmt.else_body());
+    }
+}
+
+void Interpreter::exec_block(const std::vector<StmtPtr>& statements) {
+    for (const auto& stmt : statements) {
+        exec_stmt(stmt);
+    }
 }
 
 [[noreturn]] void Interpreter::runtime_error(const std::string& message) {
@@ -353,13 +428,6 @@ double Interpreter::require_number(const Value& value, const std::string& contex
         runtime_error(context + " expects numbers");
     }
     return std::get<double>(value.storage());
-}
-
-std::string Interpreter::require_string_value(const Value& value, const std::string& context) {
-    if (!std::holds_alternative<std::string>(value.storage())) {
-        runtime_error(context + " expects strings");
-    }
-    return std::get<std::string>(value.storage());
 }
 
 std::string Interpreter::decode_string(const std::string& literal) {

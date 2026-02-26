@@ -1,13 +1,25 @@
 #pragma once
 
+#include <exception>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "polonio/parser/ast.h"
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/output.h"
 
 namespace polonio {
+
+class ReturnSignal : public std::exception {
+public:
+    explicit ReturnSignal(Value value) : value_(std::move(value)) {}
+    const Value& value() const { return value_; }
+    const char* what() const noexcept override { return "return"; }
+
+private:
+    Value value_;
+};
 
 class Interpreter {
 public:
@@ -37,11 +49,12 @@ private:
     void exec_expr_stmt(const ExprStmt& stmt);
     void exec_return(const ReturnStmt& stmt);
     void exec_function(const FunctionStmt& stmt);
+    void exec_if(const IfStmt& stmt);
+    void exec_block(const std::vector<StmtPtr>& statements);
 
     [[noreturn]] void runtime_error(const std::string& message);
     Value lookup_identifier(const std::string& name);
     double require_number(const Value& value, const std::string& context);
-    std::string require_string_value(const Value& value, const std::string& context);
 
     static std::string decode_string(const std::string& literal);
     std::string stringify_for_concat(const Value& value) const;
@@ -49,7 +62,7 @@ private:
     std::shared_ptr<Env> env_;
     OutputBuffer output_;
     std::string path_;
-    std::size_t next_function_id_ = 1;
+    int call_depth_ = 0;
 };
 
 } // namespace polonio
