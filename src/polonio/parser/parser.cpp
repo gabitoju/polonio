@@ -126,8 +126,42 @@ ExprPtr Parser::primary() {
         consume(TokenKind::RightParen, "expected ')' after expression");
         return expr;
     }
+    if (match(TokenKind::LeftBracket)) {
+        return array_literal();
+    }
+    if (match(TokenKind::LeftBrace)) {
+        return object_literal();
+    }
 
     error(peek(), "expected expression");
+}
+
+ExprPtr Parser::array_literal() {
+    std::vector<ExprPtr> elements;
+    if (!check(TokenKind::RightBracket)) {
+        do {
+            elements.push_back(expression());
+        } while (match(TokenKind::Comma));
+    }
+    consume(TokenKind::RightBracket, "expected ']' after array literal");
+    return std::make_shared<ArrayLiteralExpr>(std::move(elements));
+}
+
+ExprPtr Parser::object_literal() {
+    std::vector<std::pair<std::string, ExprPtr>> fields;
+    if (!check(TokenKind::RightBrace)) {
+        do {
+            if (!match(TokenKind::String)) {
+                error(peek(), "expected string key in object literal");
+            }
+            std::string key = previous().lexeme;
+            consume(TokenKind::Colon, "expected ':' after object key");
+            auto value = expression();
+            fields.emplace_back(key, value);
+        } while (match(TokenKind::Comma));
+    }
+    consume(TokenKind::RightBrace, "expected '}' after object literal");
+    return std::make_shared<ObjectLiteralExpr>(std::move(fields));
 }
 
 const Token& Parser::peek() const { return tokens_[current_]; }

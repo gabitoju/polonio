@@ -463,3 +463,40 @@ TEST_CASE("Parser errors on stray closing paren") {
     }
     CHECK(threw);
 }
+
+TEST_CASE("Parser parses array literals") {
+    CHECK(parse_expr("[1, 2, 3]") == "array(num(1), num(2), num(3))");
+    CHECK(parse_expr("[1, [2, 3], 4]") == "array(num(1), array(num(2), num(3)), num(4))");
+}
+
+TEST_CASE("Parser parses object literals") {
+    CHECK(parse_expr("{\"name\": \"Juan\", \"age\": 42}") ==
+          "object(\"name\": str(\"Juan\"), \"age\": num(42))");
+}
+
+TEST_CASE("Parser handles nested array/object combinations") {
+    CHECK(parse_expr("[{\"name\": \"Juan\"}, 42]") ==
+          "array(object(\"name\": str(\"Juan\")), num(42))");
+}
+
+TEST_CASE("Parser errors on unterminated array") {
+    polonio::Lexer lexer("[1, 2");
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
+}
+
+TEST_CASE("Parser errors on invalid object syntax") {
+    {
+        polonio::Lexer lexer("{\"a\" 1}");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
+    }
+    {
+        polonio::Lexer lexer("{a: 1}");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
+    }
+}
