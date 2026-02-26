@@ -150,4 +150,70 @@ private:
     ExprPtr value_;
 };
 
+class Stmt {
+public:
+    virtual ~Stmt() = default;
+    virtual std::string dump() const = 0;
+};
+
+using StmtPtr = std::shared_ptr<Stmt>;
+
+class VarDeclStmt : public Stmt {
+public:
+    VarDeclStmt(std::string name, ExprPtr initializer)
+        : name_(std::move(name)), initializer_(std::move(initializer)) {}
+
+    std::string dump() const override {
+        if (initializer_) {
+            return "Var(" + name_ + ", " + initializer_->dump() + ")";
+        }
+        return "Var(" + name_ + ")";
+    }
+
+private:
+    std::string name_;
+    ExprPtr initializer_;
+};
+
+class EchoStmt : public Stmt {
+public:
+    explicit EchoStmt(ExprPtr expr) : expr_(std::move(expr)) {}
+
+    std::string dump() const override { return "Echo(" + expr_->dump() + ")"; }
+
+private:
+    ExprPtr expr_;
+};
+
+class ExprStmt : public Stmt {
+public:
+    explicit ExprStmt(ExprPtr expr) : expr_(std::move(expr)) {}
+
+    std::string dump() const override { return "Expr(" + expr_->dump() + ")"; }
+
+private:
+    ExprPtr expr_;
+};
+
+class Program {
+public:
+    explicit Program(std::vector<StmtPtr> statements)
+        : statements_(std::move(statements)) {}
+
+    const std::vector<StmtPtr>& statements() const { return statements_; }
+
+    std::string dump() const {
+        std::string out = "Program(";
+        for (std::size_t i = 0; i < statements_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += statements_[i]->dump();
+        }
+        out += ')';
+        return out;
+    }
+
+private:
+    std::vector<StmtPtr> statements_;
+};
+
 } // namespace polonio
