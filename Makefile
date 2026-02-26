@@ -23,7 +23,7 @@ $(POLONIO_BIN): $(BUILD_DIR) $(SRC_FILES)
 $(POLONIO_TEST_BIN): $(BUILD_DIR) $(TEST_FILES) third_party/doctest/doctest.h
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TEST_FILES) -o $@
 
-test: $(POLONIO_TEST_BIN)
+test: $(POLONIO_BIN) $(POLONIO_TEST_BIN)
 	$(POLONIO_TEST_BIN)
 
 clean:
