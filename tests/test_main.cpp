@@ -7,6 +7,7 @@
 #include "polonio/common/location.h"
 #include "polonio/common/error.h"
 #include "polonio/lexer/lexer.h"
+#include "polonio/parser/parser.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -235,6 +236,14 @@ std::vector<polonio::TokenKind> kinds(const std::vector<polonio::Token>& tokens)
     return result;
 }
 
+std::string parse_expr(const std::string& input) {
+    polonio::Lexer lexer(input);
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    auto expr = parser.parse_expression();
+    return expr->dump();
+}
+
 } // namespace
 
 TEST_CASE("Lexer recognizes keywords and identifiers") {
@@ -410,6 +419,47 @@ TEST_CASE("Lexer errors on unterminated block comment") {
         CHECK(err.kind() == polonio::ErrorKind::Lex);
         CHECK(err.location().line == 1);
         CHECK(err.location().column == 7);
+    }
+    CHECK(threw);
+}
+
+TEST_CASE("Parser respects arithmetic precedence") {
+    CHECK(parse_expr("1 + 2 * 3") == "(+ num(1) (* num(2) num(3)))");
+    CHECK(parse_expr("(1 + 2) * 3") == "(* (+ num(1) num(2)) num(3))");
+}
+
+TEST_CASE("Parser handles concat precedence") {
+    CHECK(parse_expr("1 .. 2 + 3") == "(.. num(1) (+ num(2) num(3)))");
+}
+
+TEST_CASE("Parser handles comparison and equality") {
+    CHECK(parse_expr("1 < 2 == true") == "(== (< num(1) num(2)) bool(true))");
+}
+
+TEST_CASE("Parser handles logical operators") {
+    CHECK(parse_expr("not true or false") == "(or (not bool(true)) bool(false))");
+    CHECK(parse_expr("true and false or true") == "(or (and bool(true) bool(false)) bool(true))");
+}
+
+TEST_CASE("Parser errors on incomplete expression") {
+    polonio::Lexer lexer("1 +");
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
+}
+
+TEST_CASE("Parser errors on stray closing paren") {
+    polonio::Lexer lexer(")");
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    bool threw = false;
+    try {
+        parser.parse_expression();
+    } catch (const polonio::PolonioError& err) {
+        threw = true;
+        CHECK(err.kind() == polonio::ErrorKind::Parse);
+        CHECK(err.location().line == 1);
+        CHECK(err.location().column == 1);
     }
     CHECK(threw);
 }

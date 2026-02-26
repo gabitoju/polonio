@@ -20,7 +20,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M2-3) Lexer: block comments `/* ... */` + unterminated errors
 
 ## Milestone 3 — Expression parser
-- [TODO] (M3-1) AST nodes + expression parser (Pratt) for precedence
+- [DONE] (M3-1) AST nodes + expression parser (Pratt) for precedence
 - [TODO] (M3-2) Parse array/object literals
 - [TODO] (M3-3) Parse calls + indexing + assignment expressions
 - [TODO] (M3-4) Add `--dump-ast` for expressions (dev flag)
