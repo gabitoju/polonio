@@ -12,7 +12,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 1 — Source model + errors
 - [DONE] (M1-1) Source loader with path + in-memory buffer
 - [TODO] (M1-2) Location/span tracking utilities
-- [TODO] (M1-3) Unified error formatting: `file:line:col: message`
+- [DONE] (M1-3) Unified error formatting: `file:line:col: message`
 
 ## Milestone 2 — Lexer
 - [TODO] (M2-1) Lexer: identifiers + keywords + numbers + strings

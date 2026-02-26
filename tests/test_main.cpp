@@ -4,6 +4,8 @@
 #include "third_party/doctest/doctest.h"
 
 #include "polonio/common/source.h"
+#include "polonio/common/location.h"
+#include "polonio/common/error.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -166,5 +168,26 @@ TEST_CASE("Source::from_file throws when file is missing") {
     if (std::filesystem::exists(missing)) {
         std::filesystem::remove(missing);
     }
-    CHECK_THROWS_WITH_AS(polonio::Source::from_file(missing), doctest::Contains(missing.c_str()), std::runtime_error);
+
+    CHECK_THROWS_AS(polonio::Source::from_file(missing), polonio::PolonioError);
+
+    try {
+        polonio::Source::from_file(missing);
+        FAIL_CHECK("expected PolonioError");
+    } catch (const polonio::PolonioError& err) {
+        CHECK(err.kind() == polonio::ErrorKind::IO);
+        auto formatted = err.format();
+        CHECK(formatted.find(missing) != std::string::npos);
+        CHECK(formatted.find(":1:1:") != std::string::npos);
+    }
+}
+
+TEST_CASE("PolonioError format includes path and location") {
+    polonio::PolonioError err(
+        polonio::ErrorKind::Parse,
+        "unexpected token",
+        "example.pol",
+        polonio::Location{5, 2, 3}
+    );
+    CHECK(err.format() == std::string("example.pol:2:3: unexpected token"));
 }
