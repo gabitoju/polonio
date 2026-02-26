@@ -6,6 +6,7 @@
 #include "polonio/common/source.h"
 #include "polonio/common/location.h"
 #include "polonio/common/error.h"
+#include "polonio/lexer/lexer.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -221,4 +222,66 @@ TEST_CASE("Location advance handles multiple newlines") {
     CHECK(loc.offset == 12);
     CHECK(loc.line == 3);
     CHECK(loc.column == 6);
+}
+
+namespace {
+
+std::vector<polonio::TokenKind> kinds(const std::vector<polonio::Token>& tokens) {
+    std::vector<polonio::TokenKind> result;
+    result.reserve(tokens.size());
+    for (const auto& token : tokens) {
+        result.push_back(token.kind);
+    }
+    return result;
+}
+
+} // namespace
+
+TEST_CASE("Lexer recognizes keywords and identifiers") {
+    polonio::Lexer lexer("var name function foo echo true false null and or not end");
+    auto tokens = lexer.scan_all();
+    auto kinds_only = kinds(tokens);
+    std::vector<polonio::TokenKind> expected = {
+        polonio::TokenKind::Var,
+        polonio::TokenKind::Identifier,
+        polonio::TokenKind::Function,
+        polonio::TokenKind::Identifier,
+        polonio::TokenKind::Echo,
+        polonio::TokenKind::True,
+        polonio::TokenKind::False,
+        polonio::TokenKind::Null,
+        polonio::TokenKind::And,
+        polonio::TokenKind::Or,
+        polonio::TokenKind::Not,
+        polonio::TokenKind::End,
+        polonio::TokenKind::EndOfFile,
+    };
+    CHECK(kinds_only == expected);
+    CHECK(tokens[1].lexeme == "name");
+    CHECK(tokens[3].lexeme == "foo");
+}
+
+TEST_CASE("Lexer parses numbers") {
+    polonio::Lexer lexer("0 42 3.14 10.0");
+    auto tokens = lexer.scan_all();
+    CHECK(tokens[0].lexeme == "0");
+    CHECK(tokens[1].lexeme == "42");
+    CHECK(tokens[2].lexeme == "3.14");
+    CHECK(tokens[3].lexeme == "10.0");
+}
+
+TEST_CASE("Lexer parses string literals") {
+    polonio::Lexer lexer("\"hi\" 'hi' \"a\\n\\t\\\\\\\"\"");
+    auto tokens = lexer.scan_all();
+    CHECK(tokens[0].lexeme == "\"hi\"");
+    CHECK(tokens[1].lexeme == "'hi'");
+    CHECK(tokens[2].lexeme == "\"a\\n\\t\\\\\\\"\"");
+}
+
+TEST_CASE("Lexer tracks location across lines") {
+    polonio::Lexer lexer("var x\nvar y");
+    auto tokens = lexer.scan_all();
+    CHECK(tokens[0].span.start.line == 1);
+    CHECK(tokens[2].span.start.line == 2);
+    CHECK(tokens[2].span.start.column == 1);
 }
