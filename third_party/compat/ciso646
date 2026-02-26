@@ -1,0 +1,1 @@
+// Minimal placeholder for <ciso646> to satisfy doctest on systems lacking the header.

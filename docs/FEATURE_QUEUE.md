@@ -1,0 +1,63 @@
+# Feature Queue (Polonio v0.1)
+
+Rule: Work top-to-bottom. Pick the first TODO item only.
+
+Legend: TODO | DOING | DONE | BLOCKED
+
+## Milestone 0 — Build + CLI skeleton
+- [DONE] (M0-1) Add doctest test runner and `make test`
+- [TODO] (M0-2) Implement CLI: `help`, `version`
+- [TODO] (M0-3) Parse `run <file.pol>` and shorthand `<file.pol>` (stub execution)
+
+## Milestone 1 — Source model + errors
+- [TODO] (M1-1) Source loader with path + in-memory buffer
+- [TODO] (M1-2) Location/span tracking utilities
+- [TODO] (M1-3) Unified error formatting: `file:line:col: message`
+
+## Milestone 2 — Lexer
+- [TODO] (M2-1) Lexer: identifiers + keywords + numbers + strings
+- [TODO] (M2-2) Lexer: operators + punctuation + compound ops
+- [TODO] (M2-3) Lexer: block comments `/* ... */` + unterminated errors
+
+## Milestone 3 — Expression parser
+- [TODO] (M3-1) AST nodes + expression parser (Pratt) for precedence
+- [TODO] (M3-2) Parse array/object literals
+- [TODO] (M3-3) Parse calls + indexing + assignment expressions
+- [TODO] (M3-4) Add `--dump-ast` for expressions (dev flag)
+
+## Milestone 4 — Statement parser
+- [TODO] (M4-1) Parse: `var`, `echo`, expression statements
+- [TODO] (M4-2) Parse: `if/elseif/else/end`
+- [TODO] (M4-3) Parse: `for/in/end` and `while/end`
+- [TODO] (M4-4) Parse: `function/end` and `return`
+
+## Milestone 5 — Runtime core
+- [TODO] (M5-1) Value type + env scopes + truthiness + equality
+- [TODO] (M5-2) Execute statements + expressions
+- [TODO] (M5-3) Functions + closures + recursion
+- [TODO] (M5-4) Loops + break/continue
+
+## Milestone 6A — Builtins minimal
+- [TODO] (M6A-1) Output: echo/print/println + output buffer
+- [TODO] (M6A-2) String: len + htmlspecialchars + nl2br
+- [TODO] (M6A-3) Count/type conversions: count/type/to_string/to_number
+
+## Milestone 7 — Template engine
+- [TODO] (M7-1) Template scanner: TEXT vs CODE segments
+- [TODO] (M7-2) `$var` interpolation in TEXT + HTML comment stripping rule
+- [TODO] (M7-3) Spanning blocks: if/for across HTML
+
+## Milestone 8 — Superglobals
+- [TODO] (M8-1) `_SERVER` minimal population
+- [TODO] (M8-2) `_GET` query parsing
+- [TODO] (M8-3) `_COOKIE` parsing
+- [TODO] (M8-4) `_POST` x-www-form-urlencoded parsing
+
+## Milestone 9 — CGI mode
+- [TODO] (M9-1) CGI auto-detect + read env/stdin + headers + render
+- [TODO] (M9-2) Integration tests for CGI mode
+
+## Milestone 10 — Dev server
+- [TODO] (M10-1) `polonio serve` basic server + routing + static files
+- [TODO] (M10-2) Populate superglobals in server mode
+- [TODO] (M10-3) Smoke test doc + minimal automated test if feasible
