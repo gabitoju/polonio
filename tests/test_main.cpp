@@ -670,3 +670,37 @@ TEST_CASE("Statement parser errors on malformed loops") {
         CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
     }
 }
+
+TEST_CASE("Statement parser handles function declarations") {
+    CHECK(parse_program("function ping() end") == "Program(Function(ping, [], []))");
+
+    const char* src = "function greet(name) echo name end";
+    CHECK(parse_program(src) ==
+          "Program(Function(greet, [name], [Echo(ident(name))]))");
+
+    const char* nested = "if true function inner(a, b) return a end end";
+    CHECK(parse_program(nested) ==
+          "Program(If(Branch(bool(true), [Function(inner, [a, b], [Return(ident(a))])])))");
+}
+
+TEST_CASE("Statement parser handles return statements") {
+    CHECK(parse_program("return 42") == "Program(Return(num(42)))");
+    CHECK(parse_program("return") == "Program(Return())");
+}
+
+TEST_CASE("Statement parser errors on malformed functions") {
+    std::vector<std::string> cases = {
+        "function () end",
+        "function foo end",
+        "function foo( end",
+        "function foo(a,) end",
+        "function foo(a b) end",
+        "function foo()",
+    };
+    for (const auto& src : cases) {
+        polonio::Lexer lexer(src);
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+}

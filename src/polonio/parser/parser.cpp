@@ -1,6 +1,8 @@
 #include "polonio/parser/parser.h"
 
+#include <algorithm>
 #include <initializer_list>
+#include <optional>
 #include <utility>
 
 namespace polonio {
@@ -223,6 +225,9 @@ StmtPtr Parser::declaration() {
     if (match(TokenKind::Var)) {
         return var_declaration();
     }
+    if (match(TokenKind::Function)) {
+        return function_declaration();
+    }
     return statement();
 }
 
@@ -251,7 +256,29 @@ StmtPtr Parser::statement() {
     if (match(TokenKind::For)) {
         return for_statement();
     }
+    if (match(TokenKind::Return)) {
+        return return_statement();
+    }
     return expression_statement();
+}
+
+StmtPtr Parser::function_declaration() {
+    auto name_token = consume(TokenKind::Identifier, "expected function name");
+    std::string name = name_token.lexeme;
+    consume(TokenKind::LeftParen, "expected '(' after function name");
+    std::vector<std::string> params;
+    if (!check(TokenKind::RightParen)) {
+        do {
+            if (!match(TokenKind::Identifier)) {
+                error(peek(), "expected parameter name");
+            }
+            params.push_back(previous().lexeme);
+        } while (match(TokenKind::Comma));
+    }
+    consume(TokenKind::RightParen, "expected ')' after function parameters");
+    auto body = block_until({TokenKind::End});
+    consume(TokenKind::End, "expected 'end' after function body");
+    return std::make_shared<FunctionStmt>(name, std::move(params), std::move(body));
 }
 
 StmtPtr Parser::echo_statement() {
@@ -327,6 +354,15 @@ StmtPtr Parser::for_statement() {
     auto body = block_until({TokenKind::End});
     consume(TokenKind::End, "expected 'end' after for loop");
     return std::make_shared<ForStmt>(std::move(index_name), value_name, iterable, std::move(body));
+}
+
+StmtPtr Parser::return_statement() {
+    ExprPtr value;
+    if (!(check(TokenKind::End) || check(TokenKind::Else) || check(TokenKind::ElseIf) ||
+          check(TokenKind::EndOfFile) || check(TokenKind::Semicolon))) {
+        value = assignment();
+    }
+    return std::make_shared<ReturnStmt>(value);
 }
 
 const Token& Parser::peek() const { return tokens_[current_]; }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -304,6 +305,51 @@ private:
     std::optional<std::string> index_name_;
     std::string value_name_;
     ExprPtr iterable_;
+    std::vector<StmtPtr> body_;
+};
+
+class ReturnStmt : public Stmt {
+public:
+    explicit ReturnStmt(ExprPtr value) : value_(std::move(value)) {}
+
+    std::string dump() const override {
+        if (value_) {
+            return "Return(" + value_->dump() + ")";
+        }
+        return "Return()";
+    }
+
+private:
+    ExprPtr value_;
+};
+
+class FunctionStmt : public Stmt {
+public:
+    FunctionStmt(std::string name,
+                 std::vector<std::string> params,
+                 std::vector<StmtPtr> body)
+        : name_(std::move(name)),
+          params_(std::move(params)),
+          body_(std::move(body)) {}
+
+    std::string dump() const override {
+        std::string out = "Function(" + name_ + ", [";
+        for (std::size_t i = 0; i < params_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += params_[i];
+        }
+        out += "], [";
+        for (std::size_t i = 0; i < body_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += body_[i]->dump();
+        }
+        out += "])";
+        return out;
+    }
+
+private:
+    std::string name_;
+    std::vector<std::string> params_;
     std::vector<StmtPtr> body_;
 };
 
