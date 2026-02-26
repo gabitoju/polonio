@@ -254,4 +254,57 @@ private:
     std::vector<StmtPtr> else_body_;
 };
 
+class WhileStmt : public Stmt {
+public:
+    WhileStmt(ExprPtr condition, std::vector<StmtPtr> body)
+        : condition_(std::move(condition)), body_(std::move(body)) {}
+
+    std::string dump() const override {
+        std::string out = "While(" + condition_->dump() + ", [";
+        for (std::size_t i = 0; i < body_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += body_[i]->dump();
+        }
+        out += "])";
+        return out;
+    }
+
+private:
+    ExprPtr condition_;
+    std::vector<StmtPtr> body_;
+};
+
+class ForStmt : public Stmt {
+public:
+    ForStmt(std::optional<std::string> index_name,
+            std::string value_name,
+            ExprPtr iterable,
+            std::vector<StmtPtr> body)
+        : index_name_(std::move(index_name)),
+          value_name_(std::move(value_name)),
+          iterable_(std::move(iterable)),
+          body_(std::move(body)) {}
+
+    std::string dump() const override {
+        std::string out = "For(";
+        if (index_name_) {
+            out += *index_name_ + ", " + value_name_ + ", " + iterable_->dump() + ", [";
+        } else {
+            out += value_name_ + ", " + iterable_->dump() + ", [";
+        }
+        for (std::size_t i = 0; i < body_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += body_[i]->dump();
+        }
+        out += "])";
+        return out;
+    }
+
+private:
+    std::optional<std::string> index_name_;
+    std::string value_name_;
+    ExprPtr iterable_;
+    std::vector<StmtPtr> body_;
+};
+
 } // namespace polonio

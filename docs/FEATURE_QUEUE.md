@@ -28,7 +28,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 4 — Statement parser
 - [DONE] (M4-1) Parse: `var`, `echo`, expression statements
 - [DONE] (M4-2) Parse: `if/elseif/else/end`
-- [TODO] (M4-3) Parse: `for/in/end` and `while/end`
+- [DONE] (M4-3) Parse: `for/in/end` and `while/end`
 - [TODO] (M4-4) Parse: `function/end` and `return`
 
 ## Milestone 5 — Runtime core

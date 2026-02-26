@@ -245,6 +245,12 @@ StmtPtr Parser::statement() {
     if (match(TokenKind::If)) {
         return if_statement();
     }
+    if (match(TokenKind::While)) {
+        return while_statement();
+    }
+    if (match(TokenKind::For)) {
+        return for_statement();
+    }
     return expression_statement();
 }
 
@@ -289,6 +295,38 @@ std::vector<StmtPtr> Parser::block_until(std::initializer_list<TokenKind> termin
         error(peek(), "unexpected end of file in block");
     }
     return stmts;
+}
+
+StmtPtr Parser::while_statement() {
+    auto condition = assignment();
+    auto body = block_until({TokenKind::End});
+    consume(TokenKind::End, "expected 'end' after while loop");
+    return std::make_shared<WhileStmt>(condition, std::move(body));
+}
+
+StmtPtr Parser::for_statement() {
+    if (!match(TokenKind::Identifier)) {
+        error(peek(), "expected identifier after 'for'");
+    }
+    std::string first = previous().lexeme;
+    std::optional<std::string> index_name;
+    std::string value_name;
+    if (match(TokenKind::Comma)) {
+        index_name = first;
+        if (!match(TokenKind::Identifier)) {
+            error(peek(), "expected second identifier in for loop");
+        }
+        value_name = previous().lexeme;
+    } else {
+        value_name = first;
+    }
+    if (!match(TokenKind::In)) {
+        error(peek(), "expected 'in' in for loop");
+    }
+    auto iterable = assignment();
+    auto body = block_until({TokenKind::End});
+    consume(TokenKind::End, "expected 'end' after for loop");
+    return std::make_shared<ForStmt>(std::move(index_name), value_name, iterable, std::move(body));
 }
 
 const Token& Parser::peek() const { return tokens_[current_]; }
