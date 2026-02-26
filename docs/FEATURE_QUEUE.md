@@ -15,7 +15,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M1-3) Unified error formatting: `file:line:col: message`
 
 ## Milestone 2 — Lexer
-- [TODO] (M2-1) Lexer: identifiers + keywords + numbers + strings
+- [DONE] (M2-1) Lexer: identifiers + keywords + numbers + strings
 - [TODO] (M2-2) Lexer: operators + punctuation + compound ops
 - [TODO] (M2-3) Lexer: block comments `/* ... */` + unterminated errors
 
