@@ -8,11 +8,14 @@
 #include "polonio/common/error.h"
 #include "polonio/lexer/lexer.h"
 #include "polonio/parser/parser.h"
+#include "polonio/runtime/value.h"
+#include "polonio/runtime/env.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -703,4 +706,93 @@ TEST_CASE("Statement parser errors on malformed functions") {
         polonio::Parser parser(tokens);
         CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
     }
+}
+
+TEST_CASE("Value reports type names") {
+    polonio::Value null_value;
+    CHECK(null_value.type_name() == "null");
+
+    polonio::Value bool_value(true);
+    CHECK(bool_value.type_name() == "bool");
+
+    polonio::Value number_value(1.5);
+    CHECK(number_value.type_name() == "number");
+
+    polonio::Value string_value("hi");
+    CHECK(string_value.type_name() == "string");
+
+    polonio::Value::Array arr = {polonio::Value(1), polonio::Value(2)};
+    polonio::Value array_value(arr);
+    CHECK(array_value.type_name() == "array");
+
+    polonio::Value::Object obj = {{"a", polonio::Value(1)}};
+    polonio::Value object_value(obj);
+    CHECK(object_value.type_name() == "object");
+
+    polonio::FunctionValue fn{1};
+    polonio::Value fn_value(fn);
+    CHECK(fn_value.type_name() == "function");
+}
+
+TEST_CASE("Value truthiness respects spec rules") {
+    CHECK_FALSE(polonio::Value().is_truthy());
+    CHECK_FALSE(polonio::Value(false).is_truthy());
+    CHECK_FALSE(polonio::Value(0).is_truthy());
+    CHECK(polonio::Value(0.1).is_truthy());
+    CHECK_FALSE(polonio::Value("").is_truthy());
+    CHECK(polonio::Value("x").is_truthy());
+    polonio::Value::Array arr;
+    CHECK(polonio::Value(arr).is_truthy());
+    polonio::Value::Object obj;
+    CHECK(polonio::Value(obj).is_truthy());
+}
+
+TEST_CASE("Value equality handles nested structures") {
+    CHECK(polonio::Value(1) == polonio::Value(1));
+    CHECK_FALSE(polonio::Value(1) == polonio::Value(2));
+    CHECK(polonio::Value("a") == polonio::Value("a"));
+    CHECK(polonio::Value() == polonio::Value());
+
+    polonio::Value::Array arr1 = {polonio::Value(1), polonio::Value(2)};
+    polonio::Value::Array arr2 = {polonio::Value(1), polonio::Value(2)};
+    CHECK(polonio::Value(arr1) == polonio::Value(arr2));
+
+    polonio::Value::Object obj1 = {{"a", polonio::Value(1)}};
+    polonio::Value::Object obj2 = {{"a", polonio::Value(1)}};
+    CHECK(polonio::Value(obj1) == polonio::Value(obj2));
+
+    polonio::Value::Object obj3 = {{"a", polonio::Value(2)}};
+    CHECK_FALSE(polonio::Value(obj1) == polonio::Value(obj3));
+}
+
+TEST_CASE("Env supports lexical scoping and assignment") {
+    auto global = std::make_shared<polonio::Env>();
+    global->set_local("x", polonio::Value(1));
+
+    auto child = std::make_shared<polonio::Env>(global);
+    auto* found = child->find("x");
+    REQUIRE(found != nullptr);
+    CHECK(*found == polonio::Value(1));
+
+    child->set_local("y", polonio::Value(2));
+    CHECK(global->find("y") == nullptr);
+
+    child->assign("x", polonio::Value(3));
+    auto* global_x = global->find("x");
+    REQUIRE(global_x != nullptr);
+    CHECK(*global_x == polonio::Value(3));
+
+    child->set_local("x", polonio::Value(9));
+    auto* child_x = child->find("x");
+    REQUIRE(child_x != nullptr);
+    CHECK(*child_x == polonio::Value(9));
+    global_x = global->find("x");
+    REQUIRE(global_x != nullptr);
+    CHECK(*global_x == polonio::Value(3));
+
+    child->assign("z", polonio::Value(7));
+    auto* child_z = child->find("z");
+    REQUIRE(child_z != nullptr);
+    CHECK(*child_z == polonio::Value(7));
+    CHECK(global->find("z") == nullptr);
 }

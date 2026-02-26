@@ -13,7 +13,9 @@ SRC_FILES := $(SRC_DIR)/main.cpp
 COMMON_SRC := $(SRC_DIR)/polonio/common/source.cpp \
               $(SRC_DIR)/polonio/common/error.cpp \
               $(SRC_DIR)/polonio/lexer/lexer.cpp \
-              $(SRC_DIR)/polonio/parser/parser.cpp
+              $(SRC_DIR)/polonio/parser/parser.cpp \
+              $(SRC_DIR)/polonio/runtime/value.cpp \
+              $(SRC_DIR)/polonio/runtime/env.cpp
 TEST_FILES := $(TESTS_DIR)/test_main.cpp
 
 all: $(POLONIO_BIN)
