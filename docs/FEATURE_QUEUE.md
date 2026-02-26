@@ -32,7 +32,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M4-4) Parse: `function/end` and `return`
 
 ## Milestone 5 — Runtime core
-- [TODO] (M5-1) Value type + env scopes + truthiness + equality
+- [DONE] (M5-1) Value type + env scopes + truthiness + equality
 - [TODO] (M5-2) Execute statements + expressions
 - [TODO] (M5-3) Functions + closures + recursion
 - [TODO] (M5-4) Loops + break/continue
