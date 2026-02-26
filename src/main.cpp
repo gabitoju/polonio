@@ -1,7 +1,10 @@
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
+
+#include "polonio/common/error.h"
 
 namespace {
 
@@ -47,39 +50,47 @@ bool is_known_command(const std::string& arg) {
 } // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
+    try {
+        if (argc < 2) {
+            print_usage(std::cerr);
+            return EXIT_FAILURE;
+        }
+
+        std::vector<std::string> args(argv + 1, argv + argc);
+        const std::string& command = args[0];
+        if (command == "help") {
+            print_usage(std::cout);
+            return EXIT_SUCCESS;
+        }
+
+        if (command == "version") {
+            std::cout << kVersion << '\n';
+            return EXIT_SUCCESS;
+        }
+
+        if (command == "run") {
+            std::vector<std::string> run_args(args.begin() + 1, args.end());
+            return handle_run(run_args);
+        }
+
+        if (command == "serve") {
+            std::cerr << "serve: not implemented yet\n";
+            return EXIT_FAILURE;
+        }
+
+        if (!is_flag(command) && !is_known_command(command)) {
+            std::vector<std::string> run_args(args.begin(), args.end());
+            return handle_run(run_args);
+        }
+
+        std::cerr << "Unknown command: " << command << '\n';
         print_usage(std::cerr);
         return EXIT_FAILURE;
-    }
-
-    std::vector<std::string> args(argv + 1, argv + argc);
-    const std::string& command = args[0];
-    if (command == "help") {
-        print_usage(std::cout);
-        return EXIT_SUCCESS;
-    }
-
-    if (command == "version") {
-        std::cout << kVersion << '\n';
-        return EXIT_SUCCESS;
-    }
-
-    if (command == "run") {
-        std::vector<std::string> run_args(args.begin() + 1, args.end());
-        return handle_run(run_args);
-    }
-
-    if (command == "serve") {
-        std::cerr << "serve: not implemented yet\n";
+    } catch (const polonio::PolonioError& err) {
+        std::cerr << err.format() << '\n';
+        return EXIT_FAILURE;
+    } catch (const std::exception& ex) {
+        std::cerr << "error: " << ex.what() << '\n';
         return EXIT_FAILURE;
     }
-
-    if (!is_flag(command) && !is_known_command(command)) {
-        std::vector<std::string> run_args(args.begin(), args.end());
-        return handle_run(run_args);
-    }
-
-    std::cerr << "Unknown command: " << command << '\n';
-    print_usage(std::cerr);
-    return EXIT_FAILURE;
 }
