@@ -32,6 +32,8 @@ private:
     StmtPtr var_declaration();
     StmtPtr echo_statement();
     StmtPtr if_statement();
+    StmtPtr while_statement();
+    StmtPtr for_statement();
     std::vector<StmtPtr> block_until(std::initializer_list<TokenKind> terminators);
     StmtPtr expression_statement();
 

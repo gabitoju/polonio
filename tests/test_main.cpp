@@ -601,7 +601,7 @@ TEST_CASE("Statement parser handles if/elseif/else") {
 TEST_CASE("Statement parser handles nested if") {
     const char* src = "if true if false echo 0 end echo 1 end";
     CHECK(parse_program(src) ==
-          "Program(If(Branch(bool(true), [If(Branch(bool(false), [Echo(num(0))])), Echo(num(1)))])))");
+          "Program(If(Branch(bool(true), [If(Branch(bool(false), [Echo(num(0))])), Echo(num(1))])))");
 }
 
 TEST_CASE("Statement parser errors on malformed if") {
@@ -625,6 +625,46 @@ TEST_CASE("Statement parser errors on malformed if") {
     }
     {
         polonio::Lexer lexer("if end");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+}
+
+TEST_CASE("Statement parser handles while loops") {
+    CHECK(parse_program("while true echo 1 end") ==
+          "Program(While(bool(true), [Echo(num(1))]))");
+
+    const char* src = "while x if y echo 1 end echo 2 end";
+    CHECK(parse_program(src) ==
+          "Program(While(ident(x), [If(Branch(ident(y), [Echo(num(1))])), Echo(num(2))]))");
+}
+
+TEST_CASE("Statement parser handles for loops") {
+    CHECK(parse_program("for item in items echo item end") ==
+          "Program(For(item, ident(items), [Echo(ident(item))]))");
+
+    CHECK(parse_program("for i, item in items echo i echo item end") ==
+          "Program(For(i, item, ident(items), [Echo(ident(i)), Echo(ident(item))]))");
+}
+
+TEST_CASE("Statement parser handles nested loops") {
+    const char* src = "for i in a for j in b echo j end end";
+    CHECK(parse_program(src) ==
+          "Program(For(i, ident(a), [For(j, ident(b), [Echo(ident(j))])]))");
+}
+
+TEST_CASE("Statement parser errors on malformed loops") {
+    std::vector<std::string> cases = {
+        "for in xs end",
+        "for i, in xs end",
+        "for i xs end",
+        "for i in end",
+        "for i in xs",
+        "while end",
+    };
+    for (const auto& src : cases) {
+        polonio::Lexer lexer(src);
         auto tokens = lexer.scan_all();
         polonio::Parser parser(tokens);
         CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
