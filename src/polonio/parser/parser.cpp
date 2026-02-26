@@ -9,7 +9,7 @@ Parser::Parser(std::vector<Token> tokens, std::string path)
     : tokens_(std::move(tokens)), path_(std::move(path)) {}
 
 ExprPtr Parser::parse_expression() {
-    auto expr = expression();
+    auto expr = assignment();
     if (!is_at_end()) {
         error(peek(), "unexpected token after expression");
     }
@@ -17,6 +17,27 @@ ExprPtr Parser::parse_expression() {
 }
 
 ExprPtr Parser::expression() { return or_expr(); }
+
+ExprPtr Parser::assignment() {
+    auto expr = or_expr();
+
+    if (match({TokenKind::Equal, TokenKind::PlusEqual, TokenKind::MinusEqual,
+               TokenKind::StarEqual, TokenKind::SlashEqual, TokenKind::PercentEqual,
+               TokenKind::DotDotEqual})) {
+        std::string op = previous().lexeme;
+        auto value = assignment();
+
+        if (auto ident = std::dynamic_pointer_cast<IdentifierExpr>(expr)) {
+            return std::make_shared<AssignmentExpr>(expr, op, value);
+        }
+        if (auto index = std::dynamic_pointer_cast<IndexExpr>(expr)) {
+            return std::make_shared<AssignmentExpr>(expr, op, value);
+        }
+        error(previous(), "invalid assignment target");
+    }
+
+    return expr;
+}
 
 ExprPtr Parser::or_expr() {
     auto expr = and_expr();
@@ -99,7 +120,32 @@ ExprPtr Parser::unary() {
         auto right = unary();
         return std::make_shared<UnaryExpr>(op, right);
     }
-    return primary();
+    return postfix();
+}
+
+ExprPtr Parser::postfix() {
+    auto expr = primary();
+    while (true) {
+        if (match(TokenKind::LeftParen)) {
+            std::vector<ExprPtr> args;
+            if (!check(TokenKind::RightParen)) {
+                do {
+                    args.push_back(expression());
+                } while (match(TokenKind::Comma));
+            }
+            consume(TokenKind::RightParen, "expected ')' after arguments");
+            expr = std::make_shared<CallExpr>(expr, std::move(args));
+            continue;
+        }
+        if (match(TokenKind::LeftBracket)) {
+            auto index_expr = expression();
+            consume(TokenKind::RightBracket, "expected ']' after index");
+            expr = std::make_shared<IndexExpr>(expr, index_expr);
+            continue;
+        }
+        break;
+    }
+    return expr;
 }
 
 ExprPtr Parser::primary() {
