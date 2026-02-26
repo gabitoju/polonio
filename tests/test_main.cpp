@@ -22,6 +22,19 @@ struct CommandResult {
     std::string stderr_output;
 };
 
+std::string shell_quote(const std::string& input) {
+    std::string quoted = "'";
+    for (char ch : input) {
+        if (ch == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += ch;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
 std::string create_temp_file(const std::string& prefix) {
     std::string pattern = "/tmp/" + prefix + "XXXXXX";
     std::vector<char> buffer(pattern.begin(), pattern.end());
@@ -41,15 +54,17 @@ std::string read_file(const std::string& path) {
 
 CommandResult run_polonio(const std::vector<std::string>& args) {
     auto binary = (std::filesystem::current_path() / "build/polonio").string();
-    const std::string stdout_path = create_temp_file("polonio_cli_stdout");
-    const std::string stderr_path = create_temp_file("polonio_cli_stderr");
+    REQUIRE(std::filesystem::exists(binary));
+
+    const std::string stdout_path = create_temp_file("polonio_stdout");
+    const std::string stderr_path = create_temp_file("polonio_stderr");
 
     std::ostringstream cmd;
-    cmd << "\"" << binary << "\"";
+    cmd << shell_quote(binary);
     for (const auto& arg : args) {
-        cmd << " " << arg;
+        cmd << " " << shell_quote(arg);
     }
-    cmd << " > \"" << stdout_path << "\" 2> \"" << stderr_path << "\"";
+    cmd << " > " << shell_quote(stdout_path) << " 2> " << shell_quote(stderr_path);
 
     int status = std::system(cmd.str().c_str());
     CommandResult result{};
@@ -85,9 +100,38 @@ TEST_CASE("CLI: help command shows usage text") {
     CHECK(result.stdout_output.find("polonio run") != std::string::npos);
 }
 
-TEST_CASE("CLI: unknown command errors") {
+TEST_CASE("CLI: run command stub message") {
+    auto result = run_polonio({"run", "hello.pol"});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
+}
+
+TEST_CASE("CLI: shorthand file invocation behaves like run") {
+    auto result = run_polonio({"hello.pol"});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
+}
+
+TEST_CASE("CLI: shorthand treats unknown words as file path") {
     auto result = run_polonio({"does-not-exist"});
     CHECK(result.exit_code != 0);
-    CHECK(result.stderr_output.find("Unknown command") != std::string::npos);
+    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
+}
+
+TEST_CASE("CLI: run without file shows usage") {
+    auto result = run_polonio({"run"});
+    CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("Usage:") != std::string::npos);
+}
+
+TEST_CASE("CLI: run with extra args errors") {
+    auto result = run_polonio({"run", "a.pol", "b.pol"});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("Usage:") != std::string::npos);
+}
+
+TEST_CASE("CLI: flag-like arg is treated as unknown command") {
+    auto result = run_polonio({"--help"});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("Unknown command") != std::string::npos);
 }

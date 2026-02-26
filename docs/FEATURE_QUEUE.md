@@ -7,7 +7,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 0 — Build + CLI skeleton
 - [DONE] (M0-1) Add doctest test runner and `make test`
 - [DONE] (M0-2) Implement CLI: `help`, `version`
-- [TODO] (M0-3) Parse `run <file.pol>` and shorthand `<file.pol>` (stub execution)
+- [DONE] (M0-3) Parse `run <file.pol>` and shorthand `<file.pol>` (stub execution)
 
 ## Milestone 1 — Source model + errors
 - [TODO] (M1-1) Source loader with path + in-memory buffer
