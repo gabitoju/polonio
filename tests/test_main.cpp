@@ -586,3 +586,47 @@ TEST_CASE("Statement parser errors on invalid syntax") {
         CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
     }
 }
+
+TEST_CASE("Statement parser handles if/elseif/else") {
+    CHECK(parse_program("if true echo 1 end") ==
+          "Program(If(Branch(bool(true), [Echo(num(1))])))");
+
+    CHECK(parse_program("if true echo 1 else echo 2 end") ==
+          "Program(If(Branch(bool(true), [Echo(num(1))]), Else([Echo(num(2))])))");
+
+    CHECK(parse_program("if x echo 1 elseif y echo 2 else echo 3 end") ==
+          "Program(If(Branch(ident(x), [Echo(num(1))]), Branch(ident(y), [Echo(num(2))]), Else([Echo(num(3))])))");
+}
+
+TEST_CASE("Statement parser handles nested if") {
+    const char* src = "if true if false echo 0 end echo 1 end";
+    CHECK(parse_program(src) ==
+          "Program(If(Branch(bool(true), [If(Branch(bool(false), [Echo(num(0))])), Echo(num(1)))])))");
+}
+
+TEST_CASE("Statement parser errors on malformed if") {
+    {
+        polonio::Lexer lexer("if true echo 1");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+    {
+        polonio::Lexer lexer("else echo 1 end");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+    {
+        polonio::Lexer lexer("if true else else end");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+    {
+        polonio::Lexer lexer("if end");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+}

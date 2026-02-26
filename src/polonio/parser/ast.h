@@ -216,4 +216,42 @@ private:
     std::vector<StmtPtr> statements_;
 };
 
+struct IfBranch {
+    ExprPtr condition;
+    std::vector<StmtPtr> body;
+};
+
+class IfStmt : public Stmt {
+public:
+    IfStmt(std::vector<IfBranch> branches, std::vector<StmtPtr> else_body)
+        : branches_(std::move(branches)), else_body_(std::move(else_body)) {}
+
+    std::string dump() const override {
+        std::string out = "If(";
+        for (std::size_t i = 0; i < branches_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += "Branch(" + branches_[i].condition->dump() + ", [";
+            for (std::size_t j = 0; j < branches_[i].body.size(); ++j) {
+                if (j > 0) out += ", ";
+                out += branches_[i].body[j]->dump();
+            }
+            out += "])";
+        }
+        if (!else_body_.empty()) {
+            out += (branches_.empty() ? "" : ", ") + std::string("Else([");
+            for (std::size_t i = 0; i < else_body_.size(); ++i) {
+                if (i > 0) out += ", ";
+                out += else_body_[i]->dump();
+            }
+            out += "])";
+        }
+        out += ')';
+        return out;
+    }
+
+private:
+    std::vector<IfBranch> branches_;
+    std::vector<StmtPtr> else_body_;
+};
+
 } // namespace polonio

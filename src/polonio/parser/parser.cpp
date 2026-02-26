@@ -242,6 +242,9 @@ StmtPtr Parser::statement() {
     if (match(TokenKind::Echo)) {
         return echo_statement();
     }
+    if (match(TokenKind::If)) {
+        return if_statement();
+    }
     return expression_statement();
 }
 
@@ -253,6 +256,39 @@ StmtPtr Parser::echo_statement() {
 StmtPtr Parser::expression_statement() {
     auto expr = assignment();
     return std::make_shared<ExprStmt>(expr);
+}
+
+StmtPtr Parser::if_statement() {
+    std::vector<IfBranch> branches;
+    auto condition = assignment();
+    auto body = block_until({TokenKind::ElseIf, TokenKind::Else, TokenKind::End});
+    branches.push_back(IfBranch{condition, std::move(body)});
+
+    while (match(TokenKind::ElseIf)) {
+        auto elseif_condition = assignment();
+        auto elseif_body = block_until({TokenKind::ElseIf, TokenKind::Else, TokenKind::End});
+        branches.push_back(IfBranch{elseif_condition, std::move(elseif_body)});
+    }
+
+    std::vector<StmtPtr> else_body;
+    if (match(TokenKind::Else)) {
+        else_body = block_until({TokenKind::End});
+    }
+
+    consume(TokenKind::End, "expected 'end' to close if statement");
+    return std::make_shared<IfStmt>(std::move(branches), std::move(else_body));
+}
+
+std::vector<StmtPtr> Parser::block_until(std::initializer_list<TokenKind> terminators) {
+    std::vector<StmtPtr> stmts;
+    while (!is_at_end() && std::find(terminators.begin(), terminators.end(), peek().kind) == terminators.end()) {
+        stmts.push_back(declaration());
+        match(TokenKind::Semicolon);
+    }
+    if (is_at_end()) {
+        error(peek(), "unexpected end of file in block");
+    }
+    return stmts;
 }
 
 const Token& Parser::peek() const { return tokens_[current_]; }
