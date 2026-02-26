@@ -34,7 +34,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 5 — Runtime core
 - [DONE] (M5-1) Value type + env scopes + truthiness + equality
 - [DONE] (M5-2) Execute statements + expressions
-- [TODO] (M5-3) Functions + closures + recursion
+- [DONE] (M5-3) Functions + closures + recursion
 - [TODO] (M5-4) Loops + break/continue
 
 ## Milestone 6A — Builtins minimal

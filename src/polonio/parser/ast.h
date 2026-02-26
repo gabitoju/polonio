@@ -269,6 +269,8 @@ public:
         out += ')';
         return out;
     }
+    const std::vector<IfBranch>& branches() const { return branches_; }
+    const std::vector<StmtPtr>& else_body() const { return else_body_; }
 
 private:
     std::vector<IfBranch> branches_;
