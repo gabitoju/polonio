@@ -535,3 +535,54 @@ TEST_CASE("Parser rejects invalid assignment targets") {
         CHECK_THROWS_AS(parser.parse_expression(), polonio::PolonioError);
     }
 }
+
+namespace {
+
+std::string parse_program(const std::string& input) {
+    polonio::Lexer lexer(input);
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    auto program = parser.parse_program();
+    return program.dump();
+}
+
+} // namespace
+
+TEST_CASE("Statement parser handles var declarations") {
+    CHECK(parse_program("var x") == "Program(Var(x))");
+    CHECK(parse_program("var x = 1 + 2") == "Program(Var(x, (+ num(1) num(2))))");
+}
+
+TEST_CASE("Statement parser handles echo statements") {
+    CHECK(parse_program("echo 1 + 2") == "Program(Echo((+ num(1) num(2))))");
+}
+
+TEST_CASE("Statement parser handles expression statements") {
+    CHECK(parse_program("x = 1") == "Program(Expr(assign(ident(x), =, num(1))))");
+}
+
+TEST_CASE("Statement parser handles mixed programs") {
+    const char* src = "var x = 1\necho x\nx += 2";
+    CHECK(parse_program(src) ==
+          "Program(Var(x, num(1)), Echo(ident(x)), Expr(assign(ident(x), +=, num(2))))");
+}
+
+TEST_CASE("Statement parser supports optional semicolons") {
+    CHECK(parse_program("var x = 1; echo x; x = 2;") ==
+          "Program(Var(x, num(1)), Echo(ident(x)), Expr(assign(ident(x), =, num(2))))");
+}
+
+TEST_CASE("Statement parser errors on invalid syntax") {
+    {
+        polonio::Lexer lexer("var");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+    {
+        polonio::Lexer lexer("echo");
+        auto tokens = lexer.scan_all();
+        polonio::Parser parser(tokens);
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+}

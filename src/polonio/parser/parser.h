@@ -14,6 +14,7 @@ public:
     explicit Parser(std::vector<Token> tokens, std::string path = {});
 
     ExprPtr parse_expression();
+    Program parse_program();
 
 private:
     const Token& peek() const;
@@ -25,6 +26,12 @@ private:
     bool is_at_end() const;
     [[noreturn]] void error(const Token& token, const std::string& message);
     const Token& consume(TokenKind kind, const std::string& message);
+
+    StmtPtr declaration();
+    StmtPtr statement();
+    StmtPtr var_declaration();
+    StmtPtr echo_statement();
+    StmtPtr expression_statement();
 
     ExprPtr expression();
     ExprPtr assignment();

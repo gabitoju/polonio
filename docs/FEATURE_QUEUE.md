@@ -26,7 +26,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [TODO] (M3-4) Add `--dump-ast` for expressions (dev flag)
 
 ## Milestone 4 — Statement parser
-- [TODO] (M4-1) Parse: `var`, `echo`, expression statements
+- [DONE] (M4-1) Parse: `var`, `echo`, expression statements
 - [TODO] (M4-2) Parse: `if/elseif/else/end`
 - [TODO] (M4-3) Parse: `for/in/end` and `while/end`
 - [TODO] (M4-4) Parse: `function/end` and `return`

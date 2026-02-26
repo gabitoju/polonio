@@ -16,6 +16,15 @@ ExprPtr Parser::parse_expression() {
     return expr;
 }
 
+Program Parser::parse_program() {
+    std::vector<StmtPtr> statements;
+    while (!is_at_end()) {
+        statements.push_back(declaration());
+        match(TokenKind::Semicolon);
+    }
+    return Program(std::move(statements));
+}
+
 ExprPtr Parser::expression() { return or_expr(); }
 
 ExprPtr Parser::assignment() {
@@ -208,6 +217,42 @@ ExprPtr Parser::object_literal() {
     }
     consume(TokenKind::RightBrace, "expected '}' after object literal");
     return std::make_shared<ObjectLiteralExpr>(std::move(fields));
+}
+
+StmtPtr Parser::declaration() {
+    if (match(TokenKind::Var)) {
+        return var_declaration();
+    }
+    return statement();
+}
+
+StmtPtr Parser::var_declaration() {
+    if (!match(TokenKind::Identifier)) {
+        error(peek(), "expected identifier after 'var'");
+    }
+    std::string name = previous().lexeme;
+    ExprPtr initializer;
+    if (match(TokenKind::Equal)) {
+        initializer = assignment();
+    }
+    return std::make_shared<VarDeclStmt>(name, initializer);
+}
+
+StmtPtr Parser::statement() {
+    if (match(TokenKind::Echo)) {
+        return echo_statement();
+    }
+    return expression_statement();
+}
+
+StmtPtr Parser::echo_statement() {
+    auto value = assignment();
+    return std::make_shared<EchoStmt>(value);
+}
+
+StmtPtr Parser::expression_statement() {
+    auto expr = assignment();
+    return std::make_shared<ExprStmt>(expr);
 }
 
 const Token& Parser::peek() const { return tokens_[current_]; }
