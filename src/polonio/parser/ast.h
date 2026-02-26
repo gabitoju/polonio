@@ -20,6 +20,7 @@ class LiteralExpr : public Expr {
 public:
     explicit LiteralExpr(std::string repr) : repr_(std::move(repr)) {}
     std::string dump() const override { return repr_; }
+    const std::string& repr() const { return repr_; }
 
 private:
     std::string repr_;
@@ -29,6 +30,7 @@ class IdentifierExpr : public Expr {
 public:
     explicit IdentifierExpr(std::string name) : name_(std::move(name)) {}
     std::string dump() const override { return "ident(" + name_ + ")"; }
+    const std::string& name() const { return name_; }
 
 private:
     std::string name_;
@@ -42,6 +44,8 @@ public:
     std::string dump() const override {
         return "(" + op_ + " " + right_->dump() + ")";
     }
+    const std::string& op() const { return op_; }
+    const ExprPtr& right() const { return right_; }
 
 private:
     std::string op_;
@@ -56,6 +60,9 @@ public:
     std::string dump() const override {
         return "(" + op_ + " " + left_->dump() + " " + right_->dump() + ")";
     }
+    const std::string& op() const { return op_; }
+    const ExprPtr& left() const { return left_; }
+    const ExprPtr& right() const { return right_; }
 
 private:
     std::string op_;
@@ -77,6 +84,7 @@ public:
         out += ')';
         return out;
     }
+    const std::vector<ExprPtr>& elements() const { return elements_; }
 
 private:
     std::vector<ExprPtr> elements_;
@@ -96,6 +104,7 @@ public:
         out += ')';
         return out;
     }
+    const std::vector<std::pair<std::string, ExprPtr>>& fields() const { return fields_; }
 
 private:
     std::vector<std::pair<std::string, ExprPtr>> fields_;
@@ -114,6 +123,8 @@ public:
         out += ')';
         return out;
     }
+    const ExprPtr& callee() const { return callee_; }
+    const std::vector<ExprPtr>& args() const { return args_; }
 
 private:
     ExprPtr callee_;
@@ -130,6 +141,7 @@ public:
     }
 
     const ExprPtr& object() const { return object_; }
+    const ExprPtr& index() const { return index_; }
 
 private:
     ExprPtr object_;
@@ -144,6 +156,9 @@ public:
     std::string dump() const override {
         return "assign(" + target_->dump() + ", " + op_ + ", " + value_->dump() + ")";
     }
+    const ExprPtr& target() const { return target_; }
+    const std::string& op() const { return op_; }
+    const ExprPtr& value() const { return value_; }
 
 private:
     ExprPtr target_;
@@ -170,6 +185,9 @@ public:
         }
         return "Var(" + name_ + ")";
     }
+    const std::string& name() const { return name_; }
+    const ExprPtr& initializer() const { return initializer_; }
+    bool has_initializer() const { return static_cast<bool>(initializer_); }
 
 private:
     std::string name_;
@@ -181,6 +199,7 @@ public:
     explicit EchoStmt(ExprPtr expr) : expr_(std::move(expr)) {}
 
     std::string dump() const override { return "Echo(" + expr_->dump() + ")"; }
+    const ExprPtr& expr() const { return expr_; }
 
 private:
     ExprPtr expr_;
@@ -191,6 +210,7 @@ public:
     explicit ExprStmt(ExprPtr expr) : expr_(std::move(expr)) {}
 
     std::string dump() const override { return "Expr(" + expr_->dump() + ")"; }
+    const ExprPtr& expr() const { return expr_; }
 
 private:
     ExprPtr expr_;
@@ -318,6 +338,8 @@ public:
         }
         return "Return()";
     }
+    const ExprPtr& value() const { return value_; }
+    bool has_value() const { return static_cast<bool>(value_); }
 
 private:
     ExprPtr value_;
@@ -346,6 +368,9 @@ public:
         out += "])";
         return out;
     }
+    const std::string& name() const { return name_; }
+    const std::vector<std::string>& params() const { return params_; }
+    const std::vector<StmtPtr>& body() const { return body_; }
 
 private:
     std::string name_;

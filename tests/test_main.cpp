@@ -10,6 +10,7 @@
 #include "polonio/parser/parser.h"
 #include "polonio/runtime/value.h"
 #include "polonio/runtime/env.h"
+#include "polonio/runtime/interpreter.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -549,6 +550,25 @@ std::string parse_program(const std::string& input) {
     return program.dump();
 }
 
+polonio::Value eval_runtime_expr(const std::string& input) {
+    polonio::Lexer lexer(input);
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    auto expr = parser.parse_expression();
+    polonio::Interpreter interpreter;
+    return interpreter.eval_expr(expr);
+}
+
+std::string run_program_output(const std::string& input) {
+    polonio::Lexer lexer(input);
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens);
+    auto program = parser.parse_program();
+    polonio::Interpreter interpreter;
+    interpreter.exec_program(program);
+    return interpreter.output();
+}
+
 } // namespace
 
 TEST_CASE("Statement parser handles var declarations") {
@@ -795,4 +815,45 @@ TEST_CASE("Env supports lexical scoping and assignment") {
     REQUIRE(child_z != nullptr);
     CHECK(*child_z == polonio::Value(7));
     CHECK(global->find("z") == nullptr);
+}
+
+TEST_CASE("Interpreter evaluates expressions") {
+    CHECK(eval_runtime_expr("1 + 2 * 3") == polonio::Value(7));
+    CHECK(eval_runtime_expr("\"a\" .. \"b\"") == polonio::Value("ab"));
+    CHECK(eval_runtime_expr("not true") == polonio::Value(false));
+    CHECK(eval_runtime_expr("1 == 1") == polonio::Value(true));
+    CHECK(eval_runtime_expr("[1, 2] == [1, 2]") == polonio::Value(true));
+    CHECK(eval_runtime_expr("true and false") == polonio::Value(false));
+    CHECK(eval_runtime_expr("true or false") == polonio::Value(true));
+}
+
+TEST_CASE("Interpreter executes statements and produces output") {
+    CHECK(run_program_output("var x = 1; echo x; x += 2; echo x") == "13");
+    CHECK(run_program_output("var x; echo x") == "");
+}
+
+TEST_CASE("Interpreter reports runtime errors") {
+    {
+        bool threw = false;
+        try {
+            run_program_output("echo y");
+        } catch (const polonio::PolonioError& err) {
+            threw = true;
+            CHECK(err.kind() == polonio::ErrorKind::Runtime);
+        }
+        CHECK(threw);
+    }
+
+    {
+        bool threw = false;
+        try {
+            run_program_output("echo 1 + \"a\"");
+        } catch (const polonio::PolonioError& err) {
+            threw = true;
+            CHECK(err.kind() == polonio::ErrorKind::Runtime);
+        }
+        CHECK(threw);
+    }
+
+    CHECK_THROWS_AS(run_program_output("var arr = [1]; arr[0] = 2"), polonio::PolonioError);
 }
