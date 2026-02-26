@@ -66,7 +66,7 @@ std::vector<Token> Lexer::scan_all() {
         } else if (c == '\'' || c == '\"') {
             tokens.push_back(string_literal());
         } else {
-            throw PolonioError(ErrorKind::Lex, std::string("unexpected character: ") + c, path_, location_);
+            tokens.push_back(symbol());
         }
     }
 
@@ -157,11 +157,6 @@ Token Lexer::string_literal() {
     bool terminated = false;
     while (!is_at_end()) {
         char c = peek();
-        if (c == '\n') {
-            current_++;
-            location_ = polonio::advance(location_, '\n');
-            continue;
-        }
         if (c == quote) {
             advance();
             terminated = true;
@@ -188,6 +183,59 @@ Token Lexer::string_literal() {
 
 Token Lexer::make_token(TokenKind kind, const std::string& lexeme, const Location& start, const Location& end) {
     return Token{kind, lexeme, Span{start, end}};
+}
+
+Token Lexer::symbol() {
+    Location start = location_;
+    char c = advance();
+    switch (c) {
+        case '(': return make_token(TokenKind::LeftParen, "(", start, location_);
+        case ')': return make_token(TokenKind::RightParen, ")", start, location_);
+        case '[': return make_token(TokenKind::LeftBracket, "[", start, location_);
+        case ']': return make_token(TokenKind::RightBracket, "]", start, location_);
+        case '{': return make_token(TokenKind::LeftBrace, "{", start, location_);
+        case '}': return make_token(TokenKind::RightBrace, "}", start, location_);
+        case ',': return make_token(TokenKind::Comma, ",", start, location_);
+        case ':': return make_token(TokenKind::Colon, ":", start, location_);
+        case ';': return make_token(TokenKind::Semicolon, ";", start, location_);
+        case '+':
+            if (match('=')) return make_token(TokenKind::PlusEqual, "+=", start, location_);
+            return make_token(TokenKind::Plus, "+", start, location_);
+        case '-':
+            if (match('=')) return make_token(TokenKind::MinusEqual, "-=", start, location_);
+            return make_token(TokenKind::Minus, "-", start, location_);
+        case '*':
+            if (match('=')) return make_token(TokenKind::StarEqual, "*=", start, location_);
+            return make_token(TokenKind::Star, "*", start, location_);
+        case '/':
+            if (match('=')) return make_token(TokenKind::SlashEqual, "/=", start, location_);
+            return make_token(TokenKind::Slash, "/", start, location_);
+        case '%':
+            if (match('=')) return make_token(TokenKind::PercentEqual, "%=", start, location_);
+            return make_token(TokenKind::Percent, "%", start, location_);
+        case '=':
+            if (match('=')) return make_token(TokenKind::EqualEqual, "==", start, location_);
+            return make_token(TokenKind::Equal, "=", start, location_);
+        case '!':
+            if (match('=')) return make_token(TokenKind::NotEqual, "!=", start, location_);
+            throw PolonioError(ErrorKind::Lex, "unexpected character: !", path_, start);
+        case '<':
+            if (match('=')) return make_token(TokenKind::LessEqual, "<=", start, location_);
+            return make_token(TokenKind::Less, "<", start, location_);
+        case '>':
+            if (match('=')) return make_token(TokenKind::GreaterEqual, ">=", start, location_);
+            return make_token(TokenKind::Greater, ">", start, location_);
+        case '.':
+            if (match('.')) {
+                if (match('=')) {
+                    return make_token(TokenKind::DotDotEqual, "..=", start, location_);
+                }
+                return make_token(TokenKind::DotDot, "..", start, location_);
+            }
+            throw PolonioError(ErrorKind::Lex, "unexpected character: .", path_, start);
+        default:
+            throw PolonioError(ErrorKind::Lex, std::string("unexpected character: ") + c, path_, start);
+    }
 }
 
 } // namespace polonio
