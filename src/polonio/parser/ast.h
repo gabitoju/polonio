@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace polonio {
 
@@ -58,6 +60,44 @@ private:
     std::string op_;
     ExprPtr left_;
     ExprPtr right_;
+};
+
+class ArrayLiteralExpr : public Expr {
+public:
+    explicit ArrayLiteralExpr(std::vector<ExprPtr> elements)
+        : elements_(std::move(elements)) {}
+
+    std::string dump() const override {
+        std::string out = "array(";
+        for (std::size_t i = 0; i < elements_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += elements_[i]->dump();
+        }
+        out += ')';
+        return out;
+    }
+
+private:
+    std::vector<ExprPtr> elements_;
+};
+
+class ObjectLiteralExpr : public Expr {
+public:
+    explicit ObjectLiteralExpr(std::vector<std::pair<std::string, ExprPtr>> fields)
+        : fields_(std::move(fields)) {}
+
+    std::string dump() const override {
+        std::string out = "object(";
+        for (std::size_t i = 0; i < fields_.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += fields_[i].first + ": " + fields_[i].second->dump();
+        }
+        out += ')';
+        return out;
+    }
+
+private:
+    std::vector<std::pair<std::string, ExprPtr>> fields_;
 };
 
 } // namespace polonio

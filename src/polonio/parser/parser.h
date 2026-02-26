@@ -36,6 +36,8 @@ private:
     ExprPtr multiplication();
     ExprPtr unary();
     ExprPtr primary();
+    ExprPtr array_literal();
+    ExprPtr object_literal();
 
     std::string literal_repr(const Token& token) const;
 
