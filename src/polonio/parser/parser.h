@@ -1,0 +1,47 @@
+#pragma once
+
+#include <string>
+#include <vector>
+
+#include "polonio/common/error.h"
+#include "polonio/lexer/lexer.h"
+#include "polonio/parser/ast.h"
+
+namespace polonio {
+
+class Parser {
+public:
+    explicit Parser(std::vector<Token> tokens, std::string path = {});
+
+    ExprPtr parse_expression();
+
+private:
+    const Token& peek() const;
+    const Token& previous() const;
+    bool match(TokenKind kind);
+    bool match(std::initializer_list<TokenKind> kinds);
+    bool check(TokenKind kind) const;
+    const Token& advance();
+    bool is_at_end() const;
+    [[noreturn]] void error(const Token& token, const std::string& message);
+    const Token& consume(TokenKind kind, const std::string& message);
+
+    ExprPtr expression();
+    ExprPtr or_expr();
+    ExprPtr and_expr();
+    ExprPtr equality();
+    ExprPtr comparison();
+    ExprPtr concat();
+    ExprPtr addition();
+    ExprPtr multiplication();
+    ExprPtr unary();
+    ExprPtr primary();
+
+    std::string literal_repr(const Token& token) const;
+
+    std::vector<Token> tokens_;
+    std::string path_;
+    std::size_t current_ = 0;
+};
+
+} // namespace polonio
