@@ -63,6 +63,14 @@ std::string read_file(const std::string& path) {
     return contents.str();
 }
 
+std::string create_temp_file_with_content(const std::string& prefix, const std::string& content) {
+    std::string path = create_temp_file(prefix);
+    std::ofstream stream(path, std::ios::binary);
+    stream << content;
+    stream.close();
+    return path;
+}
+
 CommandResult run_polonio(const std::vector<std::string>& args) {
     auto binary = (std::filesystem::current_path() / "build/polonio").string();
     REQUIRE(std::filesystem::exists(binary));
@@ -97,6 +105,49 @@ CommandResult run_polonio(const std::vector<std::string>& args) {
 
 } // namespace
 
+TEST_CASE("CLI: run executes interpreter output") {
+    auto path = create_temp_file_with_content("polonio_cli_run", "var x = 1\necho x");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "1");
+    CHECK(result.stderr_output.empty());
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: run reports runtime errors") {
+    auto path = create_temp_file_with_content("polonio_cli_rt", "echo y");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("undefined variable") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: run reports parse errors") {
+    auto path = create_temp_file_with_content("polonio_cli_parse", "var");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find(path) != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: shorthand file invocation executes program") {
+    auto path = create_temp_file_with_content("polonio_cli_sh", "echo 42");
+    auto result = run_polonio({path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "42");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: shorthand on missing file reports IO error") {
+    auto path = (std::filesystem::temp_directory_path() / "polonio_missing_cli_file").string();
+    if (std::filesystem::exists(path)) {
+        std::filesystem::remove(path);
+    }
+    auto result = run_polonio({path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("failed to open source file") != std::string::npos);
+}
+
 TEST_CASE("CLI: version command") {
     auto result = run_polonio({"version"});
     CHECK(result.exit_code == 0);
@@ -111,23 +162,7 @@ TEST_CASE("CLI: help command shows usage text") {
     CHECK(result.stdout_output.find("polonio run") != std::string::npos);
 }
 
-TEST_CASE("CLI: run command stub message") {
-    auto result = run_polonio({"run", "hello.pol"});
-    CHECK(result.exit_code != 0);
-    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
-}
-
-TEST_CASE("CLI: shorthand file invocation behaves like run") {
-    auto result = run_polonio({"hello.pol"});
-    CHECK(result.exit_code != 0);
-    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
-}
-
-TEST_CASE("CLI: shorthand treats unknown words as file path") {
-    auto result = run_polonio({"does-not-exist"});
-    CHECK(result.exit_code != 0);
-    CHECK(result.stderr_output.find("not implemented") != std::string::npos);
-}
+// run command tests updated after interpreter wiring
 
 TEST_CASE("CLI: run without file shows usage") {
     auto result = run_polonio({"run"});
@@ -146,18 +181,6 @@ TEST_CASE("CLI: flag-like arg is treated as unknown command") {
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("Unknown command") != std::string::npos);
 }
-
-namespace {
-
-std::string create_temp_file_with_content(const std::string& prefix, const std::string& content) {
-    std::string path = create_temp_file(prefix);
-    std::ofstream stream(path, std::ios::binary);
-    stream << content;
-    stream.close();
-    return path;
-}
-
-} // namespace
 
 TEST_CASE("Source::from_file loads entire file contents") {
     const std::string input = "hello world\nsecond line\r\n";
