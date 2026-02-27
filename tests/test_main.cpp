@@ -937,6 +937,58 @@ echo x(1)
     CHECK(threw);
 }
 
+TEST_CASE("Builtin type returns correct strings") {
+    const char* src = R"(
+echo type(null)
+echo type(true)
+echo type(1)
+echo type("a")
+echo type([1])
+echo type({"a": 1})
+)";
+    CHECK(run_program_output(src) == "nullboolnumberstringarrayobject");
+}
+
+TEST_CASE("Builtin tostring mirrors echo formatting") {
+    const char* src = R"(
+echo tostring(null)
+echo tostring(true)
+echo tostring(3)
+echo tostring("x")
+)";
+    CHECK(run_program_output(src) == "true3x");
+}
+
+TEST_CASE("Builtin nl2br handles newlines") {
+    CHECK(run_program_output("echo nl2br(\"a\\nb\")") == "a<br>\nb");
+    CHECK(run_program_output("echo nl2br(\"a\\r\\nb\")") == "a<br>\nb");
+}
+
+TEST_CASE("Builtins enforce argument counts") {
+    {
+        bool threw = false;
+        try {
+            run_program_output("echo type()");
+        } catch (const polonio::PolonioError& err) {
+            threw = true;
+            CHECK(err.kind() == polonio::ErrorKind::Runtime);
+            CHECK(err.message().find("type") != std::string::npos);
+        }
+        CHECK(threw);
+    }
+    {
+        bool threw = false;
+        try {
+            run_program_output("echo nl2br()");
+        } catch (const polonio::PolonioError& err) {
+            threw = true;
+            CHECK(err.kind() == polonio::ErrorKind::Runtime);
+            CHECK(err.message().find("nl2br") != std::string::npos);
+        }
+        CHECK(threw);
+    }
+}
+
 TEST_CASE("Interpreter executes while loops") {
     const char* src = R"(
 var i = 0

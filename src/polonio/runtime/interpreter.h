@@ -31,6 +31,7 @@ public:
 
     const std::string& output() const { return output_.str(); }
     std::shared_ptr<Env> env() const { return env_; }
+    const std::string& path() const { return path_; }
 
 private:
     Value eval_expr_internal(const ExprPtr& expr);

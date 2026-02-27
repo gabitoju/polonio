@@ -11,6 +11,12 @@ namespace polonio {
 
 class Env;
 class Stmt;
+class Interpreter;
+struct Location;
+
+class Value;
+
+using BuiltinCallback = Value (*)(Interpreter&, const std::vector<Value>&, const Location&);
 
 struct FunctionValue {
     std::string name;
@@ -23,11 +29,20 @@ struct FunctionValue {
     }
 };
 
+struct BuiltinFunction {
+    std::string name;
+    BuiltinCallback callback = nullptr;
+
+    bool operator==(const BuiltinFunction& other) const {
+        return name == other.name && callback == other.callback;
+    }
+};
+
 class Value {
 public:
     using Array = std::vector<Value>;
     using Object = std::unordered_map<std::string, Value>;
-    using Storage = std::variant<std::monostate, bool, double, std::string, Array, Object, FunctionValue>;
+    using Storage = std::variant<std::monostate, bool, double, std::string, Array, Object, FunctionValue, BuiltinFunction>;
 
     Value();
     Value(std::nullptr_t);
@@ -42,6 +57,7 @@ public:
     explicit Value(const Object& object);
     explicit Value(Object&& object);
     explicit Value(FunctionValue fn);
+    explicit Value(BuiltinFunction fn);
 
     std::string type_name() const;
     bool is_truthy() const;
