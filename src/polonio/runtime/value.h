@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -42,7 +43,9 @@ class Value {
 public:
     using Array = std::vector<Value>;
     using Object = std::unordered_map<std::string, Value>;
-    using Storage = std::variant<std::monostate, bool, double, std::string, Array, Object, FunctionValue, BuiltinFunction>;
+    using ArrayPtr = std::shared_ptr<Array>;
+    using ObjectPtr = std::shared_ptr<Object>;
+    using Storage = std::variant<std::monostate, bool, double, std::string, ArrayPtr, ObjectPtr, FunctionValue, BuiltinFunction>;
 
     Value();
     Value(std::nullptr_t);

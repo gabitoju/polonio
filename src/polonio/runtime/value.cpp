@@ -21,13 +21,13 @@ Value::Value(std::string&& s) : storage_(std::move(s)) {}
 
 Value::Value(const char* s) : storage_(std::string(s)) {}
 
-Value::Value(const Array& array) : storage_(array) {}
+Value::Value(const Array& array) : storage_(std::make_shared<Array>(array)) {}
 
-Value::Value(Array&& array) : storage_(std::move(array)) {}
+Value::Value(Array&& array) : storage_(std::make_shared<Array>(std::move(array))) {}
 
-Value::Value(const Object& object) : storage_(object) {}
+Value::Value(const Object& object) : storage_(std::make_shared<Object>(object)) {}
 
-Value::Value(Object&& object) : storage_(std::move(object)) {}
+Value::Value(Object&& object) : storage_(std::make_shared<Object>(std::move(object))) {}
 
 Value::Value(FunctionValue fn) : storage_(std::move(fn)) {}
 
@@ -45,9 +45,9 @@ std::string Value::type_name() const {
                 return "number";
             } else if constexpr (std::is_same_v<T, std::string>) {
                 return "string";
-            } else if constexpr (std::is_same_v<T, Array>) {
+            } else if constexpr (std::is_same_v<T, ArrayPtr>) {
                 return "array";
-            } else if constexpr (std::is_same_v<T, Object>) {
+            } else if constexpr (std::is_same_v<T, ObjectPtr>) {
                 return "object";
             } else if constexpr (std::is_same_v<T, BuiltinFunction>) {
                 return "function";
@@ -85,6 +85,33 @@ bool Value::operator==(const Value& other) const {
             if constexpr (!std::is_same_v<L, R>) {
                 return false;
             } else if constexpr (std::is_same_v<L, std::monostate>) {
+                return true;
+            } else if constexpr (std::is_same_v<L, ArrayPtr>) {
+                if (!lhs || !rhs) {
+                    return !lhs && !rhs;
+                }
+                if (lhs->size() != rhs->size()) {
+                    return false;
+                }
+                for (std::size_t i = 0; i < lhs->size(); ++i) {
+                    if ((*lhs)[i] != (*rhs)[i]) {
+                        return false;
+                    }
+                }
+                return true;
+            } else if constexpr (std::is_same_v<L, ObjectPtr>) {
+                if (!lhs || !rhs) {
+                    return !lhs && !rhs;
+                }
+                if (lhs->size() != rhs->size()) {
+                    return false;
+                }
+                for (const auto& kv : *lhs) {
+                    auto it = rhs->find(kv.first);
+                    if (it == rhs->end() || kv.second != it->second) {
+                        return false;
+                    }
+                }
                 return true;
             } else {
                 return lhs == rhs;
