@@ -39,6 +39,20 @@ Value builtin_split(Interpreter& interp, const std::vector<Value>& args, const L
 Value builtin_contains(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_starts_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ends_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_round(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_min(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_max(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_null(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_bool(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_number(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_array(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_object(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_is_function(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_now(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -204,6 +218,100 @@ Value builtin_ends_with(Interpreter& interp, const std::vector<Value>& args, con
         return Value(false);
     }
     return Value(text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0);
+}
+
+Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value val = ensure_arg("abs", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(val.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "abs: expected number", interp.path(), loc);
+    }
+    return Value(std::fabs(std::get<double>(val.storage())));
+}
+
+Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value val = ensure_arg("floor", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(val.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "floor: expected number", interp.path(), loc);
+    }
+    return Value(std::floor(std::get<double>(val.storage())));
+}
+
+Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value val = ensure_arg("ceil", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(val.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "ceil: expected number", interp.path(), loc);
+    }
+    return Value(std::ceil(std::get<double>(val.storage())));
+}
+
+Value builtin_round(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value val = ensure_arg("round", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(val.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "round: expected number", interp.path(), loc);
+    }
+    return Value(std::round(std::get<double>(val.storage())));
+}
+
+Value builtin_min(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value a = ensure_arg("min", 0, args, interp, loc);
+    Value b = ensure_arg("min", 1, args, interp, loc);
+    if (!std::holds_alternative<double>(a.storage()) || !std::holds_alternative<double>(b.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "min: expected numbers", interp.path(), loc);
+    }
+    return Value(std::min(std::get<double>(a.storage()), std::get<double>(b.storage())));
+}
+
+Value builtin_max(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value a = ensure_arg("max", 0, args, interp, loc);
+    Value b = ensure_arg("max", 1, args, interp, loc);
+    if (!std::holds_alternative<double>(a.storage()) || !std::holds_alternative<double>(b.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "max: expected numbers", interp.path(), loc);
+    }
+    return Value(std::max(std::get<double>(a.storage()), std::get<double>(b.storage())));
+}
+
+Value builtin_is_null(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_null", 0, args, interp, loc);
+    return Value(std::holds_alternative<std::monostate>(value.storage()));
+}
+
+Value builtin_is_bool(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_bool", 0, args, interp, loc);
+    return Value(std::holds_alternative<bool>(value.storage()));
+}
+
+Value builtin_is_number(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_number", 0, args, interp, loc);
+    return Value(std::holds_alternative<double>(value.storage()));
+}
+
+Value builtin_is_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_string", 0, args, interp, loc);
+    return Value(std::holds_alternative<std::string>(value.storage()));
+}
+
+Value builtin_is_array(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_array", 0, args, interp, loc);
+    return Value(std::holds_alternative<Value::ArrayPtr>(value.storage()));
+}
+
+Value builtin_is_object(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_object", 0, args, interp, loc);
+    return Value(std::holds_alternative<Value::ObjectPtr>(value.storage()));
+}
+
+Value builtin_is_function(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("is_function", 0, args, interp, loc);
+    return Value(std::holds_alternative<FunctionValue>(value.storage()) || std::holds_alternative<BuiltinFunction>(value.storage()));
+}
+
+Value builtin_now([[maybe_unused]] Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "now: expected 0 arguments", interp.path(), loc);
+    }
+    auto now = std::chrono::system_clock::now();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    return Value(static_cast<double>(seconds));
 }
 
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -378,6 +486,20 @@ void install_builtins(Env& env) {
     env.set_local("has_key", Value(BuiltinFunction{"has_key", builtin_has_key}));
     env.set_local("get", Value(BuiltinFunction{"get", builtin_get}));
     env.set_local("set", Value(BuiltinFunction{"set", builtin_set}));
+    env.set_local("abs", Value(BuiltinFunction{"abs", builtin_abs}));
+    env.set_local("floor", Value(BuiltinFunction{"floor", builtin_floor}));
+    env.set_local("ceil", Value(BuiltinFunction{"ceil", builtin_ceil}));
+    env.set_local("round", Value(BuiltinFunction{"round", builtin_round}));
+    env.set_local("min", Value(BuiltinFunction{"min", builtin_min}));
+    env.set_local("max", Value(BuiltinFunction{"max", builtin_max}));
+    env.set_local("is_null", Value(BuiltinFunction{"is_null", builtin_is_null}));
+    env.set_local("is_bool", Value(BuiltinFunction{"is_bool", builtin_is_bool}));
+    env.set_local("is_number", Value(BuiltinFunction{"is_number", builtin_is_number}));
+    env.set_local("is_string", Value(BuiltinFunction{"is_string", builtin_is_string}));
+    env.set_local("is_array", Value(BuiltinFunction{"is_array", builtin_is_array}));
+    env.set_local("is_object", Value(BuiltinFunction{"is_object", builtin_is_object}));
+    env.set_local("is_function", Value(BuiltinFunction{"is_function", builtin_is_function}));
+    env.set_local("now", Value(BuiltinFunction{"now", builtin_now}));
 }
 
 } // namespace polonio
