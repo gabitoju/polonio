@@ -9,6 +9,7 @@ namespace polonio {
 class OutputBuffer {
 public:
     void write(const Value& value);
+    void write_text(const std::string& text) { buffer_ += text; }
     const std::string& str() const { return buffer_; }
     void clear() { buffer_.clear(); }
 
