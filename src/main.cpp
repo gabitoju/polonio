@@ -1,16 +1,20 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "polonio/common/error.h"
+#include "polonio/common/source.h"
+#include "polonio/lexer/lexer.h"
+#include "polonio/parser/parser.h"
+#include "polonio/runtime/interpreter.h"
+#include "polonio/runtime/env.h"
 
 namespace {
 
 constexpr const char* kVersion = "0.1.0";
-constexpr const char* kRunStubMessage = "run: not implemented\n";
-
 void print_usage(std::ostream& os) {
     os << "Usage: polonio <command|file>\n"
           "\n"
@@ -35,8 +39,17 @@ int handle_run(const std::vector<std::string>& args) {
         return EXIT_FAILURE;
     }
 
-    std::cerr << kRunStubMessage;
-    return EXIT_FAILURE;
+    const std::string& path = args[0];
+    polonio::Source source = polonio::Source::from_file(path);
+    polonio::Lexer lexer(source.content(), source.path());
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens, source.path());
+    auto program = parser.parse_program();
+
+    polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), source.path());
+    interpreter.exec_program(program);
+    std::cout << interpreter.output();
+    return EXIT_SUCCESS;
 }
 
 bool is_flag(const std::string& arg) {
