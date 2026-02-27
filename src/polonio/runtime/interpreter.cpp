@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "polonio/common/error.h"
+#include "polonio/runtime/builtins.h"
 
 namespace polonio {
 
@@ -23,7 +24,11 @@ bool is_integer(double value) {
 } // namespace
 
 Interpreter::Interpreter(std::shared_ptr<Env> env, std::string path)
-    : env_(env ? std::move(env) : std::make_shared<Env>()), path_(std::move(path)) {}
+    : env_(env ? std::move(env) : std::make_shared<Env>()), path_(std::move(path)) {
+    if (!env_->parent() && !env_->has_local("type")) {
+        install_builtins(*env_);
+    }
+}
 
 Value Interpreter::eval_expr(const ExprPtr& expr) { return eval_expr_internal(expr); }
 
@@ -280,16 +285,24 @@ Value Interpreter::eval_assignment(const AssignmentExpr& assignment) {
 
 Value Interpreter::eval_call(const CallExpr& call) {
     Value callee = eval_expr_internal(call.callee());
-    if (!std::holds_alternative<FunctionValue>(callee.storage())) {
-        runtime_error("attempt to call non-function value");
-    }
-    const auto& function = std::get<FunctionValue>(callee.storage());
-
     std::vector<Value> args;
     args.reserve(call.args().size());
     for (const auto& arg_expr : call.args()) {
         args.push_back(eval_expr_internal(arg_expr));
     }
+
+    if (std::holds_alternative<BuiltinFunction>(callee.storage())) {
+        const auto& builtin = std::get<BuiltinFunction>(callee.storage());
+        if (!builtin.callback) {
+            runtime_error("attempt to call non-function value");
+        }
+        return builtin.callback(*this, args, Location::start());
+    }
+
+    if (!std::holds_alternative<FunctionValue>(callee.storage())) {
+        runtime_error("attempt to call non-function value");
+    }
+    const auto& function = std::get<FunctionValue>(callee.storage());
 
     auto closure_env = function.closure ? function.closure : std::make_shared<Env>();
     auto call_env = std::make_shared<Env>(closure_env);
@@ -543,6 +556,9 @@ std::string Interpreter::decode_string(const std::string& literal) {
                 break;
             case '\'':
                 result.push_back('\'');
+                break;
+            case 'r':
+                result.push_back('\r');
                 break;
             default:
                 result.push_back(next);

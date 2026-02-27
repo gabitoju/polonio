@@ -37,6 +37,9 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M5-3) Functions + closures + recursion
 - [DONE] (M5-4) Loops + break/continue
 
+## Milestone 6 — Builtins core
+- [DONE] (M6-1) Builtins core + type/tostring/nl2br
+
 ## Milestone 6A — Builtins minimal
 - [TODO] (M6A-1) Output: echo/print/println + output buffer
 - [TODO] (M6A-2) String: len + htmlspecialchars + nl2br

@@ -31,6 +31,8 @@ Value::Value(Object&& object) : storage_(std::move(object)) {}
 
 Value::Value(FunctionValue fn) : storage_(std::move(fn)) {}
 
+Value::Value(BuiltinFunction fn) : storage_(std::move(fn)) {}
+
 std::string Value::type_name() const {
     return std::visit(
         [](const auto& alt) -> std::string {
@@ -47,6 +49,8 @@ std::string Value::type_name() const {
                 return "array";
             } else if constexpr (std::is_same_v<T, Object>) {
                 return "object";
+            } else if constexpr (std::is_same_v<T, BuiltinFunction>) {
+                return "function";
             } else {
                 return "function";
             }
