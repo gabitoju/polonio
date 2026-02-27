@@ -11,6 +11,7 @@
 #include "polonio/parser/parser.h"
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/env.h"
+#include "polonio/runtime/template_renderer.h"
 
 namespace {
 
@@ -38,9 +39,14 @@ int handle_run(const std::vector<std::string>& args) {
         print_usage(std::cerr);
         return EXIT_FAILURE;
     }
-
     const std::string& path = args[0];
     polonio::Source source = polonio::Source::from_file(path);
+
+    if (source.content().find("<%") != std::string::npos) {
+        std::cout << polonio::render_template(source);
+        return EXIT_SUCCESS;
+    }
+
     polonio::Lexer lexer(source.content(), source.path());
     auto tokens = lexer.scan_all();
     polonio::Parser parser(tokens, source.path());

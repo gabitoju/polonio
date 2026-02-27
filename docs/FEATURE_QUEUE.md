@@ -44,6 +44,9 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-4) Math + type predicates + now()
 - [TODO] (M6-5) Date format helpers: date_format/date_parts
 
+## Milestone 7 — Template engine
+- [DONE] (M7-1) Template scanning and execution of `<% %>` blocks
+
 ## Milestone 6A — Builtins minimal
 - [TODO] (M6A-1) Output: echo/print/println + output buffer
 - [TODO] (M6A-2) String: len + htmlspecialchars + nl2br

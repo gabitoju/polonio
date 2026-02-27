@@ -1,6 +1,8 @@
 #include "polonio/runtime/builtins.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <string>
 #include <vector>

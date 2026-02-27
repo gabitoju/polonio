@@ -148,6 +148,35 @@ TEST_CASE("CLI: shorthand on missing file reports IO error") {
     CHECK(result.stderr_output.find("failed to open source file") != std::string::npos);
 }
 
+TEST_CASE("CLI: template rendering mixes text and code") {
+    const char* tpl = "<h1>Hello</h1>\n<% echo 1 + 2 %>";
+    auto path = create_temp_file_with_content("polonio_template_mix", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("<h1>Hello</h1>") != std::string::npos);
+    CHECK(result.stdout_output.find("3") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: template blocks share interpreter state") {
+    const char* tpl = "<% var x = 1 %>\n<p>\n<% echo x %>";
+    auto path = create_temp_file_with_content("polonio_template_state", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("<p>") != std::string::npos);
+    CHECK(result.stdout_output.find("1") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: unterminated template block reports error") {
+    const char* tpl = "Hello <% echo 1";
+    auto path = create_temp_file_with_content("polonio_template_error", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("unterminated template block") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("CLI: version command") {
     auto result = run_polonio({"version"});
     CHECK(result.exit_code == 0);
