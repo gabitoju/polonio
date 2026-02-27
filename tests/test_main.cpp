@@ -1012,6 +1012,37 @@ TEST_CASE("Builtins enforce argument counts") {
     }
 }
 
+TEST_CASE("String builtins: len lower upper") {
+    CHECK(run_program_output("echo len(\"abc\")") == "3");
+    CHECK(run_program_output("echo lower(\"AbC\")") == "abc");
+    CHECK(run_program_output("echo upper(\"AbC\")") == "ABC");
+}
+
+TEST_CASE("String builtins: trim and replace") {
+    CHECK(run_program_output("echo trim(\"  hi \\n\")") == "hi");
+    CHECK(run_program_output("echo replace(\"a-b-a\", \"a\", \"x\")") == "x-b-x");
+    CHECK(run_program_output("echo replace(\"aaaa\", \"aa\", \"b\")") == "bb");
+    CHECK(run_program_output("echo replace(\"abc\", \"\", \"x\")") == "abc");
+}
+
+TEST_CASE("String builtins: split") {
+    const char* program = R"(
+var xs = split("a,b,c", ",")
+for x in xs
+  echo x
+end
+)";
+    CHECK(run_program_output(program) == "abc");
+    CHECK(run_program_output("var ys = split(\"abc\", \",\")\nfor y in ys echo y end") == "abc");
+}
+
+TEST_CASE("String builtins: contains/starts_with/ends_with") {
+    CHECK(run_program_output("echo contains(\"hello\", \"ell\")") == "true");
+    CHECK(run_program_output("echo starts_with(\"hello\", \"he\")") == "true");
+    CHECK(run_program_output("echo ends_with(\"hello\", \"lo\")") == "true");
+    CHECK(run_program_output("echo ends_with(\"hello\", \"xx\")") == "false");
+}
+
 TEST_CASE("Interpreter executes while loops") {
     const char* src = R"(
 var i = 0

@@ -39,6 +39,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 
 ## Milestone 6 — Builtins core
 - [DONE] (M6-1) Builtins core + type/tostring/nl2br
+- [DONE] (M6-2) String builtins: len/lower/upper/trim/replace/split/contains
 
 ## Milestone 6A — Builtins minimal
 - [TODO] (M6A-1) Output: echo/print/println + output buffer
