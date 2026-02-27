@@ -291,6 +291,8 @@ public:
         out += "])";
         return out;
     }
+    const ExprPtr& condition() const { return condition_; }
+    const std::vector<StmtPtr>& body() const { return body_; }
 
 private:
     ExprPtr condition_;
@@ -322,6 +324,10 @@ public:
         out += "])";
         return out;
     }
+    const std::optional<std::string>& index_name() const { return index_name_; }
+    const std::string& value_name() const { return value_name_; }
+    const ExprPtr& iterable() const { return iterable_; }
+    const std::vector<StmtPtr>& body() const { return body_; }
 
 private:
     std::optional<std::string> index_name_;

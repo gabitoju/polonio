@@ -1,6 +1,8 @@
 #include "polonio/runtime/interpreter.h"
 
+#include <algorithm>
 #include <cmath>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -11,6 +13,8 @@
 namespace polonio {
 
 namespace {
+
+constexpr std::size_t kLoopIterationLimit = 100000;
 
 bool is_integer(double value) {
     return std::floor(value) == value;
@@ -46,6 +50,14 @@ void Interpreter::exec_stmt(const StmtPtr& stmt) {
     }
     if (auto if_stmt = std::dynamic_pointer_cast<IfStmt>(stmt)) {
         exec_if(*if_stmt);
+        return;
+    }
+    if (auto while_stmt = std::dynamic_pointer_cast<WhileStmt>(stmt)) {
+        exec_while(*while_stmt);
+        return;
+    }
+    if (auto for_stmt = std::dynamic_pointer_cast<ForStmt>(stmt)) {
+        exec_for(*for_stmt);
         return;
     }
     runtime_error("statement type not supported yet");
@@ -404,6 +416,83 @@ void Interpreter::exec_if(const IfStmt& stmt) {
     if (!stmt.else_body().empty()) {
         exec_block(stmt.else_body());
     }
+}
+
+void Interpreter::exec_while(const WhileStmt& stmt) {
+    std::size_t iterations = 0;
+    while (true) {
+        Value condition = eval_expr_internal(stmt.condition());
+        if (!condition.is_truthy()) {
+            break;
+        }
+        if (++iterations > kLoopIterationLimit) {
+            runtime_error("loop limit exceeded");
+        }
+        exec_block(stmt.body());
+    }
+}
+
+void Interpreter::exec_for(const ForStmt& stmt) {
+    Value iterable = eval_expr_internal(stmt.iterable());
+    std::size_t iterations = 0;
+    auto run_iteration = [&](std::optional<Value> index_value, Value value) {
+        if (++iterations > kLoopIterationLimit) {
+            runtime_error("loop limit exceeded");
+        }
+        auto loop_env = std::make_shared<Env>(env_);
+        if (stmt.index_name()) {
+            if (index_value.has_value()) {
+                loop_env->set_local(*stmt.index_name(), *index_value);
+            } else {
+                loop_env->set_local(*stmt.index_name(), Value());
+            }
+        }
+        loop_env->set_local(stmt.value_name(), value);
+        auto previous_env = env_;
+        env_ = loop_env;
+        try {
+            exec_block(stmt.body());
+        } catch (...) {
+            env_ = previous_env;
+            throw;
+        }
+        env_ = previous_env;
+    };
+
+    if (std::holds_alternative<Value::Array>(iterable.storage())) {
+        const auto& array = std::get<Value::Array>(iterable.storage());
+        for (std::size_t i = 0; i < array.size(); ++i) {
+            std::optional<Value> index_value;
+            if (stmt.index_name()) {
+                index_value = Value(static_cast<double>(i));
+            }
+            run_iteration(index_value, array[i]);
+        }
+        return;
+    }
+
+    if (std::holds_alternative<Value::Object>(iterable.storage())) {
+        const auto& object = std::get<Value::Object>(iterable.storage());
+        std::vector<std::string> keys;
+        keys.reserve(object.size());
+        for (const auto& entry : object) {
+            keys.push_back(entry.first);
+        }
+        std::sort(keys.begin(), keys.end());
+        for (const auto& key : keys) {
+            std::optional<Value> index_value;
+            if (stmt.index_name()) {
+                index_value = Value(key);
+            }
+            auto it = object.find(key);
+            if (it != object.end()) {
+                run_iteration(index_value, it->second);
+            }
+        }
+        return;
+    }
+
+    runtime_error("for loop expects array or object");
 }
 
 void Interpreter::exec_block(const std::vector<StmtPtr>& statements) {

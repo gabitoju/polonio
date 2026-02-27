@@ -936,3 +936,82 @@ echo x(1)
     }
     CHECK(threw);
 }
+
+TEST_CASE("Interpreter executes while loops") {
+    const char* src = R"(
+var i = 0
+while i < 5
+  echo i
+  i += 1
+end
+)";
+    CHECK(run_program_output(src) == "01234");
+}
+
+TEST_CASE("Interpreter enforces while loop limit") {
+    const char* src = R"(
+while true
+  echo 1
+end
+)";
+    bool threw = false;
+    try {
+        run_program_output(src);
+    } catch (const polonio::PolonioError& err) {
+        threw = true;
+        CHECK(err.kind() == polonio::ErrorKind::Runtime);
+        CHECK(err.message().find("loop limit") != std::string::npos);
+    }
+    CHECK(threw);
+}
+
+TEST_CASE("Interpreter executes for loops over arrays") {
+    const char* src = R"(
+var items = [1, 2, 3]
+for item in items
+  echo item
+end
+)";
+    CHECK(run_program_output(src) == "123");
+}
+
+TEST_CASE("Interpreter executes indexed for loops over arrays") {
+    const char* src = R"(
+var items = [10, 20]
+for i, x in items
+  echo i
+  echo x
+end
+)";
+    CHECK(run_program_output(src) == "010120");
+}
+
+TEST_CASE("Interpreter executes for loops over objects deterministically") {
+    const char* src = R"(
+var o = {"b": 2, "a": 1}
+for k, v in o
+  echo k
+  echo v
+end
+)";
+    CHECK(run_program_output(src) == "a1b2");
+}
+
+TEST_CASE("For loop variables do not leak outside loop") {
+    const char* src = R"(
+var items = [1]
+for x in items
+  echo x
+end
+echo x
+)";
+    bool threw = false;
+    try {
+        run_program_output(src);
+    } catch (const polonio::PolonioError& err) {
+        threw = true;
+        CHECK(err.kind() == polonio::ErrorKind::Runtime);
+        CHECK(err.message().find("undefined variable") != std::string::npos);
+    }
+    CHECK(threw);
+}
