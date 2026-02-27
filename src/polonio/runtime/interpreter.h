@@ -50,6 +50,8 @@ private:
     void exec_return(const ReturnStmt& stmt);
     void exec_function(const FunctionStmt& stmt);
     void exec_if(const IfStmt& stmt);
+    void exec_while(const WhileStmt& stmt);
+    void exec_for(const ForStmt& stmt);
     void exec_block(const std::vector<StmtPtr>& statements);
 
     [[noreturn]] void runtime_error(const std::string& message);

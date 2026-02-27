@@ -35,7 +35,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M5-1) Value type + env scopes + truthiness + equality
 - [DONE] (M5-2) Execute statements + expressions
 - [DONE] (M5-3) Functions + closures + recursion
-- [TODO] (M5-4) Loops + break/continue
+- [DONE] (M5-4) Loops + break/continue
 
 ## Milestone 6A — Builtins minimal
 - [TODO] (M6A-1) Output: echo/print/println + output buffer
