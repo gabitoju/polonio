@@ -1111,6 +1111,20 @@ TEST_CASE("Math builtins error on invalid args") {
     CHECK_THROWS_AS(run_program_output("echo min(1)"), polonio::PolonioError);
 }
 
+TEST_CASE("Date builtins: date_format/date_parts") {
+    CHECK(run_program_output("var p = date_parts(0)\necho get(p, \"year\")\necho \"-\"\necho get(p, \"month\")\necho \"-\"\necho get(p, \"day\")") == "1970-1-1");
+    CHECK(run_program_output("echo date_format(0, \"YYYY-MM-DD\")") == "1970-01-01");
+    CHECK(run_program_output("echo date_format(0, \"YYYY-MM-DD HH:mm:SS\")") == "1970-01-01 00:00:00");
+    auto out = run_program_output("var t = now()\necho t");
+    double value = std::stod(out);
+    CHECK(value > 1000000000.0);
+}
+
+TEST_CASE("Date builtins validate arguments") {
+    CHECK_THROWS_AS(run_program_output("echo date_format(\"x\", \"YYYY\")"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo date_parts()"), polonio::PolonioError);
+}
+
 TEST_CASE("Interpreter executes while loops") {
     const char* src = R"(
 var i = 0
