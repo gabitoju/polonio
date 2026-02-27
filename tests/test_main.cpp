@@ -1043,6 +1043,44 @@ TEST_CASE("String builtins: contains/starts_with/ends_with") {
     CHECK(run_program_output("echo ends_with(\"hello\", \"xx\")") == "false");
 }
 
+TEST_CASE("Array builtins: count push pop join range") {
+    const char* program = R"(
+var a = []
+push(a, 1)
+push(a, 2)
+echo count(a)
+echo pop(a)
+echo count(a)
+)";
+    CHECK(run_program_output(program) == "221");
+    CHECK(run_program_output("var b = [1, \"x\", true]\necho join(b, \",\")") == "1,x,true");
+    CHECK(run_program_output("for i in range(5) echo i end") == "01234");
+}
+
+TEST_CASE("Object builtins: keys has_key get set") {
+    const char* program = R"(
+var o = {"b": 2, "a": 1}
+var ks = keys(o)
+for k in ks echo k end
+)";
+    CHECK(run_program_output(program) == "ab");
+
+    const char* prog2 = R"(
+var o = {}
+set(o, "a", 10)
+echo has_key(o, "a")
+echo get(o, "a")
+echo get(o, "missing")
+echo get(o, "missing", 7)
+)";
+    CHECK(run_program_output(prog2) == "true107");
+}
+
+TEST_CASE("Array/Object builtin errors") {
+    CHECK_THROWS_AS(run_program_output("echo push(1, 2)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo keys(1)"), polonio::PolonioError);
+}
+
 TEST_CASE("Interpreter executes while loops") {
     const char* src = R"(
 var i = 0

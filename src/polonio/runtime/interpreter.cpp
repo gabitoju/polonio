@@ -337,27 +337,30 @@ Value Interpreter::eval_index(const IndexExpr& index) {
     Value collection = eval_expr_internal(index.object());
     Value idx = eval_expr_internal(index.index());
 
-    if (std::holds_alternative<Value::Array>(collection.storage())) {
+    if (std::holds_alternative<Value::ArrayPtr>(collection.storage())) {
         double numeric = require_number(idx, "array index");
         if (!is_integer(numeric) || numeric < 0) {
             runtime_error("array index must be a non-negative integer");
         }
-        const auto& array = std::get<Value::Array>(collection.storage());
+        const auto& array = std::get<Value::ArrayPtr>(collection.storage());
         std::size_t i = static_cast<std::size_t>(numeric);
-        if (i >= array.size()) {
+        if (!array || i >= array->size()) {
             runtime_error("array index out of range");
         }
-        return array[i];
+        return (*array)[i];
     }
 
-    if (std::holds_alternative<Value::Object>(collection.storage())) {
+    if (std::holds_alternative<Value::ObjectPtr>(collection.storage())) {
         if (!std::holds_alternative<std::string>(idx.storage())) {
             runtime_error("object keys must be strings");
         }
         const auto& key = std::get<std::string>(idx.storage());
-        const auto& object = std::get<Value::Object>(collection.storage());
-        auto it = object.find(key);
-        if (it == object.end()) {
+        const auto& object = std::get<Value::ObjectPtr>(collection.storage());
+        if (!object) {
+            return Value();
+        }
+        auto it = object->find(key);
+        if (it == object->end()) {
             return Value();
         }
         return it->second;
@@ -472,23 +475,29 @@ void Interpreter::exec_for(const ForStmt& stmt) {
         env_ = previous_env;
     };
 
-    if (std::holds_alternative<Value::Array>(iterable.storage())) {
-        const auto& array = std::get<Value::Array>(iterable.storage());
-        for (std::size_t i = 0; i < array.size(); ++i) {
+    if (std::holds_alternative<Value::ArrayPtr>(iterable.storage())) {
+        const auto& array = std::get<Value::ArrayPtr>(iterable.storage());
+        if (!array) {
+            return;
+        }
+        for (std::size_t i = 0; i < array->size(); ++i) {
             std::optional<Value> index_value;
             if (stmt.index_name()) {
                 index_value = Value(static_cast<double>(i));
             }
-            run_iteration(index_value, array[i]);
+            run_iteration(index_value, (*array)[i]);
         }
         return;
     }
 
-    if (std::holds_alternative<Value::Object>(iterable.storage())) {
-        const auto& object = std::get<Value::Object>(iterable.storage());
+    if (std::holds_alternative<Value::ObjectPtr>(iterable.storage())) {
+        const auto& object = std::get<Value::ObjectPtr>(iterable.storage());
+        if (!object) {
+            return;
+        }
         std::vector<std::string> keys;
-        keys.reserve(object.size());
-        for (const auto& entry : object) {
+        keys.reserve(object->size());
+        for (const auto& entry : *object) {
             keys.push_back(entry.first);
         }
         std::sort(keys.begin(), keys.end());
@@ -497,8 +506,8 @@ void Interpreter::exec_for(const ForStmt& stmt) {
             if (stmt.index_name()) {
                 index_value = Value(key);
             }
-            auto it = object.find(key);
-            if (it != object.end()) {
+            auto it = object->find(key);
+            if (it != object->end()) {
                 run_iteration(index_value, it->second);
             }
         }

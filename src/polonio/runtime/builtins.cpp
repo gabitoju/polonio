@@ -39,6 +39,15 @@ Value builtin_split(Interpreter& interp, const std::vector<Value>& args, const L
 Value builtin_contains(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_starts_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ends_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_keys(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_has_key(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_get(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("type", 0, args, interp, loc);
@@ -197,6 +206,154 @@ Value builtin_ends_with(Interpreter& interp, const std::vector<Value>& args, con
     return Value(text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0);
 }
 
+Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("count", 0, args, interp, loc);
+    if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
+        auto arr = std::get<Value::ArrayPtr>(value.storage());
+        return Value(static_cast<double>(arr ? arr->size() : 0));
+    }
+    if (std::holds_alternative<Value::ObjectPtr>(value.storage())) {
+        auto obj = std::get<Value::ObjectPtr>(value.storage());
+        return Value(static_cast<double>(obj ? obj->size() : 0));
+    }
+    throw PolonioError(ErrorKind::Runtime, "count: expected array or object", interp.path(), loc);
+}
+
+Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value array_value = ensure_arg("push", 0, args, interp, loc);
+    Value element = ensure_arg("push", 1, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(array_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "push: expected array", interp.path(), loc);
+    }
+    auto arr = std::get<Value::ArrayPtr>(array_value.storage());
+    if (!arr) {
+        arr = std::make_shared<Value::Array>();
+        array_value = Value(Value::Array(*arr));
+    }
+    arr->push_back(element);
+    return Value(static_cast<double>(arr->size()));
+}
+
+Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value array_value = ensure_arg("pop", 0, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(array_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "pop: expected array", interp.path(), loc);
+    }
+    auto arr = std::get<Value::ArrayPtr>(array_value.storage());
+    if (!arr || arr->empty()) {
+        return Value();
+    }
+    Value result = arr->back();
+    arr->pop_back();
+    return result;
+}
+
+Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value array_value = ensure_arg("join", 0, args, interp, loc);
+    Value sep_value = ensure_arg("join", 1, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(array_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "join: expected array", interp.path(), loc);
+    }
+    auto arr = std::get<Value::ArrayPtr>(array_value.storage());
+    std::string sep = OutputBuffer::value_to_string(sep_value);
+    std::string result;
+    if (arr) {
+        for (std::size_t i = 0; i < arr->size(); ++i) {
+            if (i > 0) {
+                result += sep;
+            }
+            result += OutputBuffer::value_to_string((*arr)[i]);
+        }
+    }
+    return Value(result);
+}
+
+Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value count = ensure_arg("range", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(count.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "range: expected number", interp.path(), loc);
+    }
+    double number = std::get<double>(count.storage());
+    Value::Array values;
+    if (number > 0) {
+        for (std::size_t i = 0; i < static_cast<std::size_t>(number); ++i) {
+            values.emplace_back(static_cast<double>(i));
+        }
+    }
+    return Value(std::move(values));
+}
+
+Value builtin_keys(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value object_value = ensure_arg("keys", 0, args, interp, loc);
+    if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "keys: expected object", interp.path(), loc);
+    }
+    auto obj = std::get<Value::ObjectPtr>(object_value.storage());
+    std::vector<std::string> keys;
+    if (obj) {
+        keys.reserve(obj->size());
+        for (const auto& entry : *obj) {
+            keys.push_back(entry.first);
+        }
+    }
+    std::sort(keys.begin(), keys.end());
+    Value::Array values;
+    for (const auto& key : keys) {
+        values.emplace_back(key);
+    }
+    return Value(std::move(values));
+}
+
+Value builtin_has_key(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value object_value = ensure_arg("has_key", 0, args, interp, loc);
+    Value key_value = ensure_arg("has_key", 1, args, interp, loc);
+    if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "has_key: expected object", interp.path(), loc);
+    }
+    auto obj = std::get<Value::ObjectPtr>(object_value.storage());
+    std::string key = OutputBuffer::value_to_string(key_value);
+    if (!obj) {
+        return Value(false);
+    }
+    return Value(obj->find(key) != obj->end());
+}
+
+Value builtin_get(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value object_value = ensure_arg("get", 0, args, interp, loc);
+    Value key_value = ensure_arg("get", 1, args, interp, loc);
+    Value default_value = args.size() > 2 ? args[2] : Value();
+    if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "get: expected object", interp.path(), loc);
+    }
+    auto obj = std::get<Value::ObjectPtr>(object_value.storage());
+    std::string key = OutputBuffer::value_to_string(key_value);
+    if (!obj) {
+        return default_value;
+    }
+    auto it = obj->find(key);
+    if (it == obj->end()) {
+        return default_value;
+    }
+    return it->second;
+}
+
+Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value object_value = ensure_arg("set", 0, args, interp, loc);
+    Value key_value = ensure_arg("set", 1, args, interp, loc);
+    Value val = ensure_arg("set", 2, args, interp, loc);
+    if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "set: expected object", interp.path(), loc);
+    }
+    auto obj = std::get<Value::ObjectPtr>(object_value.storage());
+    std::string key = OutputBuffer::value_to_string(key_value);
+    if (!obj) {
+        obj = std::make_shared<Value::Object>();
+        object_value = Value(Value::Object(*obj));
+    }
+    (*obj)[key] = val;
+    return val;
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -212,6 +369,15 @@ void install_builtins(Env& env) {
     env.set_local("contains", Value(BuiltinFunction{"contains", builtin_contains}));
     env.set_local("starts_with", Value(BuiltinFunction{"starts_with", builtin_starts_with}));
     env.set_local("ends_with", Value(BuiltinFunction{"ends_with", builtin_ends_with}));
+    env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
+    env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
+    env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
+    env.set_local("join", Value(BuiltinFunction{"join", builtin_join}));
+    env.set_local("range", Value(BuiltinFunction{"range", builtin_range}));
+    env.set_local("keys", Value(BuiltinFunction{"keys", builtin_keys}));
+    env.set_local("has_key", Value(BuiltinFunction{"has_key", builtin_has_key}));
+    env.set_local("get", Value(BuiltinFunction{"get", builtin_get}));
+    env.set_local("set", Value(BuiltinFunction{"set", builtin_set}));
 }
 
 } // namespace polonio
