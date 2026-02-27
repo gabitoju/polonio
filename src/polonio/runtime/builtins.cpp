@@ -1,5 +1,7 @@
 #include "polonio/runtime/builtins.h"
 
+#include <chrono>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -53,6 +55,8 @@ Value builtin_is_array(Interpreter& interp, const std::vector<Value>& args, cons
 Value builtin_is_object(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_is_function(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_now(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -314,6 +318,67 @@ Value builtin_now([[maybe_unused]] Interpreter& interp, const std::vector<Value>
     return Value(static_cast<double>(seconds));
 }
 
+Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value epoch = ensure_arg("date_parts", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(epoch.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "date_parts: expected number", interp.path(), loc);
+    }
+    time_t seconds = static_cast<time_t>(std::floor(std::get<double>(epoch.storage())));
+    std::tm tm = {};
+#if defined(_WIN32)
+    gmtime_s(&tm, &seconds);
+#else
+    gmtime_r(&seconds, &tm);
+#endif
+    Value::Object result;
+    result["year"] = Value(static_cast<double>(tm.tm_year + 1900));
+    result["month"] = Value(static_cast<double>(tm.tm_mon + 1));
+    result["day"] = Value(static_cast<double>(tm.tm_mday));
+    result["hour"] = Value(static_cast<double>(tm.tm_hour));
+    result["minute"] = Value(static_cast<double>(tm.tm_min));
+    result["second"] = Value(static_cast<double>(tm.tm_sec));
+    return Value(std::move(result));
+}
+
+std::string format_component(int value, int width) {
+    std::string s = std::to_string(value);
+    if (static_cast<int>(s.size()) < width) {
+        s.insert(s.begin(), width - s.size(), '0');
+    }
+    return s;
+}
+
+Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value epoch = ensure_arg("date_format", 0, args, interp, loc);
+    Value fmt_value = ensure_arg("date_format", 1, args, interp, loc);
+    if (!std::holds_alternative<double>(epoch.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "date_format: expected number", interp.path(), loc);
+    }
+    std::string fmt = OutputBuffer::value_to_string(fmt_value);
+    time_t seconds = static_cast<time_t>(std::floor(std::get<double>(epoch.storage())));
+    std::tm tm = {};
+#if defined(_WIN32)
+    gmtime_s(&tm, &seconds);
+#else
+    gmtime_r(&seconds, &tm);
+#endif
+    std::string out = fmt;
+    auto replace_token = [&](const std::string& token, const std::string& value) {
+        std::size_t pos = 0;
+        while ((pos = out.find(token, pos)) != std::string::npos) {
+            out.replace(pos, token.size(), value);
+            pos += value.size();
+        }
+    };
+    replace_token("YYYY", format_component(tm.tm_year + 1900, 4));
+    replace_token("MM", format_component(tm.tm_mon + 1, 2));
+    replace_token("DD", format_component(tm.tm_mday, 2));
+    replace_token("HH", format_component(tm.tm_hour, 2));
+    replace_token("mm", format_component(tm.tm_min, 2));
+    replace_token("SS", format_component(tm.tm_sec, 2));
+    return Value(out);
+}
+
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("count", 0, args, interp, loc);
     if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
@@ -500,6 +565,8 @@ void install_builtins(Env& env) {
     env.set_local("is_object", Value(BuiltinFunction{"is_object", builtin_is_object}));
     env.set_local("is_function", Value(BuiltinFunction{"is_function", builtin_is_function}));
     env.set_local("now", Value(BuiltinFunction{"now", builtin_now}));
+    env.set_local("date_parts", Value(BuiltinFunction{"date_parts", builtin_date_parts}));
+    env.set_local("date_format", Value(BuiltinFunction{"date_format", builtin_date_format}));
 }
 
 } // namespace polonio

@@ -41,7 +41,8 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-1) Builtins core + type/tostring/nl2br
 - [DONE] (M6-2) String builtins: len/lower/upper/trim/replace/split/contains
 - [DONE] (M6-3) Array/Object builtins: count/push/pop/join/range/keys/has_key/get/set
-- [TODO] (M6-4) Math + type predicates + now()
+- [DONE] (M6-4) Math + type predicates + now()
+- [TODO] (M6-5) Date format helpers: date_format/date_parts
 
 ## Milestone 6A — Builtins minimal
 - [TODO] (M6A-1) Output: echo/print/println + output buffer
