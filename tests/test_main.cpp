@@ -158,6 +158,61 @@ TEST_CASE("CLI: template rendering mixes text and code") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("CLI: inline echo renders expressions") {
+    const char* tpl = "<p>2 + 3 = <% echo 2 + 3 %></p>";
+    auto path = create_temp_file_with_content("polonio_inline_basic", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("2 + 3 = 5") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: inline echo uses shared variables") {
+    const char* tpl = R"(
+<% var name = "Juan" %>
+Hello <% echo name %>!
+)";
+    auto path = create_temp_file_with_content("polonio_inline_vars", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Hello Juan!") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: multiple inline echo blocks") {
+    const char* tpl = R"(
+<% var x = 2 %>
+<% echo x %>-<% echo x * 2 %>
+)";
+    auto path = create_temp_file_with_content("polonio_inline_multi", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("2-4") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: non-echo code blocks still execute") {
+    const char* tpl = R"(
+<% var x = 3 %>
+<% x = x + 1 %>
+<% echo x %>
+)";
+    auto path = create_temp_file_with_content("polonio_inline_non", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("4") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: inline echo parse errors report location") {
+    const char* tpl = "<% echo 1 + %>";
+    auto path = create_temp_file_with_content("polonio_inline_error", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find(path) != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("CLI: template blocks share interpreter state") {
     const char* tpl = "<% var x = 1 %>\n<p>\n<% echo x %>";
     auto path = create_temp_file_with_content("polonio_template_state", tpl);
