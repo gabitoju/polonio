@@ -213,6 +213,102 @@ TEST_CASE("CLI: inline echo parse errors report location") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("Template include inserts partial output") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_include";
+    std::filesystem::create_directories(dir);
+    auto main_path = (dir / "main.pol").string();
+    auto partial_path = (dir / "partial.pol").string();
+    {
+        std::ofstream f(main_path);
+        f << "<h1>Main</h1>\n<% include \"partial.pol\" %>";
+    }
+    {
+        std::ofstream f(partial_path);
+        f << "<p>Partial</p>";
+    }
+    auto result = run_polonio({"run", main_path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("<p>Partial</p>") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Includes share interpreter state") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_include_state";
+    std::filesystem::create_directories(dir / "sub");
+    auto main_path = (dir / "main.pol").string();
+    auto child_path = (dir / "hello.pol").string();
+    {
+        std::ofstream f(main_path);
+        f << "<% var name = \"World\" %>\n<% include \"hello.pol\" %>";
+    }
+    {
+        std::ofstream f(child_path);
+        f << "Hello $name";
+    }
+    auto result = run_polonio({"run", main_path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Hello World") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Nested includes resolve relative paths") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_include_nested";
+    std::filesystem::create_directories(dir / "a");
+    std::filesystem::create_directories(dir / "b");
+    auto main_path = (dir / "main.pol").string();
+    auto one_path = (dir / "a/one.pol").string();
+    auto two_path = (dir / "b/two.pol").string();
+    {
+        std::ofstream f(main_path);
+        f << "<% include \"a/one.pol\" %>";
+    }
+    {
+        std::ofstream f(one_path);
+        f << "<% include \"../b/two.pol\" %>";
+    }
+    {
+        std::ofstream f(two_path);
+        f << "OK";
+    }
+    auto result = run_polonio({"run", main_path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("OK") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Include cycles detected") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_include_cycle";
+    std::filesystem::create_directories(dir);
+    auto a_path = (dir / "a.pol").string();
+    auto b_path = (dir / "b.pol").string();
+    {
+        std::ofstream f(a_path);
+        f << "<% include \"b.pol\" %>";
+    }
+    {
+        std::ofstream f(b_path);
+        f << "<% include \"a.pol\" %>";
+    }
+    auto result = run_polonio({"run", a_path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("include") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Missing include file reports error") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_include_missing";
+    std::filesystem::create_directories(dir);
+    auto main_path = (dir / "main.pol").string();
+    {
+        std::ofstream f(main_path);
+        f << "<% include \"nope.pol\" %>";
+    }
+    auto result = run_polonio({"run", main_path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("nope.pol") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
 TEST_CASE("CLI: template blocks share interpreter state") {
     const char* tpl = "<% var x = 1 %>\n<p>\n<% echo x %>";
     auto path = create_temp_file_with_content("polonio_template_state", tpl);

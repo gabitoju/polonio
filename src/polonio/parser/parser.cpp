@@ -256,6 +256,9 @@ StmtPtr Parser::statement() {
     if (match(TokenKind::For)) {
         return for_statement();
     }
+    if (match(TokenKind::Include)) {
+        return include_statement();
+    }
     if (match(TokenKind::Return)) {
         return return_statement();
     }
@@ -365,6 +368,12 @@ StmtPtr Parser::return_statement() {
     return std::make_shared<ReturnStmt>(value);
 }
 
+StmtPtr Parser::include_statement() {
+    const auto& string_token = consume(TokenKind::String, "expected string literal in include");
+    std::string path = string_value(string_token);
+    return std::make_shared<IncludeStmt>(path, string_token.span.start);
+}
+
 const Token& Parser::peek() const { return tokens_[current_]; }
 
 const Token& Parser::previous() const { return tokens_[current_ - 1]; }
@@ -379,6 +388,46 @@ bool Parser::match(std::initializer_list<TokenKind> kinds) {
         }
     }
     return false;
+}
+
+std::string Parser::string_value(const Token& token) const {
+    const std::string& lexeme = token.lexeme;
+    if (lexeme.size() < 2) {
+        return {};
+    }
+    std::string result;
+    for (std::size_t i = 1; i + 1 < lexeme.size(); ++i) {
+        char c = lexeme[i];
+        if (c == '\\' && i + 1 < lexeme.size()) {
+            char next = lexeme[++i];
+            switch (next) {
+            case 'n':
+                result.push_back('\n');
+                break;
+            case 't':
+                result.push_back('\t');
+                break;
+            case 'r':
+                result.push_back('\r');
+                break;
+            case '\\':
+                result.push_back('\\');
+                break;
+            case '"':
+                result.push_back('"');
+                break;
+            case '\'':
+                result.push_back('\'');
+                break;
+            default:
+                result.push_back(next);
+                break;
+            }
+        } else {
+            result.push_back(c);
+        }
+    }
+    return result;
 }
 
 bool Parser::check(TokenKind kind) const {
