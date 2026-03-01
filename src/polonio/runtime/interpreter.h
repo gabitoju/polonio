@@ -33,6 +33,7 @@ public:
     std::shared_ptr<Env> env() const { return env_; }
     const std::string& path() const { return path_; }
     void write_text(const std::string& text);
+    void clear_output();
 
 private:
     Value eval_expr_internal(const ExprPtr& expr);

@@ -47,6 +47,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks
 - [DONE] (M7-2) HTML-mode `$var` interpolation
+- [DONE] (M7-3) Inline `<% echo expr %>` evaluation
 
 ## Milestone 6A — Builtins minimal
 - [TODO] (M6A-1) Output: echo/print/println + output buffer

@@ -1,6 +1,5 @@
 #include "polonio/runtime/template_renderer.h"
 
-#include <cmath>
 #include <string>
 #include <utility>
 #include <vector>
@@ -85,6 +84,7 @@ std::vector<TemplateSegment> scan_template(const Source& source) {
 std::string render_template(const Source& source) {
     auto segments = scan_template(source);
     Interpreter interpreter(std::make_shared<Env>(), source.path());
+    std::string final_output;
     for (const auto& segment : segments) {
         if (segment.kind == TemplateSegment::Kind::Text) {
             std::string output;
@@ -131,16 +131,19 @@ std::string render_template(const Source& source) {
                 loc = advance(loc, ch);
                 ++i;
             }
-            interpreter.write_text(output);
+            final_output += output;
         } else {
             Lexer lexer(segment.content, source.path());
             auto tokens = lexer.scan_all();
             Parser parser(tokens, source.path());
             auto program = parser.parse_program();
+            interpreter.clear_output();
             interpreter.exec_program(program);
+            final_output += interpreter.output();
+            interpreter.clear_output();
         }
     }
-    return interpreter.output();
+    return final_output;
 }
 
 } // namespace polonio

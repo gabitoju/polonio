@@ -76,6 +76,8 @@ void Interpreter::exec_program(const Program& program) {
 
 void Interpreter::write_text(const std::string& text) { output_.write_text(text); }
 
+void Interpreter::clear_output() { output_.clear(); }
+
 Value Interpreter::eval_expr_internal(const ExprPtr& expr) {
     if (auto literal = std::dynamic_pointer_cast<LiteralExpr>(expr)) {
         return eval_literal(*literal);
