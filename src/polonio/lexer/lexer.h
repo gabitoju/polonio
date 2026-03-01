@@ -12,6 +12,7 @@ enum class TokenKind {
     Identifier,
     Var,
     Function,
+    Include,
     Echo,
     True,
     False,

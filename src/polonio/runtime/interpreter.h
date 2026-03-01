@@ -1,6 +1,7 @@
 #pragma once
 
 #include <exception>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -34,6 +35,8 @@ public:
     const std::string& path() const { return path_; }
     void write_text(const std::string& text);
     void clear_output();
+    using IncludeCallback = std::function<void(const std::string&, const Location&)>;
+    void set_include_callback(IncludeCallback cb) { include_callback_ = std::move(cb); }
 
 private:
     Value eval_expr_internal(const ExprPtr& expr);
@@ -68,6 +71,7 @@ private:
     OutputBuffer output_;
     std::string path_;
     int call_depth_ = 0;
+    IncludeCallback include_callback_;
 };
 
 } // namespace polonio

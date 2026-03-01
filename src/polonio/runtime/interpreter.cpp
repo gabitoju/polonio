@@ -65,6 +65,13 @@ void Interpreter::exec_stmt(const StmtPtr& stmt) {
         exec_for(*for_stmt);
         return;
     }
+    if (auto include_stmt = std::dynamic_pointer_cast<IncludeStmt>(stmt)) {
+        if (!include_callback_) {
+            runtime_error("include not supported here");
+        }
+        include_callback_(include_stmt->path(), include_stmt->location());
+        return;
+    }
     runtime_error("statement type not supported yet");
 }
 

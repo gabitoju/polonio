@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "polonio/common/location.h"
+
 namespace polonio {
 
 class Expr {
@@ -214,6 +216,20 @@ public:
 
 private:
     ExprPtr expr_;
+};
+
+class IncludeStmt : public Stmt {
+public:
+    IncludeStmt(std::string path, Location location)
+        : path_(std::move(path)), location_(location) {}
+
+    std::string dump() const override { return "Include(" + path_ + ")"; }
+    const std::string& path() const { return path_; }
+    const Location& location() const { return location_; }
+
+private:
+    std::string path_;
+    Location location_;
 };
 
 class Program {

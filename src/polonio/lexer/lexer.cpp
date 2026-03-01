@@ -13,6 +13,7 @@ TokenKind keyword_kind(const std::string& identifier) {
     static const std::unordered_map<std::string, TokenKind> keywords = {
         {"var", TokenKind::Var},
         {"function", TokenKind::Function},
+        {"include", TokenKind::Include},
         {"echo", TokenKind::Echo},
         {"true", TokenKind::True},
         {"false", TokenKind::False},

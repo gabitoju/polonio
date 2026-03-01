@@ -35,6 +35,7 @@ private:
     StmtPtr if_statement();
     StmtPtr while_statement();
     StmtPtr for_statement();
+    StmtPtr include_statement();
     StmtPtr return_statement();
     std::vector<StmtPtr> block_until(std::initializer_list<TokenKind> terminators);
     StmtPtr expression_statement();
@@ -54,7 +55,7 @@ private:
     ExprPtr array_literal();
     ExprPtr object_literal();
 
-    std::string literal_repr(const Token& token) const;
+    std::string string_value(const Token& token) const;
 
     std::vector<Token> tokens_;
     std::string path_;
