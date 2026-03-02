@@ -250,6 +250,40 @@ TEST_CASE("Template renderer errors on unterminated HTML comment") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("Template if blocks span HTML segments") {
+    const char* tpl = R"(
+<ul>
+<% if true %>
+<li>Visible</li>
+<% else %>
+<li>Hidden</li>
+<% end %>
+</ul>
+)";
+    auto path = create_temp_file_with_content("polonio_if_span", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("<li>Visible</li>") != std::string::npos);
+    CHECK(result.stdout_output.find("Hidden") == std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Template for loops span HTML segments") {
+    const char* tpl = R"(
+<ul>
+<% for item in ["one", "two"] %>
+<li>$item</li>
+<% end %>
+</ul>
+)";
+    auto path = create_temp_file_with_content("polonio_for_span", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("<li>one</li>") != std::string::npos);
+    CHECK(result.stdout_output.find("<li>two</li>") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("CLI: inline echo uses shared variables") {
     const char* tpl = R"(
 <% var name = "Juan" %>

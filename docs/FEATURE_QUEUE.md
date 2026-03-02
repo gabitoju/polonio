@@ -58,7 +58,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanner: TEXT vs CODE segments
 - [DONE] (M7-2) `$var` interpolation in TEXT + HTML comment stripping rule
-- [TODO] (M7-3) Spanning blocks: if/for across HTML
+- [DONE] (M7-3) Spanning blocks: if/for across HTML
 
 ## Milestone 8 — Superglobals
 - [DONE] (M8-1) HTTP superglobals `_GET` `_POST` `_COOKIE` `_SERVER`
