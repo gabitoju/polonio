@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <ctime>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -57,6 +58,8 @@ std::string trim(std::string s) {
 
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_tostring(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_to_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_to_number(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_nl2br(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_print(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -107,6 +110,41 @@ Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Lo
 Value builtin_tostring(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("tostring", 0, args, interp, loc);
     return Value(OutputBuffer::value_to_string(value));
+}
+
+Value builtin_to_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("to_string", 0, args, interp, loc);
+    return Value(OutputBuffer::value_to_string(value));
+}
+
+Value builtin_to_number(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("to_number", 0, args, interp, loc);
+    if (std::holds_alternative<double>(value.storage())) {
+        return value;
+    }
+    if (std::holds_alternative<bool>(value.storage())) {
+        return Value(std::get<bool>(value.storage()) ? 1.0 : 0.0);
+    }
+    if (std::holds_alternative<std::monostate>(value.storage())) {
+        return Value(0.0);
+    }
+    if (std::holds_alternative<std::string>(value.storage())) {
+        std::string text = trim(std::get<std::string>(value.storage()));
+        if (text.empty()) {
+            return Value(0.0);
+        }
+        std::size_t idx = 0;
+        try {
+            double number = std::stod(text, &idx);
+            if (idx != text.size()) {
+                throw std::invalid_argument("trailing");
+            }
+            return Value(number);
+        } catch (const std::exception&) {
+            throw PolonioError(ErrorKind::Runtime, "to_number: invalid numeric string", interp.path(), loc);
+        }
+    }
+    throw PolonioError(ErrorKind::Runtime, "to_number: unsupported type", interp.path(), loc);
 }
 
 Value builtin_nl2br(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -651,6 +689,8 @@ Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Loc
 void install_builtins(Env& env) {
     env.set_local("type", Value(BuiltinFunction{"type", builtin_type}));
     env.set_local("tostring", Value(BuiltinFunction{"tostring", builtin_tostring}));
+    env.set_local("to_string", Value(BuiltinFunction{"to_string", builtin_to_string}));
+    env.set_local("to_number", Value(BuiltinFunction{"to_number", builtin_to_number}));
     env.set_local("print", Value(BuiltinFunction{"print", builtin_print}));
     env.set_local("println", Value(BuiltinFunction{"println", builtin_println}));
     env.set_local("nl2br", Value(BuiltinFunction{"nl2br", builtin_nl2br}));

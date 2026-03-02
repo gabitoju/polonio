@@ -1376,6 +1376,18 @@ echo tostring("x")
     CHECK(run_program_output(src) == "true3x");
 }
 
+TEST_CASE("Builtins to_string and to_number convert values") {
+    CHECK(run_program_output("echo to_string(1)") == "1");
+    CHECK(run_program_output("echo to_string(true)") == "true");
+    CHECK(run_program_output("echo to_number(\"42\")") == "42");
+    CHECK(run_program_output("echo to_number(\" 5 \")") == "5");
+    CHECK(run_program_output("echo to_number(true)") == "1");
+    CHECK(run_program_output("echo to_number(false)") == "0");
+    CHECK(run_program_output("echo to_number(null)") == "0");
+    CHECK(run_program_output("echo to_number(\"3.14\")") == "3.14");
+    CHECK_THROWS_AS(run_program_output("echo to_number(\"abc\")"), polonio::PolonioError);
+}
+
 TEST_CASE("Builtin nl2br handles newlines") {
     CHECK(run_program_output("echo nl2br(\"a\\nb\")") == "a<br>\nb");
     CHECK(run_program_output("echo nl2br(\"a\\r\\nb\")") == "a<br>\nb");
