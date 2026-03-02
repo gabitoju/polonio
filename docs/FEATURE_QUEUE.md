@@ -53,7 +53,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 6A — Builtins minimal
 - [DONE] (M6A-1) Output: echo/print/println + output buffer
 - [DONE] (M6A-2) String: len + htmlspecialchars + nl2br
-- [TODO] (M6A-3) Count/type conversions: count/type/to_string/to_number
+- [DONE] (M6A-3) Count/type conversions: count/type/to_string/to_number
 
 ## Milestone 7 — Template engine
 - [TODO] (M7-1) Template scanner: TEXT vs CODE segments
