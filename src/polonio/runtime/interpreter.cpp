@@ -1,6 +1,8 @@
 #include "polonio/runtime/interpreter.h"
 
+
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <optional>
 #include <sstream>
@@ -22,6 +24,61 @@ bool is_integer(double value) {
 }
 
 } // namespace
+
+namespace {
+
+bool iequals(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+void ResponseContext::add_header(const std::string& name, const std::string& value) {
+    if (iequals(name, "Content-Type")) {
+        headers.erase(std::remove_if(headers.begin(), headers.end(), [](const auto& item) {
+                                return iequals(item.first, "Content-Type");
+                            }),
+                      headers.end());
+    }
+    headers.emplace_back(name, value);
+}
+
+bool ResponseContext::has_content_type() const {
+    for (const auto& header : headers) {
+        if (iequals(header.first, "Content-Type")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ResponseContext::ensure_default_headers() {
+    if (!has_content_type()) {
+        headers.emplace_back("Content-Type", "text/html");
+    }
+}
+
+void ResponseContext::emit(std::ostream& os) {
+    if (headers_sent) {
+        return;
+    }
+    ensure_default_headers();
+    if (status_code != 200) {
+        os << "Status: " << status_code << "\r\n";
+    }
+    for (const auto& header : headers) {
+        os << header.first << ": " << header.second << "\r\n";
+    }
+    os << "\r\n";
+    headers_sent = true;
+}
 
 Interpreter::Interpreter(std::shared_ptr<Env> env, std::string path)
     : env_(env ? std::move(env) : std::make_shared<Env>()), path_(std::move(path)) {
