@@ -1638,6 +1638,19 @@ TEST_CASE("String builtins: contains/starts_with/ends_with") {
     CHECK(run_program_output("echo ends_with(\"hello\", \"xx\")") == "false");
 }
 
+TEST_CASE("String builtins: substr handles offsets and lengths") {
+    CHECK(run_program_output("echo substr(\"hello\", 1)") == "ello");
+    CHECK(run_program_output("echo substr(\"hello\", 1, 3)") == "ell");
+    CHECK(run_program_output("echo substr(\"hello\", -2)") == "lo");
+    CHECK(run_program_output("echo substr(\"hello\", -10, 2)") == "he");
+    CHECK(run_program_output("echo substr(\"hello\", 10)") == "");
+}
+
+TEST_CASE("String builtin substr validates arity and types") {
+    CHECK_THROWS_AS(run_program_output("echo substr(\"x\")"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo substr(\"x\", \"1\")"), polonio::PolonioError);
+}
+
 TEST_CASE("Array builtins: count push pop join range") {
     const char* program = R"(
 var a = []
@@ -1650,6 +1663,27 @@ echo count(a)
     CHECK(run_program_output(program) == "221");
     CHECK(run_program_output("var b = [1, \"x\", true]\necho join(b, \",\")") == "1,x,true");
     CHECK(run_program_output("for i in range(5) echo i end") == "01234");
+}
+
+TEST_CASE("Array builtin slice copies segments") {
+    CHECK(run_program_output("var s = slice([1,2,3,4], 1)\nfor x in s echo x end") == "234");
+    CHECK(run_program_output("var s = slice([1,2,3,4], 1, 2)\nfor x in s echo x end") == "23");
+    CHECK(run_program_output("var s = slice([1,2,3,4], -2)\nfor x in s echo x end") == "34");
+    CHECK(run_program_output("var s = slice([1,2,3,4], 99)\nfor x in s echo x end") == "");
+}
+
+TEST_CASE("Array builtin slice does not mutate source") {
+    const char* program = R"(
+var a = [1,2,3]
+var b = slice(a, 1)
+push(b, 9)
+echo count(a)
+)";
+    CHECK(run_program_output(program) == "3");
+}
+
+TEST_CASE("Object builtin values returns deterministic order") {
+    CHECK(run_program_output("var v = values({\"b\": 2, \"a\": 1})\nfor x in v echo x end") == "12");
 }
 
 TEST_CASE("Object builtins: keys has_key get set") {
@@ -1674,6 +1708,8 @@ echo get(o, "missing", 7)
 TEST_CASE("Array/Object builtin errors") {
     CHECK_THROWS_AS(run_program_output("echo push(1, 2)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo keys(1)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo slice(1, 0)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo values([1,2])"), polonio::PolonioError);
 }
 
 TEST_CASE("Math builtins work for typical inputs") {
