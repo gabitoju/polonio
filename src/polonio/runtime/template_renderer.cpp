@@ -193,8 +193,8 @@ void render_source(RenderState& state, const Source& source, const std::filesyst
     }
 }
 
-std::string render_template(const Source& source) {
-    Interpreter interpreter(std::make_shared<Env>(), source.path());
+std::string render_template_with_interpreter(const Source& source, Interpreter& interpreter) {
+    interpreter.clear_output();
     RenderState state{interpreter, {}};
     auto root_path = canonicalize(source.path());
     interpreter.set_include_callback([&state](const std::string& include_path, const Location& loc) {
@@ -206,18 +206,23 @@ std::string render_template(const Source& source) {
         }
         auto base_dir = state.path_stack.back().parent_path();
         auto candidate = (base_dir / include_path).lexically_normal();
-        Source raw = Source::from_file(candidate.string());
         auto canonical_child = canonicalize(candidate);
         for (const auto& existing : state.path_stack) {
             if (existing == canonical_child) {
                 throw PolonioError(ErrorKind::Runtime, "include cycle detected", state.path_stack.back().string(), loc);
             }
         }
-        Source child_source(canonical_child.string(), raw.content());
-        render_source(state, child_source, canonical_child);
+        auto child_source = Source::from_file(candidate.string());
+        Source normalized(canonical_child.string(), child_source.content());
+        render_source(state, normalized, canonical_child);
     });
     render_source(state, source, root_path);
     return interpreter.output();
+}
+
+std::string render_template(const Source& source) {
+    Interpreter interpreter(std::make_shared<Env>(), source.path());
+    return render_template_with_interpreter(source, interpreter);
 }
 
 } // namespace polonio

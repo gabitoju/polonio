@@ -71,19 +71,47 @@ std::string create_temp_file_with_content(const std::string& prefix, const std::
     return path;
 }
 
+CommandResult run_polonio_with_env(const std::vector<std::string>& args,
+                                   const std::vector<std::pair<std::string, std::string>>& env,
+                                   const std::string& stdin_content);
+
 CommandResult run_polonio(const std::vector<std::string>& args) {
+    return run_polonio_with_env(args, {}, "");
+}
+
+CommandResult run_polonio_with_env(const std::vector<std::string>& args,
+                                   const std::vector<std::pair<std::string, std::string>>& env,
+                                   const std::string& stdin_content) {
     auto binary = (std::filesystem::current_path() / "build/polonio").string();
     REQUIRE(std::filesystem::exists(binary));
 
     const std::string stdout_path = create_temp_file("polonio_stdout");
     const std::string stderr_path = create_temp_file("polonio_stderr");
+    std::string stdin_path;
+    if (!stdin_content.empty()) {
+        stdin_path = create_temp_file("polonio_stdin");
+        std::ofstream stdin_file(stdin_path, std::ios::binary);
+        stdin_file << stdin_content;
+    }
 
     std::ostringstream cmd;
+    if (!env.empty()) {
+        cmd << "env";
+        for (const auto& kv : env) {
+            cmd << " " << shell_quote(kv.first + "=" + kv.second);
+        }
+        cmd << " ";
+    }
     cmd << shell_quote(binary);
     for (const auto& arg : args) {
         cmd << " " << shell_quote(arg);
     }
     cmd << " > " << shell_quote(stdout_path) << " 2> " << shell_quote(stderr_path);
+    if (!stdin_content.empty()) {
+        cmd << " < " << shell_quote(stdin_path);
+    } else {
+        cmd << " < /dev/null";
+    }
 
     int status = std::system(cmd.str().c_str());
     CommandResult result{};
@@ -100,6 +128,9 @@ CommandResult run_polonio(const std::vector<std::string>& args) {
 
     std::remove(stdout_path.c_str());
     std::remove(stderr_path.c_str());
+    if (!stdin_path.empty()) {
+        std::remove(stdin_path.c_str());
+    }
     return result;
 }
 
@@ -309,6 +340,23 @@ TEST_CASE("Missing include file reports error") {
     std::filesystem::remove_all(dir);
 }
 
+namespace {
+
+CommandResult run_polonio_cgi(const std::vector<std::pair<std::string, std::string>>& env,
+                              const std::string& stdin_body = std::string()) {
+    return run_polonio_with_env({}, env, stdin_body);
+}
+
+std::string extract_cgi_body(const std::string& output) {
+    const std::string header = "Content-Type: text/html\r\n\r\n";
+    if (output.rfind(header, 0) == 0) {
+        return output.substr(header.size());
+    }
+    return output;
+}
+
+} // namespace
+
 TEST_CASE("CLI: template blocks share interpreter state") {
     const char* tpl = "<% var x = 1 %>\n<p>\n<% echo x %>";
     auto path = create_temp_file_with_content("polonio_template_state", tpl);
@@ -325,6 +373,67 @@ TEST_CASE("CLI: unterminated template block reports error") {
     auto result = run_polonio({"run", path});
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("unterminated template block") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode populates _GET") {
+    auto path = create_temp_file_with_content("polonio_cgi_get",
+                                              "<% echo _GET[\"a\"] %><% echo _GET[\"b\"][0] %>"
+                                              "<% echo _GET[\"b\"][1] %><% echo _GET[\"flag\"] %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"QUERY_STRING", "a=1&b=two&b=three&flag"},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.rfind("Content-Type: text/html\r\n\r\n", 0) == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "1twothree");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode parses cookies") {
+    auto path = create_temp_file_with_content("polonio_cgi_cookie",
+                                              "<% echo _COOKIE[\"y\"] %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"HTTP_COOKIE", "x=1; y=two"},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "two");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode parses POST form data") {
+    auto path = create_temp_file_with_content("polonio_cgi_post",
+                                              "<% echo _POST[\"m\"][0] %><% echo _POST[\"m\"][1] %>");
+    std::string body = "m=hi&m=there";
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"REQUEST_METHOD", "POST"},
+        {"CONTENT_TYPE", "application/x-www-form-urlencoded"},
+        {"CONTENT_LENGTH", std::to_string(body.size())},
+    };
+    auto result = run_polonio_cgi(env, body);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "hithere");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode populates _SERVER") {
+    auto path = create_temp_file_with_content("polonio_cgi_server",
+                                              "<% echo _SERVER[\"REQUEST_METHOD\"] %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"REQUEST_METHOD", "POST"},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "POST");
     std::filesystem::remove(path);
 }
 
