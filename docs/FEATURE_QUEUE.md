@@ -44,6 +44,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-4) Math + type predicates + now()
 - [DONE] (M6-5) Date format helpers: date_format/date_parts
 - [DONE] (M6-6) html_escape builtin
+- [DONE] (M6-7) substr/slice/values builtins
 
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks

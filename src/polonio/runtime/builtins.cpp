@@ -66,6 +66,7 @@ Value builtin_print(Interpreter& interp, const std::vector<Value>& args, const L
 Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_html_escape(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_substr(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_len(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_lower(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_upper(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -103,10 +104,12 @@ Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Lo
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_slice(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_keys(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_has_key(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_get(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_values(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("type", 0, args, interp, loc);
@@ -230,6 +233,48 @@ Value builtin_html_escape(Interpreter& interp, const std::vector<Value>& args, c
         }
     }
     return Value(out);
+}
+
+int coerce_int(const std::string& name, const std::string& param, const Value& value, Interpreter& interp, const Location& loc) {
+    if (!std::holds_alternative<double>(value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, name + ": expected number for " + param, interp.path(), loc);
+    }
+    double number = std::get<double>(value.storage());
+    return static_cast<int>(number);
+}
+
+std::size_t normalize_start_index(int start, std::size_t length) {
+    long long normalized = start;
+    if (normalized < 0) {
+        normalized = static_cast<long long>(length) + normalized;
+    }
+    if (normalized < 0) normalized = 0;
+    if (normalized > static_cast<long long>(length)) normalized = static_cast<long long>(length);
+    return static_cast<std::size_t>(normalized);
+}
+
+Value builtin_substr(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() < 2 || args.size() > 3) {
+        throw PolonioError(ErrorKind::Runtime, "substr: expected 2 or 3 arguments", interp.path(), loc);
+    }
+    std::string text = OutputBuffer::value_to_string(args[0]);
+    int start_raw = coerce_int("substr", "start", args[1], interp, loc);
+    std::size_t len = text.size();
+    std::size_t start = normalize_start_index(start_raw, len);
+    if (start >= len) {
+        return Value(std::string());
+    }
+    std::size_t end = len;
+    if (args.size() == 3) {
+        int length_raw = coerce_int("substr", "length", args[2], interp, loc);
+        if (length_raw <= 0) {
+            return Value(std::string());
+        }
+        end = start + static_cast<std::size_t>(length_raw);
+        if (end > len) end = len;
+    }
+    if (end < start) end = start;
+    return Value(text.substr(start, end - start));
 }
 
 Value builtin_len(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -717,6 +762,39 @@ Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Lo
     return Value(result);
 }
 
+Value builtin_slice(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() < 2 || args.size() > 3) {
+        throw PolonioError(ErrorKind::Runtime, "slice: expected 2 or 3 arguments", interp.path(), loc);
+    }
+    Value array_value = ensure_arg("slice", 0, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(array_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "slice: expected array", interp.path(), loc);
+    }
+    auto arr = std::get<Value::ArrayPtr>(array_value.storage());
+    std::size_t size = arr ? arr->size() : 0;
+    int start_raw = coerce_int("slice", "start", args[1], interp, loc);
+    std::size_t start = normalize_start_index(start_raw, size);
+    if (start >= size) {
+        return Value(Value::Array());
+    }
+    std::size_t end = size;
+    if (args.size() == 3) {
+        int length_raw = coerce_int("slice", "length", args[2], interp, loc);
+        if (length_raw <= 0) {
+            return Value(Value::Array());
+        }
+        end = start + static_cast<std::size_t>(length_raw);
+        if (end > size) end = size;
+    }
+    Value::Array result;
+    if (arr) {
+        for (std::size_t i = start; i < end; ++i) {
+            result.emplace_back((*arr)[i]);
+        }
+    }
+    return Value(std::move(result));
+}
+
 Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value count = ensure_arg("range", 0, args, interp, loc);
     if (!std::holds_alternative<double>(count.storage())) {
@@ -803,6 +881,32 @@ Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Loc
     return val;
 }
 
+Value builtin_values(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value object_value = ensure_arg("values", 0, args, interp, loc);
+    if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "values: expected object", interp.path(), loc);
+    }
+    auto obj = std::get<Value::ObjectPtr>(object_value.storage());
+    std::vector<std::string> keys;
+    if (obj) {
+        keys.reserve(obj->size());
+        for (const auto& entry : *obj) {
+            keys.push_back(entry.first);
+        }
+    }
+    std::sort(keys.begin(), keys.end());
+    Value::Array result;
+    if (obj) {
+        for (const auto& key : keys) {
+            auto it = obj->find(key);
+            if (it != obj->end()) {
+                result.emplace_back(it->second);
+            }
+        }
+    }
+    return Value(std::move(result));
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -816,6 +920,7 @@ void install_builtins(Env& env) {
     env.set_local("htmlspecialchars", Value(BuiltinFunction{"htmlspecialchars", builtin_htmlspecialchars}));
     env.set_local("html_escape", Value(BuiltinFunction{"html_escape", builtin_html_escape}));
     env.set_local("len", Value(BuiltinFunction{"len", builtin_len}));
+    env.set_local("substr", Value(BuiltinFunction{"substr", builtin_substr}));
     env.set_local("lower", Value(BuiltinFunction{"lower", builtin_lower}));
     env.set_local("upper", Value(BuiltinFunction{"upper", builtin_upper}));
     env.set_local("trim", Value(BuiltinFunction{"trim", builtin_trim}));
@@ -828,11 +933,13 @@ void install_builtins(Env& env) {
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
     env.set_local("join", Value(BuiltinFunction{"join", builtin_join}));
+    env.set_local("slice", Value(BuiltinFunction{"slice", builtin_slice}));
     env.set_local("range", Value(BuiltinFunction{"range", builtin_range}));
     env.set_local("keys", Value(BuiltinFunction{"keys", builtin_keys}));
     env.set_local("has_key", Value(BuiltinFunction{"has_key", builtin_has_key}));
     env.set_local("get", Value(BuiltinFunction{"get", builtin_get}));
     env.set_local("set", Value(BuiltinFunction{"set", builtin_set}));
+    env.set_local("values", Value(BuiltinFunction{"values", builtin_values}));
     env.set_local("abs", Value(BuiltinFunction{"abs", builtin_abs}));
     env.set_local("floor", Value(BuiltinFunction{"floor", builtin_floor}));
     env.set_local("ceil", Value(BuiltinFunction{"ceil", builtin_ceil}));
