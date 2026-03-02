@@ -65,8 +65,8 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M8-2) Response control + escaping
 
 ## Milestone 9 — CGI mode
-- [TODO] (M9-1) CGI auto-detect + read env/stdin + headers + render
-- [TODO] (M9-2) Integration tests for CGI mode
+- [DONE] (M9-1) CGI auto-detect + read env/stdin + headers + render
+- [DONE] (M9-2) Integration tests for CGI mode
 
 ## Milestone 10 — Dev server
 - [TODO] (M10-1) `polonio serve` basic server + routing + static files

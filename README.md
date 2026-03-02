@@ -7,7 +7,7 @@ Single-binary server-side templating language written in C++17, featuring a mode
 - Custom lexer, Pratt expression parser, AST, and tree-walking interpreter
 - Lexical scoping with closures and a rich standard library (string, array, object, math, type, date, output, HTTP)
 - Template engine with `<% %>` code blocks, `$var` interpolation, `<% echo %>` inline output, and `include "file.pol"`
-- CLI commands for running templates, showing help/version, and (soon) a development server
+- CLI commands for running templates, showing help/version, and (eventually) a development server
 - CGI mode with automatic detection, HTTP superglobals, and response-control builtins
 - Make-based build and doctest-powered test suite
 
@@ -56,7 +56,7 @@ polonio version
 polonio run <file.pol>
 polonio <file.pol>          # shorthand for run
 polonio --dump-ast <expr>   # developer helper
-polonio serve ...           # development server (pending)
+polonio serve ...           # prints "not implemented yet" (dev server pending)
 ```
 
 ## Template Syntax Overview
@@ -78,7 +78,7 @@ polonio serve ...           # development server (pending)
 
 ## CGI Mode
 
-When `GATEWAY_INTERFACE` is set, `polonio` enters CGI mode automatically:
+When no CLI arguments are provided and `GATEWAY_INTERFACE` is set, `polonio` auto-detects CGI mode:
 
 1. Reads environment variables and standard input to populate `_GET`, `_POST`, `_COOKIE`, `_SERVER`
 2. Executes the target template via `SCRIPT_FILENAME`
@@ -92,6 +92,10 @@ Example snippet:
   <% redirect("/login") %>
 <% end %>
 ```
+
+## Builtins Coverage
+
+Polonio v0.1 still trails the full builtin list from the language spec. For the authoritative, currently-shipping set (including `http_status`, `http_header`, `http_content_type`, `redirect`, `urlencode`, and `urldecode`), check `src/polonio/runtime/builtins.cpp`.
 
 ## Development & Testing
 
@@ -118,8 +122,8 @@ Makefile                       # build/test targets
 
 ## Roadmap
 
-- Milestone 9: finalize CGI auto-detect integration tests
 - Milestone 10: `polonio serve` development server with routing/static assets
+- Complete remaining builtins from the language spec
 - Additional runtime features and tooling as listed in `docs/FEATURE_QUEUE.md`
 
 ## License
