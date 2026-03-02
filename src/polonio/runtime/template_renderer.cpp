@@ -52,12 +52,42 @@ std::filesystem::path canonicalize(const std::filesystem::path& path) {
 
 } // namespace
 
-std::string process_text_segment(RenderState& state, const TemplateSegment& segment, const Source& source) {
-    std::string output;
-    output.reserve(segment.content.size());
+std::string escape_string_literal(const std::string& text) {
+    std::string out;
+    out.reserve(text.size() * 2);
+    out.push_back('"');
+    for (char ch : text) {
+        switch (ch) {
+        case '\\': out += "\\\\"; break;
+        case '"': out += "\\\""; break;
+        case '\n': out += "\\n"; break;
+        case '\r': out += "\\r"; break;
+        case '\t': out += "\\t"; break;
+        default:
+            out.push_back(ch);
+            break;
+        }
+    }
+    out.push_back('"');
+    return out;
+}
+
+std::string build_text_code(const TemplateSegment& segment, const Source& source) {
+    std::string code;
+    std::string literal;
     Location loc = segment.location;
     const std::string& text = segment.content;
     std::size_t i = 0;
+    auto flush_literal = [&]() {
+        if (literal.empty()) {
+            return;
+        }
+        code += "echo ";
+        code += escape_string_literal(literal);
+        code += "\n";
+        literal.clear();
+    };
+
     while (i < text.size()) {
         char ch = text[i];
         if (ch == '/' && i + 1 < text.size() && text[i + 1] == '*') {
@@ -83,15 +113,15 @@ std::string process_text_segment(RenderState& state, const TemplateSegment& segm
             continue;
         }
         if (ch == '$') {
-            Location dollar_loc = loc;
             loc = advance(loc, ch);
             if (i + 1 < text.size() && text[i + 1] == '$') {
-                output.push_back('$');
+                literal.push_back('$');
                 loc = advance(loc, '$');
                 i += 2;
                 continue;
             }
             if (i + 1 < text.size() && is_ident_start(text[i + 1])) {
+                flush_literal();
                 std::size_t j = i + 1;
                 std::string name;
                 while (j < text.size() && is_ident_part(text[j])) {
@@ -99,27 +129,22 @@ std::string process_text_segment(RenderState& state, const TemplateSegment& segm
                     loc = advance(loc, text[j]);
                     j++;
                 }
-                auto env = state.interpreter.env();
-                auto* value = env->find(name);
-                if (!value) {
-                    throw PolonioError(ErrorKind::Runtime,
-                                       "undefined variable: " + name,
-                                       source.path(),
-                                       dollar_loc);
-                }
-                output += OutputBuffer::value_to_string(*value);
+                code += "echo ";
+                code += name;
+                code += "\n";
                 i = j;
                 continue;
             }
-            output.push_back('$');
+            literal.push_back('$');
             ++i;
             continue;
         }
-        output.push_back(ch);
+        literal.push_back(ch);
         loc = advance(loc, ch);
         ++i;
     }
-    return output;
+    flush_literal();
+    return code;
 }
 
 bool is_inline_echo(const Program& program, EchoStmt** echo_out) {
@@ -136,30 +161,28 @@ bool is_inline_echo(const Program& program, EchoStmt** echo_out) {
     return false;
 }
 
-void execute_code_segment(RenderState& state, const TemplateSegment& segment, const Source& source) {
-    Lexer lexer(segment.content, source.path());
-    auto tokens = lexer.scan_all();
-    Parser parser(tokens, source.path());
-    auto program = parser.parse_program();
-    EchoStmt* echo_stmt = nullptr;
-    if (is_inline_echo(program, &echo_stmt)) {
-        Value value = state.interpreter.eval_expr(echo_stmt->expr());
-        state.interpreter.write_text(OutputBuffer::value_to_string(value));
-        return;
+std::string compile_template(const Source& source) {
+    auto segments = scan_template(source);
+    std::string code;
+    for (const auto& segment : segments) {
+        if (segment.kind == TemplateSegment::Kind::Text) {
+            code += build_text_code(segment, source);
+        } else {
+            code += segment.content;
+            code += "\n";
+        }
     }
-    state.interpreter.exec_program(program);
+    return code;
 }
 
 void render_source(RenderState& state, const Source& source, const std::filesystem::path& canonical_path) {
     PathGuard guard(state.path_stack, canonical_path);
-    auto segments = scan_template(source);
-    for (const auto& segment : segments) {
-        if (segment.kind == TemplateSegment::Kind::Text) {
-            state.interpreter.write_text(process_text_segment(state, segment, source));
-        } else {
-            execute_code_segment(state, segment, source);
-        }
-    }
+    auto compiled = compile_template(source);
+    Lexer lexer(compiled, source.path());
+    auto tokens = lexer.scan_all();
+    Parser parser(tokens, source.path());
+    auto program = parser.parse_program();
+    state.interpreter.exec_program(program);
 }
 
 std::string render_template_with_interpreter(const Source& source, Interpreter& interpreter) {
