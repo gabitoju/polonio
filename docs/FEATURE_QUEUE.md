@@ -23,7 +23,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M3-1) AST nodes + expression parser (Pratt) for precedence
 - [DONE] (M3-2) Parse array/object literals
 - [DONE] (M3-3) Parse calls + indexing + assignment expressions
-- [TODO] (M3-4) Add `--dump-ast` for expressions (dev flag)
+- [DONE] (M3-4) Add `--dump-ast` for expressions (dev flag)
 
 ## Milestone 4 — Statement parser
 - [DONE] (M4-1) Parse: `var`, `echo`, expression statements
@@ -42,7 +42,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-2) String builtins: len/lower/upper/trim/replace/split/contains
 - [DONE] (M6-3) Array/Object builtins: count/push/pop/join/range/keys/has_key/get/set
 - [DONE] (M6-4) Math + type predicates + now()
-- [TODO] (M6-5) Date format helpers: date_format/date_parts
+- [DONE] (M6-5) Date format helpers: date_format/date_parts
 
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks
@@ -51,8 +51,8 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M7-4) Include statement
 
 ## Milestone 6A — Builtins minimal
-- [TODO] (M6A-1) Output: echo/print/println + output buffer
-- [TODO] (M6A-2) String: len + htmlspecialchars + nl2br
+- [DONE] (M6A-1) Output: echo/print/println + output buffer
+- [DONE] (M6A-2) String: len + htmlspecialchars + nl2br
 - [TODO] (M6A-3) Count/type conversions: count/type/to_string/to_number
 
 ## Milestone 7 — Template engine

@@ -23,6 +23,7 @@ void print_usage(std::ostream& os) {
           "Commands:\n"
           "  polonio help                Show this help message\n"
           "  polonio version             Show version information\n"
+          "  polonio --dump-ast <expr>   Dump AST for expression (dev)\n"
           "  polonio run <file.pol>      Run a Polonio template\n"
           "  polonio <file.pol>          Shorthand for run\n"
           "  polonio serve ...           Development server (coming soon)\n";
@@ -59,6 +60,27 @@ int handle_run(const std::vector<std::string>& args) {
     return EXIT_SUCCESS;
 }
 
+int handle_dump_ast(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        std::cerr << "--dump-ast requires an expression argument\n";
+        return EXIT_FAILURE;
+    }
+    std::string expression;
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        if (i > 0) {
+            expression += ' ';
+        }
+        expression += args[i];
+    }
+
+    polonio::Lexer lexer(expression, "<expr>");
+    auto tokens = lexer.scan_all();
+    polonio::Parser parser(tokens, "<expr>");
+    auto expr = parser.parse_expression();
+    std::cout << expr->dump() << '\n';
+    return EXIT_SUCCESS;
+}
+
 bool is_flag(const std::string& arg) {
     return !arg.empty() && arg[0] == '-';
 }
@@ -74,13 +96,16 @@ int handle_cgi_request() {
         auto ctx = polonio::build_cgi_context();
         polonio::Source source = polonio::Source::from_file(ctx.script_filename);
         polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), ctx.script_filename);
+        polonio::ResponseContext response;
+        interpreter.set_response_context(&response);
         auto env = interpreter.env();
         env->set_local("_GET", polonio::Value(ctx.get));
         env->set_local("_POST", polonio::Value(ctx.post));
         env->set_local("_COOKIE", polonio::Value(ctx.cookie));
         env->set_local("_SERVER", polonio::Value(ctx.server));
         auto body = polonio::render_template_with_interpreter(source, interpreter);
-        std::cout << "Content-Type: text/html\r\n\r\n" << body;
+        response.emit(std::cout);
+        std::cout << body;
         return EXIT_SUCCESS;
     } catch (const polonio::PolonioError& err) {
         std::cout << "Status: 500\r\nContent-Type: text/plain\r\n\r\n" << err.format();
@@ -113,6 +138,11 @@ int main(int argc, char** argv) {
         if (command == "run") {
             std::vector<std::string> run_args(args.begin() + 1, args.end());
             return handle_run(run_args);
+        }
+
+        if (command == "--dump-ast") {
+            std::vector<std::string> dump_args(args.begin() + 1, args.end());
+            return handle_dump_ast(dump_args);
         }
 
         if (command == "serve") {

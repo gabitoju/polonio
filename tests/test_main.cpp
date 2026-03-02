@@ -161,6 +161,19 @@ TEST_CASE("CLI: run reports parse errors") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("CLI: --dump-ast prints expression tree") {
+    auto result = run_polonio({"--dump-ast", "1 + 2 * 3"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "(+ num(1) (* num(2) num(3)))\n");
+    CHECK(result.stderr_output.empty());
+}
+
+TEST_CASE("CLI: --dump-ast validates arguments") {
+    auto result = run_polonio({"--dump-ast"});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("requires an expression") != std::string::npos);
+}
+
 TEST_CASE("CLI: shorthand file invocation executes program") {
     auto path = create_temp_file_with_content("polonio_cli_sh", "echo 42");
     auto result = run_polonio({path});
@@ -347,6 +360,20 @@ CommandResult run_polonio_cgi(const std::vector<std::pair<std::string, std::stri
     return run_polonio_with_env({}, env, stdin_body);
 }
 
+struct CGIOutput {
+    std::string headers;
+    std::string body;
+};
+
+CGIOutput parse_cgi_output(const std::string& output) {
+    std::string delimiter = "\r\n\r\n";
+    auto pos = output.find(delimiter);
+    if (pos == std::string::npos) {
+        return {output, std::string()};
+    }
+    return {output.substr(0, pos), output.substr(pos + delimiter.size())};
+}
+
 std::string extract_cgi_body(const std::string& output) {
     const std::string header = "Content-Type: text/html\r\n\r\n";
     if (output.rfind(header, 0) == 0) {
@@ -434,6 +461,84 @@ TEST_CASE("CGI mode populates _SERVER") {
     auto result = run_polonio_cgi(env);
     CHECK(result.exit_code == 0);
     CHECK(extract_cgi_body(result.stdout_output) == "POST");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode supports status() and header() builtins") {
+    auto path = create_temp_file_with_content(
+        "polonio_cgi_headers",
+        "<% status(404) %><% header(\"X-Test\", \"yes\") %><h1>Missing</h1>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.headers.find("Status: 404") != std::string::npos);
+    CHECK(parsed.headers.find("X-Test: yes") != std::string::npos);
+    CHECK(parsed.headers.find("Content-Type: text/html") != std::string::npos);
+    CHECK(parsed.body.find("<h1>Missing</h1>") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode allows raw header lines") {
+    auto path = create_temp_file_with_content("polonio_cgi_header_raw",
+                                              "<% header(\"X-A: 1\") %>ok");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.headers.find("X-A: 1") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI mode allows Content-Type override") {
+    auto path = create_temp_file_with_content("polonio_cgi_ct",
+                                              "<% header(\"Content-Type\", \"text/plain\") %>ok");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.headers.find("Content-Type: text/plain") != std::string::npos);
+    CHECK(parsed.headers.find("text/html") == std::string::npos);
+    CHECK(parsed.body == "ok");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI header builtin validates syntax") {
+    auto path = create_temp_file_with_content("polonio_cgi_header_bad",
+                                              "<% header(\"bad header\") %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("Status: 500") != std::string::npos);
+    CHECK(result.stdout_output.find("invalid header") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("htmlspecialchars escapes string") {
+    auto path = create_temp_file_with_content("polonio_escape",
+                                              "<% echo htmlspecialchars(\"<a&b>\\\"'\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "&lt;a&amp;b&gt;&quot;&#39;");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("header/status error outside CGI mode") {
+    auto path = create_temp_file_with_content("polonio_noncgi_header",
+                                              "<% header(\"X\", \"1\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("CGI") != std::string::npos);
     std::filesystem::remove(path);
 }
 
@@ -1274,6 +1379,11 @@ echo tostring("x")
 TEST_CASE("Builtin nl2br handles newlines") {
     CHECK(run_program_output("echo nl2br(\"a\\nb\")") == "a<br>\nb");
     CHECK(run_program_output("echo nl2br(\"a\\r\\nb\")") == "a<br>\nb");
+}
+
+TEST_CASE("Output builtins print and println emit text") {
+    CHECK(run_program_output("print(\"a\", 1)\nprintln(\"b\")") == "a1b\n");
+    CHECK(run_program_output("println()\nprint(\"x\")") == "\nx");
 }
 
 TEST_CASE("Builtins enforce argument counts") {

@@ -31,9 +31,36 @@ const Value& ensure_arg(const std::string& name,
     return args[index];
 }
 
+void write_output_values(Interpreter& interp, const std::vector<Value>& args) {
+    for (const auto& value : args) {
+        interp.write_text(OutputBuffer::value_to_string(value));
+    }
+}
+
+ResponseContext* require_cgi_context(const std::string& name, Interpreter& interp, const Location& loc) {
+    auto* ctx = interp.response_context();
+    if (!ctx) {
+        throw PolonioError(ErrorKind::Runtime, name + ": CGI mode only", interp.path(), loc);
+    }
+    if (ctx->headers_sent) {
+        throw PolonioError(ErrorKind::Runtime, name + ": headers already sent", interp.path(), loc);
+    }
+    return ctx;
+}
+
+std::string trim(std::string s) {
+    std::size_t first = s.find_first_not_of(" \t");
+    std::size_t last = s.find_last_not_of(" \t");
+    if (first == std::string::npos) return std::string();
+    return s.substr(first, last - first + 1);
+}
+
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_tostring(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_nl2br(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_print(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_len(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_lower(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_upper(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -57,6 +84,9 @@ Value builtin_is_array(Interpreter& interp, const std::vector<Value>& args, cons
 Value builtin_is_object(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_is_function(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_now(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_status(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_header(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -101,6 +131,39 @@ Value builtin_nl2br(Interpreter& interp, const std::vector<Value>& args, const L
         }
     }
     return Value(output);
+}
+
+Value builtin_print(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    (void)loc;
+    write_output_values(interp, args);
+    return Value();
+}
+
+Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    (void)loc;
+    write_output_values(interp, args);
+    interp.write_text("\n");
+    return Value();
+}
+
+Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("htmlspecialchars", 0, args, interp, loc);
+    std::string text = OutputBuffer::value_to_string(value);
+    std::string out;
+    out.reserve(text.size());
+    for (char ch : text) {
+        switch (ch) {
+        case '&': out += "&amp;"; break;
+        case '<': out += "&lt;"; break;
+        case '>': out += "&gt;"; break;
+        case '"': out += "&quot;"; break;
+        case '\'': out += "&#39;"; break;
+        default:
+            out.push_back(ch);
+            break;
+        }
+    }
+    return Value(out);
 }
 
 Value builtin_len(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -320,6 +383,60 @@ Value builtin_now([[maybe_unused]] Interpreter& interp, const std::vector<Value>
     return Value(static_cast<double>(seconds));
 }
 
+Value builtin_status(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    auto* ctx = require_cgi_context("status", interp, loc);
+    Value code_value = ensure_arg("status", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(code_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "status: expected number", interp.path(), loc);
+    }
+    double code = std::get<double>(code_value.storage());
+    double integral;
+    if (std::modf(code, &integral) != 0.0) {
+        throw PolonioError(ErrorKind::Runtime, "status: expected integer", interp.path(), loc);
+    }
+    int status_code = static_cast<int>(integral);
+    if (status_code < 100 || status_code > 599) {
+        throw PolonioError(ErrorKind::Runtime, "status: code out of range", interp.path(), loc);
+    }
+    ctx->set_status(status_code);
+    return Value();
+}
+
+Value builtin_header(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() == 0) {
+        throw PolonioError(ErrorKind::Runtime, "header: expected arguments", interp.path(), loc);
+    }
+    if (args.size() > 2) {
+        throw PolonioError(ErrorKind::Runtime, "header: expected 1 or 2 arguments", interp.path(), loc);
+    }
+    auto* ctx = require_cgi_context("header", interp, loc);
+    std::string name;
+    std::string value;
+    if (args.size() == 1) {
+        std::string line = OutputBuffer::value_to_string(args[0]);
+        auto colon = line.find(':');
+        if (colon == std::string::npos) {
+            throw PolonioError(ErrorKind::Runtime, "header: invalid header line", interp.path(), loc);
+        }
+        name = trim(line.substr(0, colon));
+        value = trim(line.substr(colon + 1));
+        if (name.empty() || value.empty()) {
+            throw PolonioError(ErrorKind::Runtime, "header: invalid header line", interp.path(), loc);
+        }
+    } else {
+        name = trim(OutputBuffer::value_to_string(args[0]));
+        value = trim(OutputBuffer::value_to_string(args[1]));
+        if (name.empty()) {
+            throw PolonioError(ErrorKind::Runtime, "header: expected header name", interp.path(), loc);
+        }
+        if (value.find('\r') != std::string::npos || value.find('\n') != std::string::npos) {
+            throw PolonioError(ErrorKind::Runtime, "header: invalid header value", interp.path(), loc);
+        }
+    }
+    ctx->add_header(name, value);
+    return Value();
+}
+
 Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value epoch = ensure_arg("date_parts", 0, args, interp, loc);
     if (!std::holds_alternative<double>(epoch.storage())) {
@@ -534,7 +651,10 @@ Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Loc
 void install_builtins(Env& env) {
     env.set_local("type", Value(BuiltinFunction{"type", builtin_type}));
     env.set_local("tostring", Value(BuiltinFunction{"tostring", builtin_tostring}));
+    env.set_local("print", Value(BuiltinFunction{"print", builtin_print}));
+    env.set_local("println", Value(BuiltinFunction{"println", builtin_println}));
     env.set_local("nl2br", Value(BuiltinFunction{"nl2br", builtin_nl2br}));
+    env.set_local("htmlspecialchars", Value(BuiltinFunction{"htmlspecialchars", builtin_htmlspecialchars}));
     env.set_local("len", Value(BuiltinFunction{"len", builtin_len}));
     env.set_local("lower", Value(BuiltinFunction{"lower", builtin_lower}));
     env.set_local("upper", Value(BuiltinFunction{"upper", builtin_upper}));
@@ -567,6 +687,8 @@ void install_builtins(Env& env) {
     env.set_local("is_object", Value(BuiltinFunction{"is_object", builtin_is_object}));
     env.set_local("is_function", Value(BuiltinFunction{"is_function", builtin_is_function}));
     env.set_local("now", Value(BuiltinFunction{"now", builtin_now}));
+    env.set_local("status", Value(BuiltinFunction{"status", builtin_status}));
+    env.set_local("header", Value(BuiltinFunction{"header", builtin_header}));
     env.set_local("date_parts", Value(BuiltinFunction{"date_parts", builtin_date_parts}));
     env.set_local("date_format", Value(BuiltinFunction{"date_format", builtin_date_format}));
 }
