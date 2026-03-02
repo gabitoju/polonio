@@ -11,6 +11,7 @@
 #include "polonio/runtime/value.h"
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/interpreter.h"
+#include "polonio/runtime/template_scanner.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -209,6 +210,23 @@ TEST_CASE("CLI: inline echo renders expressions") {
     CHECK(result.exit_code == 0);
     CHECK(result.stdout_output.find("2 + 3 = 5") != std::string::npos);
     std::filesystem::remove(path);
+}
+
+TEST_CASE("Template scanner splits text and code segments") {
+    polonio::Source src("inline.pol", "Hello <% echo 1 %> world!");
+    auto segments = polonio::scan_template(src);
+    REQUIRE(segments.size() == 3);
+    CHECK(segments[0].kind == polonio::TemplateSegment::Kind::Text);
+    CHECK(segments[0].content == "Hello ");
+    CHECK(segments[1].kind == polonio::TemplateSegment::Kind::Code);
+    CHECK(segments[1].content == " echo 1 ");
+    CHECK(segments[2].kind == polonio::TemplateSegment::Kind::Text);
+    CHECK(segments[2].content == " world!");
+}
+
+TEST_CASE("Template scanner errors on unterminated code blocks") {
+    polonio::Source src("broken.pol", "<% echo 1");
+    CHECK_THROWS_AS(polonio::scan_template(src), polonio::PolonioError);
 }
 
 TEST_CASE("CLI: inline echo uses shared variables") {

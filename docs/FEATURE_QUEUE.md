@@ -56,7 +56,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6A-3) Count/type conversions: count/type/to_string/to_number
 
 ## Milestone 7 — Template engine
-- [TODO] (M7-1) Template scanner: TEXT vs CODE segments
+- [DONE] (M7-1) Template scanner: TEXT vs CODE segments
 - [TODO] (M7-2) `$var` interpolation in TEXT + HTML comment stripping rule
 - [TODO] (M7-3) Spanning blocks: if/for across HTML
 
