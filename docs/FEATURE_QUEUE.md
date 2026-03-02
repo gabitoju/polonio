@@ -43,6 +43,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-3) Array/Object builtins: count/push/pop/join/range/keys/has_key/get/set
 - [DONE] (M6-4) Math + type predicates + now()
 - [DONE] (M6-5) Date format helpers: date_format/date_parts
+- [DONE] (M6-6) html_escape builtin
 
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks

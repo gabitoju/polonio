@@ -65,6 +65,7 @@ Value builtin_nl2br(Interpreter& interp, const std::vector<Value>& args, const L
 Value builtin_print(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_html_escape(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_len(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_lower(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_upper(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -192,6 +193,28 @@ Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const
 Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("htmlspecialchars", 0, args, interp, loc);
     std::string text = OutputBuffer::value_to_string(value);
+    std::string out;
+    out.reserve(text.size());
+    for (char ch : text) {
+        switch (ch) {
+        case '&': out += "&amp;"; break;
+        case '<': out += "&lt;"; break;
+        case '>': out += "&gt;"; break;
+        case '"': out += "&quot;"; break;
+        case '\'': out += "&#39;"; break;
+        default:
+            out.push_back(ch);
+            break;
+        }
+    }
+    return Value(out);
+}
+
+Value builtin_html_escape(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "html_escape: expected 1 argument", interp.path(), loc);
+    }
+    std::string text = OutputBuffer::value_to_string(args[0]);
     std::string out;
     out.reserve(text.size());
     for (char ch : text) {
@@ -791,6 +814,7 @@ void install_builtins(Env& env) {
     env.set_local("println", Value(BuiltinFunction{"println", builtin_println}));
     env.set_local("nl2br", Value(BuiltinFunction{"nl2br", builtin_nl2br}));
     env.set_local("htmlspecialchars", Value(BuiltinFunction{"htmlspecialchars", builtin_htmlspecialchars}));
+    env.set_local("html_escape", Value(BuiltinFunction{"html_escape", builtin_html_escape}));
     env.set_local("len", Value(BuiltinFunction{"len", builtin_len}));
     env.set_local("lower", Value(BuiltinFunction{"lower", builtin_lower}));
     env.set_local("upper", Value(BuiltinFunction{"upper", builtin_upper}));

@@ -649,6 +649,43 @@ TEST_CASE("htmlspecialchars escapes string") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("html_escape escapes standard characters") {
+    auto path = create_temp_file_with_content("polonio_html_escape_basic",
+                                              "<% echo html_escape(\"<>&\\\"'\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "&lt;&gt;&amp;&quot;&#39;");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("html_escape leaves plain text unchanged") {
+    auto path = create_temp_file_with_content("polonio_html_escape_plain",
+                                              "<% echo html_escape(\"hello\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "hello");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("html_escape handles mixed and non-string values") {
+    auto path = create_temp_file_with_content("polonio_html_escape_mixed",
+                                              "<% echo html_escape(\"Tom & Jerry <3\") %>"
+                                              "<% echo html_escape(42) %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "Tom &amp; Jerry &lt;342");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("html_escape validates arity") {
+    auto path = create_temp_file_with_content("polonio_html_escape_arity",
+                                              "<% html_escape(\"a\", \"b\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("html_escape") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("header/status error outside CGI mode") {
     auto path = create_temp_file_with_content("polonio_noncgi_header",
                                               "<% header(\"X\", \"1\") %>");
