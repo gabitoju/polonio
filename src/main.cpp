@@ -12,6 +12,7 @@
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/template_renderer.h"
+#include "polonio/runtime/cgi.h"
 
 namespace {
 
@@ -68,9 +69,31 @@ bool is_known_command(const std::string& arg) {
 
 } // namespace
 
+int handle_cgi_request() {
+    try {
+        auto ctx = polonio::build_cgi_context();
+        polonio::Source source = polonio::Source::from_file(ctx.script_filename);
+        polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), ctx.script_filename);
+        auto env = interpreter.env();
+        env->set_local("_GET", polonio::Value(ctx.get));
+        env->set_local("_POST", polonio::Value(ctx.post));
+        env->set_local("_COOKIE", polonio::Value(ctx.cookie));
+        env->set_local("_SERVER", polonio::Value(ctx.server));
+        auto body = polonio::render_template_with_interpreter(source, interpreter);
+        std::cout << "Content-Type: text/html\r\n\r\n" << body;
+        return EXIT_SUCCESS;
+    } catch (const polonio::PolonioError& err) {
+        std::cout << "Status: 500\r\nContent-Type: text/plain\r\n\r\n" << err.format();
+        return EXIT_FAILURE;
+    }
+}
+
 int main(int argc, char** argv) {
     try {
         if (argc < 2) {
+            if (polonio::is_cgi_mode()) {
+                return handle_cgi_request();
+            }
             print_usage(std::cerr);
             return EXIT_FAILURE;
         }
