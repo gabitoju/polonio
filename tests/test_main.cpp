@@ -229,6 +229,27 @@ TEST_CASE("Template scanner errors on unterminated code blocks") {
     CHECK_THROWS_AS(polonio::scan_template(src), polonio::PolonioError);
 }
 
+TEST_CASE("Template renderer strips HTML comments in text segments") {
+    const char* tpl = R"(
+<% var name = "Ada" %>
+<div>Hello /* remove me */$name</div>
+)";
+    auto path = create_temp_file_with_content("polonio_html_comments", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("<div>Hello Ada</div>") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("Template renderer errors on unterminated HTML comment") {
+    const char* tpl = "<% echo 1 %> Hello /* oops";
+    auto path = create_temp_file_with_content("polonio_html_comment_err", tpl);
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("unterminated HTML comment") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("CLI: inline echo uses shared variables") {
     const char* tpl = R"(
 <% var name = "Juan" %>

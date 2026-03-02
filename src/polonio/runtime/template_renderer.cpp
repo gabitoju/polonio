@@ -60,6 +60,28 @@ std::string process_text_segment(RenderState& state, const TemplateSegment& segm
     std::size_t i = 0;
     while (i < text.size()) {
         char ch = text[i];
+        if (ch == '/' && i + 1 < text.size() && text[i + 1] == '*') {
+            Location comment_loc = loc;
+            loc = advance(loc, '/');
+            loc = advance(loc, '*');
+            i += 2;
+            bool closed = false;
+            while (i < text.size()) {
+                if (text[i] == '*' && i + 1 < text.size() && text[i + 1] == '/') {
+                    loc = advance(loc, '*');
+                    loc = advance(loc, '/');
+                    i += 2;
+                    closed = true;
+                    break;
+                }
+                loc = advance(loc, text[i]);
+                ++i;
+            }
+            if (!closed) {
+                throw PolonioError(ErrorKind::Parse, "unterminated HTML comment", source.path(), comment_loc);
+            }
+            continue;
+        }
         if (ch == '$') {
             Location dollar_loc = loc;
             loc = advance(loc, ch);
