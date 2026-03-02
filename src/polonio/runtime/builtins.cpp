@@ -1,6 +1,7 @@
 #include "polonio/runtime/builtins.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <ctime>
@@ -89,6 +90,10 @@ Value builtin_is_function(Interpreter& interp, const std::vector<Value>& args, c
 Value builtin_now(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_status(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_header(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_http_content_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_redirect(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_urlencode(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_urldecode(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -475,6 +480,97 @@ Value builtin_header(Interpreter& interp, const std::vector<Value>& args, const 
     return Value();
 }
 
+Value builtin_http_content_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    auto* ctx = require_cgi_context("http_content_type", interp, loc);
+    std::string value = trim(OutputBuffer::value_to_string(ensure_arg("http_content_type", 0, args, interp, loc)));
+    if (value.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "http_content_type: expected value", interp.path(), loc);
+    }
+    ctx->add_header("Content-Type", value);
+    return Value();
+}
+
+Value builtin_redirect(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    auto* ctx = require_cgi_context("redirect", interp, loc);
+    std::string target = trim(OutputBuffer::value_to_string(ensure_arg("redirect", 0, args, interp, loc)));
+    if (target.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "redirect: expected location", interp.path(), loc);
+    }
+    int status = 302;
+    if (args.size() >= 2) {
+        Value code_value = ensure_arg("redirect", 1, args, interp, loc);
+        if (!std::holds_alternative<double>(code_value.storage())) {
+            throw PolonioError(ErrorKind::Runtime, "redirect: expected status code", interp.path(), loc);
+        }
+        double code = std::get<double>(code_value.storage());
+        double integral;
+        if (std::modf(code, &integral) != 0.0) {
+            throw PolonioError(ErrorKind::Runtime, "redirect: expected integer status code", interp.path(), loc);
+        }
+        status = static_cast<int>(integral);
+        if (status < 300 || status > 399) {
+            throw PolonioError(ErrorKind::Runtime, "redirect: status code must be 3xx", interp.path(), loc);
+        }
+    }
+    ctx->set_status(status);
+    ctx->add_header("Location", target);
+    return Value();
+}
+
+Value builtin_urlencode(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    std::string text = OutputBuffer::value_to_string(ensure_arg("urlencode", 0, args, interp, loc));
+    static const char* hex = "0123456789ABCDEF";
+    std::string out;
+    out.reserve(text.size() * 3);
+    for (unsigned char ch : text) {
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-' ||
+            ch == '_' || ch == '.' || ch == '~') {
+            out.push_back(static_cast<char>(ch));
+        } else if (ch == ' ') {
+            out.push_back('+');
+        } else {
+            out.push_back('%');
+            out.push_back(hex[(ch >> 4) & 0xF]);
+            out.push_back(hex[ch & 0xF]);
+        }
+    }
+    return Value(out);
+}
+
+int hex_value(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+    if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+    return -1;
+}
+
+Value builtin_urldecode(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    std::string text = OutputBuffer::value_to_string(ensure_arg("urldecode", 0, args, interp, loc));
+    std::string out;
+    out.reserve(text.size());
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        char c = text[i];
+        if (c == '+') {
+            out.push_back(' ');
+        } else if (c == '%') {
+            if (i + 2 >= text.size()) {
+                throw PolonioError(ErrorKind::Runtime, "urldecode: incomplete escape", interp.path(), loc);
+            }
+            int hi = hex_value(text[i + 1]);
+            int lo = hex_value(text[i + 2]);
+            if (hi < 0 || lo < 0) {
+                throw PolonioError(ErrorKind::Runtime, "urldecode: invalid escape", interp.path(), loc);
+            }
+            char decoded = static_cast<char>((hi << 4) | lo);
+            out.push_back(decoded);
+            i += 2;
+        } else {
+            out.push_back(c);
+        }
+    }
+    return Value(out);
+}
+
 Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value epoch = ensure_arg("date_parts", 0, args, interp, loc);
     if (!std::holds_alternative<double>(epoch.storage())) {
@@ -729,6 +825,12 @@ void install_builtins(Env& env) {
     env.set_local("now", Value(BuiltinFunction{"now", builtin_now}));
     env.set_local("status", Value(BuiltinFunction{"status", builtin_status}));
     env.set_local("header", Value(BuiltinFunction{"header", builtin_header}));
+    env.set_local("http_status", Value(BuiltinFunction{"http_status", builtin_status}));
+    env.set_local("http_header", Value(BuiltinFunction{"http_header", builtin_header}));
+    env.set_local("http_content_type", Value(BuiltinFunction{"http_content_type", builtin_http_content_type}));
+    env.set_local("redirect", Value(BuiltinFunction{"redirect", builtin_redirect}));
+    env.set_local("urlencode", Value(BuiltinFunction{"urlencode", builtin_urlencode}));
+    env.set_local("urldecode", Value(BuiltinFunction{"urldecode", builtin_urldecode}));
     env.set_local("date_parts", Value(BuiltinFunction{"date_parts", builtin_date_parts}));
     env.set_local("date_format", Value(BuiltinFunction{"date_format", builtin_date_format}));
 }

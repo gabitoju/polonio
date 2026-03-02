@@ -583,6 +583,49 @@ TEST_CASE("CGI mode allows Content-Type override") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("CGI http helpers control status and headers") {
+    auto path = create_temp_file_with_content(
+        "polonio_cgi_http_helpers",
+        "<% http_status(201) %><% http_header(\"X-Test\", \"ok\") %><% http_content_type(\"text/plain\") %>ready");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.headers.find("Status: 201") != std::string::npos);
+    CHECK(parsed.headers.find("X-Test: ok") != std::string::npos);
+    CHECK(parsed.headers.find("Content-Type: text/plain") != std::string::npos);
+    CHECK(parsed.body == "ready");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI redirect builtin sets Location header") {
+    auto path = create_temp_file_with_content("polonio_cgi_redirect", "<% redirect(\"/login\") %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.headers.find("Status: 302") != std::string::npos);
+    CHECK(parsed.headers.find("Location: /login") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("redirect builtin allows custom status") {
+    auto path = create_temp_file_with_content("polonio_cgi_redirect_custom", "<% redirect(\"/home\", 301) %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.headers.find("Status: 301") != std::string::npos);
+    CHECK(parsed.headers.find("Location: /home") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
                                               "<% header(\"bad header\") %>");
@@ -609,6 +652,14 @@ TEST_CASE("htmlspecialchars escapes string") {
 TEST_CASE("header/status error outside CGI mode") {
     auto path = create_temp_file_with_content("polonio_noncgi_header",
                                               "<% header(\"X\", \"1\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("CGI") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("redirect errors outside CGI mode") {
+    auto path = create_temp_file_with_content("polonio_redirect_noncgi", "<% redirect(\"/login\") %>");
     auto result = run_polonio({"run", path});
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("CGI") != std::string::npos);
@@ -676,6 +727,29 @@ TEST_CASE("Source::from_file throws when file is missing") {
         CHECK(formatted.find(missing) != std::string::npos);
         CHECK(formatted.find(":1:1:") != std::string::npos);
     }
+}
+
+TEST_CASE("urlencode builtin escapes reserved characters") {
+    auto path = create_temp_file_with_content("polonio_urlencode",
+                                              "<% echo urlencode(\"hello world &/!\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "hello+world+%26%2F%21");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("urldecode builtin decodes sequences and validates input") {
+    auto path = create_temp_file_with_content("polonio_urldecode", "<% echo urldecode(\"a+%26+b\") %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "a & b");
+    std::filesystem::remove(path);
+
+    auto bad_path = create_temp_file_with_content("polonio_urldecode_bad", "<% echo urldecode(\"%ZZ\") %>");
+    auto bad = run_polonio({"run", bad_path});
+    CHECK(bad.exit_code != 0);
+    CHECK(bad.stderr_output.find("urldecode") != std::string::npos);
+    std::filesystem::remove(bad_path);
 }
 
 TEST_CASE("PolonioError format includes path and location") {

@@ -62,7 +62,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 
 ## Milestone 8 — Superglobals
 - [DONE] (M8-1) HTTP superglobals `_GET` `_POST` `_COOKIE` `_SERVER`
-- [TODO] (M8-2) Response control + escaping
+- [DONE] (M8-2) Response control + escaping
 
 ## Milestone 9 — CGI mode
 - [TODO] (M9-1) CGI auto-detect + read env/stdin + headers + render
