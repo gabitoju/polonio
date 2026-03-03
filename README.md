@@ -7,7 +7,7 @@ Single-binary server-side templating language written in C++17, featuring a mode
 - Custom lexer, Pratt expression parser, AST, and tree-walking interpreter
 - Lexical scoping with closures and a rich standard library (string, array, object, math, type, date, output, HTTP)
 - Template engine with `<% %>` code blocks, `$var` interpolation, `<% echo %>` inline output, and `include "file.pol"`
-- CLI commands for running templates, showing help/version, and (eventually) a development server
+- CLI commands for running templates, showing help/version, and an in-progress development server stub
 - CGI mode with automatic detection, HTTP superglobals, and response-control builtins
 - Make-based build and doctest-powered test suite
 
@@ -56,7 +56,8 @@ polonio version
 polonio run <file.pol>
 polonio <file.pol>          # shorthand for run
 polonio --dump-ast <expr>   # developer helper
-polonio serve ...           # prints "not implemented yet" (dev server pending)
+polonio serve [--port N] [--root DIR]
+                           # experimental dev server stub (responds "OK")
 ```
 
 ## Template Syntax Overview
@@ -122,7 +123,7 @@ Makefile                       # build/test targets
 
 ## Roadmap
 
-- Milestone 10: `polonio serve` development server with routing/static assets
+- Milestone 10: `polonio serve` development server with routing/static assets (in progress)
 - Complete remaining builtins from the language spec
 - Additional runtime features and tooling as listed in `docs/FEATURE_QUEUE.md`
 
