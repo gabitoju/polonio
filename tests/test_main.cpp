@@ -1722,6 +1722,13 @@ TEST_CASE("Math builtins work for typical inputs") {
     CHECK(run_program_output("echo max(2, 5)") == "5");
 }
 
+TEST_CASE("Math builtins: pow and sqrt basics") {
+    CHECK(run_program_output("echo pow(2, 3)") == "8");
+    CHECK(run_program_output("echo pow(9, 0)") == "1");
+    CHECK(run_program_output("echo sqrt(9)") == "3");
+    CHECK(run_program_output("echo sqrt(0)") == "0");
+}
+
 TEST_CASE("Type predicates report correct categories") {
     CHECK(run_program_output("echo is_null(null)") == "true");
     CHECK(run_program_output("echo is_number(1)") == "true");
@@ -1740,6 +1747,9 @@ TEST_CASE("now builtin returns sane timestamp") {
 TEST_CASE("Math builtins error on invalid args") {
     CHECK_THROWS_AS(run_program_output("echo abs(\"x\")"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo min(1)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo pow(2)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo pow(\"2\", 3)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo sqrt(-1)"), polonio::PolonioError);
 }
 
 TEST_CASE("Date builtins: date_format/date_parts") {
