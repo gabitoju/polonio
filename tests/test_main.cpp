@@ -1673,6 +1673,30 @@ TEST_CASE("Array builtins: shift and unshift mutate arrays") {
     CHECK(run_program_output("var a = [2,3]\nvar b = a\nunshift(b, 1)\necho join(a, \",\")") == "1,2,3");
 }
 
+TEST_CASE("Array builtin concat returns new array without mutating inputs") {
+    const char* program = R"(
+var a = [1,2]
+var b = [3,4]
+var c = concat(a, b)
+echo join(c, ",")
+echo join(a, ",")
+echo join(b, ",")
+)";
+    CHECK(run_program_output(program) == "1,2,3,41,23,4");
+    CHECK(run_program_output("echo join(concat([], [1]), \",\")") == "1");
+    CHECK(run_program_output("echo count(concat([], []))") == "0");
+    const char* shared = R"(
+var a = [1]
+var b = [2]
+var c = concat(a, b)
+push(c, 3)
+echo join(a, ",")
+echo join(b, ",")
+echo join(c, ",")
+)";
+    CHECK(run_program_output(shared) == "121,2,3");
+}
+
 TEST_CASE("Array builtin slice copies segments") {
     CHECK(run_program_output("var s = slice([1,2,3,4], 1)\nfor x in s echo x end") == "234");
     CHECK(run_program_output("var s = slice([1,2,3,4], 1, 2)\nfor x in s echo x end") == "23");
@@ -1721,6 +1745,8 @@ TEST_CASE("Array/Object builtin errors") {
     CHECK_THROWS_AS(run_program_output("echo shift(123)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo unshift([1,2,3])"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo unshift(\"x\", 1)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo concat([1], 2)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo concat([1])"), polonio::PolonioError);
 }
 
 TEST_CASE("Math builtins work for typical inputs") {
