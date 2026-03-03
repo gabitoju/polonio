@@ -80,6 +80,8 @@ Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Loc
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_round(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_pow(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_sqrt(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_min(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_max(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_is_null(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -430,6 +432,28 @@ Value builtin_round(Interpreter& interp, const std::vector<Value>& args, const L
         throw PolonioError(ErrorKind::Runtime, "round: expected number", interp.path(), loc);
     }
     return Value(std::round(std::get<double>(val.storage())));
+}
+
+Value builtin_pow(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value base = ensure_arg("pow", 0, args, interp, loc);
+    Value exponent = ensure_arg("pow", 1, args, interp, loc);
+    if (!std::holds_alternative<double>(base.storage()) || !std::holds_alternative<double>(exponent.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "pow: expected numbers", interp.path(), loc);
+    }
+    double result = std::pow(std::get<double>(base.storage()), std::get<double>(exponent.storage()));
+    return Value(result);
+}
+
+Value builtin_sqrt(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value value = ensure_arg("sqrt", 0, args, interp, loc);
+    if (!std::holds_alternative<double>(value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "sqrt: expected number", interp.path(), loc);
+    }
+    double number = std::get<double>(value.storage());
+    if (number < 0) {
+        throw PolonioError(ErrorKind::Runtime, "sqrt: negative input", interp.path(), loc);
+    }
+    return Value(std::sqrt(number));
 }
 
 Value builtin_min(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -944,6 +968,8 @@ void install_builtins(Env& env) {
     env.set_local("floor", Value(BuiltinFunction{"floor", builtin_floor}));
     env.set_local("ceil", Value(BuiltinFunction{"ceil", builtin_ceil}));
     env.set_local("round", Value(BuiltinFunction{"round", builtin_round}));
+    env.set_local("pow", Value(BuiltinFunction{"pow", builtin_pow}));
+    env.set_local("sqrt", Value(BuiltinFunction{"sqrt", builtin_sqrt}));
     env.set_local("min", Value(BuiltinFunction{"min", builtin_min}));
     env.set_local("max", Value(BuiltinFunction{"max", builtin_max}));
     env.set_local("is_null", Value(BuiltinFunction{"is_null", builtin_is_null}));
