@@ -559,6 +559,32 @@ std::string extract_cgi_body(const std::string& output) {
     return output;
 }
 
+std::string find_session_cookie_line(const std::string& headers) {
+    const std::string prefix = "Set-Cookie: polonio_session=";
+    auto pos = headers.find(prefix);
+    if (pos == std::string::npos) {
+        return std::string();
+    }
+    auto end = headers.find("\r\n", pos);
+    std::string line = end == std::string::npos ? headers.substr(pos) : headers.substr(pos, end - pos);
+    return line;
+}
+
+std::string extract_session_cookie_value(const std::string& headers) {
+    std::string line = find_session_cookie_line(headers);
+    if (line.empty()) {
+        return std::string();
+    }
+    auto start = line.find('=');
+    if (start == std::string::npos) return std::string();
+    std::string value = line.substr(start + 1);
+    auto semi = value.find(';');
+    if (semi != std::string::npos) {
+        value = value.substr(0, semi);
+    }
+    return value;
+}
+
 } // namespace
 
 TEST_CASE("CLI: template blocks share interpreter state") {
@@ -856,6 +882,113 @@ TEST_CASE("request_json reports invalid payloads") {
     auto result = run_polonio_cgi(env, body);
     CHECK(result.exit_code != 0);
     CHECK(result.stdout_output.find("invalid json") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("sessions work in non-CGI mode") {
+    auto path = create_temp_file_with_content("polonio_session_inmemory",
+                                              "<% session_set(\"a\", 1) %>"
+                                              "<% echo session_get(\"a\") %>"
+                                              "<% session_unset(\"a\") %>"
+                                              "<% if session_get(\"a\") == null %>null<% end %>"
+                                              "<% session_set(\"b\", \"x\") %>"
+                                              "<% session_clear() %>"
+                                              "<% if session_get(\"b\") == null %>clear<% end %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "1nullclear");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI sessions emit cookie when dirty") {
+    auto path = create_temp_file_with_content("polonio_session_header",
+                                              "<% session_set(\"user\", \"juan\") %>ok");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"POLONIO_SESSION_SECRET", "secret-key"},
+    };
+    auto result = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(result.stdout_output);
+    CHECK(parsed.body == "ok");
+    CHECK(find_session_cookie_line(parsed.headers).find("Set-Cookie: polonio_session=") != std::string::npos);
+    auto second = parsed.headers.find("Set-Cookie: polonio_session=",
+                                      parsed.headers.find("Set-Cookie: polonio_session=") + 1);
+    CHECK(second == std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CGI sessions reuse cookie data") {
+    auto path = create_temp_file_with_content("polonio_session_reuse_set",
+                                              "<% session_set(\"user\", \"ana\") %>ready");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"POLONIO_SESSION_SECRET", "secret-key"},
+    };
+    auto first = run_polonio_cgi(env);
+    auto first_headers = parse_cgi_output(first.stdout_output).headers;
+    std::string cookie_value = extract_session_cookie_value(first_headers);
+    REQUIRE(!cookie_value.empty());
+    auto path_get = create_temp_file_with_content("polonio_session_reuse_get",
+                                                  "<% echo session_get(\"user\") %>");
+    std::vector<std::pair<std::string, std::string>> env2 = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path_get},
+        {"POLONIO_SESSION_SECRET", "secret-key"},
+        {"HTTP_COOKIE", "polonio_session=" + cookie_value},
+    };
+    auto result = run_polonio_cgi(env2);
+    CHECK(extract_cgi_body(result.stdout_output) == "ana");
+    std::filesystem::remove(path);
+    std::filesystem::remove(path_get);
+}
+
+TEST_CASE("invalid session cookie is ignored") {
+    auto path = create_temp_file_with_content("polonio_session_invalid_cookie",
+                                              "<% var val = session_get(\"user\"); %>"
+                                              "<% if val == null %>none<% else %>bad<% end %>");
+    std::string bad_cookie = "abc.def";
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"POLONIO_SESSION_SECRET", "secret-key"},
+        {"HTTP_COOKIE", "polonio_session=" + bad_cookie},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(extract_cgi_body(result.stdout_output) == "none");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("missing session secret errors when session used") {
+    auto path = create_temp_file_with_content("polonio_session_missing_secret",
+                                              "<% session_get(\"user\") %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("missing session secret") != std::string::npos);
+    std::filesystem::remove(path);
+
+    auto ok_path = create_temp_file_with_content("polonio_session_missing_secret_ok",
+                                                 "<% echo \"fine\" %>");
+    std::vector<std::pair<std::string, std::string>> env_ok = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", ok_path},
+    };
+    auto ok_result = run_polonio_cgi(env_ok);
+    CHECK(extract_cgi_body(ok_result.stdout_output) == "fine");
+    std::filesystem::remove(ok_path);
+}
+
+TEST_CASE("session_set rejects non-serializable values") {
+    auto path = create_temp_file_with_content("polonio_session_non_serializable",
+                                              "<% session_set(\"f\", type) %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("session value not serializable") != std::string::npos);
     std::filesystem::remove(path);
 }
 

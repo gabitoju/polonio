@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/template_renderer.h"
 #include "polonio/runtime/cgi.h"
+#include "polonio/runtime/session.h"
 #include "polonio/server/http_server.h"
 
 namespace {
@@ -45,9 +47,14 @@ int handle_run(const std::vector<std::string>& args) {
     }
     const std::string& path = args[0];
     polonio::Source source = polonio::Source::from_file(path);
+    polonio::SessionContext session;
+    session.is_cgi = false;
+    session.secret_missing = false;
+    polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), source.path());
+    interpreter.set_session_context(&session);
 
     if (source.content().find("<%") != std::string::npos) {
-        std::cout << polonio::render_template(source);
+        std::cout << polonio::render_template_with_interpreter(source, interpreter);
         return EXIT_SUCCESS;
     }
 
@@ -56,7 +63,6 @@ int handle_run(const std::vector<std::string>& args) {
     polonio::Parser parser(tokens, source.path());
     auto program = parser.parse_program();
 
-    polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), source.path());
     interpreter.exec_program(program);
     std::cout << interpreter.output();
     return EXIT_SUCCESS;
@@ -163,6 +169,24 @@ int handle_cgi_request() {
         polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), ctx.script_filename);
         polonio::ResponseContext response;
         interpreter.set_response_context(&response);
+        polonio::SessionContext session;
+        session.is_cgi = true;
+        const char* secret_env = std::getenv("POLONIO_SESSION_SECRET");
+        if (secret_env) {
+            session.secret = secret_env;
+        }
+        session.secret_missing = session.secret.empty();
+        if (!session.secret_missing) {
+            auto cookie_it = ctx.cookie.find("polonio_session");
+            if (cookie_it != ctx.cookie.end() && std::holds_alternative<std::string>(cookie_it->second.storage())) {
+                std::string cookie_value = std::get<std::string>(cookie_it->second.storage());
+                polonio::Value::Object loaded;
+                if (polonio::decode_session_cookie(cookie_value, session.secret, loaded)) {
+                    session.data = std::move(loaded);
+                }
+            }
+        }
+        interpreter.set_session_context(&session);
         auto env = interpreter.env();
         env->set_local("_GET", polonio::Value(ctx.get));
         env->set_local("_POST", polonio::Value(ctx.post));
@@ -170,6 +194,17 @@ int handle_cgi_request() {
         env->set_local("_SERVER", polonio::Value(ctx.server));
         interpreter.set_cgi_context(&ctx);
         auto body = polonio::render_template_with_interpreter(source, interpreter);
+        if (session.is_cgi && session.dirty && !session.secret_missing) {
+            try {
+                std::string cookie_value =
+                    polonio::encode_session_cookie(session.data, session.secret, [](const std::string&) {
+                        throw std::runtime_error("session serialization failed");
+                    });
+                response.add_header("Set-Cookie", "polonio_session=" + cookie_value + "; Path=/; HttpOnly");
+            } catch (...) {
+                // Ignore serialization errors here.
+            }
+        }
         response.emit(std::cout);
         std::cout << body;
         return EXIT_SUCCESS;

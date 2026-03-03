@@ -15,6 +15,7 @@
 namespace polonio {
 
 struct CGIContext;
+struct SessionContext;
 
 class ReturnSignal : public std::exception {
 public:
@@ -57,6 +58,8 @@ public:
     ResponseContext* response_context() const { return response_context_; }
     void set_cgi_context(CGIContext* ctx) { cgi_context_ = ctx; }
     CGIContext* cgi_context() const { return cgi_context_; }
+    void set_session_context(SessionContext* ctx) { session_context_ = ctx; }
+    SessionContext* session_context() const { return session_context_; }
 
 private:
     Value eval_expr_internal(const ExprPtr& expr);
@@ -94,6 +97,7 @@ private:
     IncludeCallback include_callback_;
     ResponseContext* response_context_ = nullptr;
     CGIContext* cgi_context_ = nullptr;
+    SessionContext* session_context_ = nullptr;
 };
 
 } // namespace polonio
