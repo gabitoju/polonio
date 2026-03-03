@@ -1834,11 +1834,22 @@ TEST_CASE("Date builtin date_add_days shifts epoch by days") {
     CHECK(run_program_output("echo date_add_days(0, 0.5)") == "43200");
 }
 
+TEST_CASE("Date builtin date_parse handles supported formats") {
+    CHECK(run_program_output("echo date_parse(\"1970-01-01\")") == "0");
+    CHECK(run_program_output("echo date_parse(\"1970-01-02\")") == "86400");
+    CHECK(run_program_output("echo date_parse(\"1970-01-01 00:00:01\")") == "1");
+    CHECK(run_program_output("echo date_parse(\"1970-01-01 00:01:00\")") == "60");
+    CHECK(run_program_output("echo date_parse(\"1970-01-01T00:00:01\")") == "1");
+}
+
 TEST_CASE("Date builtins validate arguments") {
     CHECK_THROWS_AS(run_program_output("echo date_format(\"x\", \"YYYY\")"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo date_parts()"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo date_add_days(0)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo date_add_days(\"0\", 1)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo date_parse(\"1970-13-01\")"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo date_parse(\"nope\")"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo date_parse()"), polonio::PolonioError);
 }
 
 TEST_CASE("Interpreter executes while loops") {
