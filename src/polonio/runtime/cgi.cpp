@@ -137,6 +137,55 @@ Value::Object parse_post_body(const std::string& body) {
     return entries_to_object(parse_urlencoded_entries(body));
 }
 
+std::string normalize_header_key(const std::string& name) {
+    std::string normalized;
+    normalized.reserve(name.size());
+    for (char ch : name) {
+        if (ch == '_') {
+            normalized.push_back('-');
+        } else {
+            normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+        }
+    }
+    return normalized;
+}
+
+Value::Object build_headers_object() {
+    Value::Object headers;
+    auto add_header = [&](const std::string& key, const std::string& value) {
+        if (!value.empty()) {
+            headers[key] = Value(value);
+        }
+    };
+    add_header("content-type", get_env("CONTENT_TYPE"));
+    add_header("content-length", get_env("CONTENT_LENGTH"));
+    for (char** env = environ; env && *env; ++env) {
+        std::string entry(*env);
+        std::size_t eq = entry.find('=');
+        if (eq == std::string::npos) continue;
+        std::string name = entry.substr(0, eq);
+        if (name.rfind("HTTP_", 0) == 0) {
+            std::string raw = name.substr(5);
+            add_header(normalize_header_key(raw), entry.substr(eq + 1));
+        }
+    }
+    return headers;
+}
+
+std::string read_request_body(const std::string& content_length) {
+    if (content_length.empty()) {
+        return std::string();
+    }
+    std::size_t len = static_cast<std::size_t>(std::strtoul(content_length.c_str(), nullptr, 10));
+    if (len == 0) {
+        return std::string();
+    }
+    std::string body(len, '\0');
+    std::cin.read(&body[0], len);
+    body.resize(static_cast<std::size_t>(std::cin.gcount()));
+    return body;
+}
+
 } // namespace
 
 bool is_cgi_mode() { return std::getenv("GATEWAY_INTERFACE") != nullptr; }
@@ -152,20 +201,21 @@ CGIContext build_cgi_context() {
     }
     ctx.script_filename = script;
     ctx.server = build_server_object();
+    ctx.headers = build_headers_object();
     ctx.get = parse_query_string(get_env("QUERY_STRING"));
     ctx.cookie = parse_cookie_header(get_env("HTTP_COOKIE"));
     ctx.post = Value::Object();
+    ctx.body.clear();
 
     std::string method = get_env("REQUEST_METHOD");
     std::string content_type = get_env("CONTENT_TYPE");
     std::string content_length = get_env("CONTENT_LENGTH");
-    if (!method.empty() && content_type.find("application/x-www-form-urlencoded") == 0 &&
-        !content_length.empty()) {
-        std::size_t len = static_cast<std::size_t>(std::strtoul(content_length.c_str(), nullptr, 10));
-        std::string body(len, '\0');
-        std::cin.read(&body[0], len);
-        body.resize(static_cast<std::size_t>(std::cin.gcount()));
-        ctx.post = parse_post_body(body);
+    if (!content_length.empty()) {
+        ctx.body = read_request_body(content_length);
+    }
+
+    if (!method.empty() && content_type.find("application/x-www-form-urlencoded") == 0 && !content_length.empty()) {
+        ctx.post = parse_post_body(ctx.body);
     }
 
     return ctx;

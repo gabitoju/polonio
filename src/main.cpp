@@ -168,6 +168,7 @@ int handle_cgi_request() {
         env->set_local("_POST", polonio::Value(ctx.post));
         env->set_local("_COOKIE", polonio::Value(ctx.cookie));
         env->set_local("_SERVER", polonio::Value(ctx.server));
+        interpreter.set_cgi_context(&ctx);
         auto body = polonio::render_template_with_interpreter(source, interpreter);
         response.emit(std::cout);
         std::cout << body;
