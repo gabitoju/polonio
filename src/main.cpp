@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -13,6 +14,7 @@
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/template_renderer.h"
 #include "polonio/runtime/cgi.h"
+#include "polonio/server/http_server.h"
 
 namespace {
 
@@ -89,6 +91,69 @@ bool is_known_command(const std::string& arg) {
     return arg == "help" || arg == "version" || arg == "run" || arg == "serve";
 }
 
+int handle_serve(const std::vector<std::string>& args) {
+    int port = 8080;
+    std::filesystem::path root = ".";
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string& arg = args[i];
+        if (arg == "--port") {
+            if (i + 1 >= args.size()) {
+                std::cerr << "serve: --port requires a value\n";
+                return EXIT_FAILURE;
+            }
+            const std::string& value = args[++i];
+            try {
+                port = std::stoi(value);
+            } catch (const std::exception&) {
+                std::cerr << "serve: invalid port: " << value << '\n';
+                return EXIT_FAILURE;
+            }
+        } else if (arg == "--root") {
+            if (i + 1 >= args.size()) {
+                std::cerr << "serve: --root requires a directory path\n";
+                return EXIT_FAILURE;
+            }
+            root = args[++i];
+        } else {
+            std::cerr << "serve: unknown option " << arg << '\n';
+            print_usage(std::cerr);
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (port < 1 || port > 65535) {
+        std::cerr << "serve: port must be between 1 and 65535\n";
+        return EXIT_FAILURE;
+    }
+
+    std::error_code ec;
+    auto root_exists = std::filesystem::exists(root, ec);
+    if (ec || !root_exists) {
+        std::cerr << "serve: root directory not found: " << root << '\n';
+        return EXIT_FAILURE;
+    }
+    auto is_dir = std::filesystem::is_directory(root, ec);
+    if (ec || !is_dir) {
+        std::cerr << "serve: root path is not a directory: " << root << '\n';
+        return EXIT_FAILURE;
+    }
+    auto normalized = std::filesystem::weakly_canonical(root, ec);
+    if (ec) {
+        normalized = std::filesystem::absolute(root);
+    }
+
+    polonio::ServerConfig config;
+    config.port = port;
+    config.root = normalized;
+    try {
+        polonio::run_http_server(config);
+        return EXIT_SUCCESS;
+    } catch (const std::exception& ex) {
+        std::cerr << "serve: " << ex.what() << '\n';
+        return EXIT_FAILURE;
+    }
+}
+
 } // namespace
 
 int handle_cgi_request() {
@@ -146,8 +211,8 @@ int main(int argc, char** argv) {
         }
 
         if (command == "serve") {
-            std::cerr << "serve: not implemented yet\n";
-            return EXIT_FAILURE;
+            std::vector<std::string> serve_args(args.begin() + 1, args.end());
+            return handle_serve(serve_args);
         }
 
         if (!is_flag(command) && !is_known_command(command)) {

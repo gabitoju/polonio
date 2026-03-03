@@ -78,6 +78,9 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M9-2) Integration tests for CGI mode
 
 ## Milestone 10 — Dev server
-- [TODO] (M10-1) `polonio serve` basic server + routing + static files
-- [TODO] (M10-2) Populate superglobals in server mode
-- [TODO] (M10-3) Smoke test doc + minimal automated test if feasible
+- [DONE] (M10-1) `polonio serve` CLI plumbing + stub listener
+- [TODO] (M10-2) Static asset handling + routing
+- [TODO] (M10-3) Template rendering for `.pol` files
+- [TODO] (M10-4) POST handling + superglobals
+- [TODO] (M10-5) Response helpers + redirects
+- [TODO] (M10-6) Documentation + help updates
