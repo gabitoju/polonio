@@ -686,6 +686,36 @@ TEST_CASE("html_escape validates arity") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("debug writes to stderr without affecting stdout") {
+    auto path = create_temp_file_with_content("polonio_debug_hi",
+                                              "<% debug(\"hi\") %><% echo \"OK\" %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "OK");
+    CHECK(result.stderr_output.find("\"hi\"") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("debug describes arrays and objects") {
+    auto path = create_temp_file_with_content("polonio_debug_structs",
+                                              "<% debug([1,2]) %><% debug({\"a\": 1}) %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.empty());
+    CHECK(result.stderr_output.find("array(len=2)") != std::string::npos);
+    CHECK(result.stderr_output.find("object(len=1)") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("debug validates arity") {
+    auto path = create_temp_file_with_content("polonio_debug_arity",
+                                              "<% debug() %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("debug") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("header/status error outside CGI mode") {
     auto path = create_temp_file_with_content("polonio_noncgi_header",
                                               "<% header(\"X\", \"1\") %>");

@@ -48,6 +48,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-8) pow/sqrt builtins
 - [DONE] (M6-9) shift/unshift builtins
 - [DONE] (M6-10) concat builtin
+- [DONE] (M6-11) debug builtin
 
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks

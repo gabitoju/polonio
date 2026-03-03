@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <ctime>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -195,6 +196,43 @@ Value builtin_println(Interpreter& interp, const std::vector<Value>& args, const
     (void)loc;
     write_output_values(interp, args);
     interp.write_text("\n");
+    return Value();
+}
+
+std::string describe_value_for_debug(const Value& value) {
+    return std::visit(
+        [](const auto& alt) -> std::string {
+            using T = std::decay_t<decltype(alt)>;
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                return "null";
+            } else if constexpr (std::is_same_v<T, bool>) {
+                return alt ? "true" : "false";
+            } else if constexpr (std::is_same_v<T, double>) {
+                return OutputBuffer::value_to_string(Value(alt));
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                return "\"" + alt + "\"";
+            } else if constexpr (std::is_same_v<T, Value::ArrayPtr>) {
+                std::size_t len = alt ? alt->size() : 0;
+                return "array(len=" + std::to_string(len) + ")";
+            } else if constexpr (std::is_same_v<T, Value::ObjectPtr>) {
+                std::size_t len = alt ? alt->size() : 0;
+                return "object(len=" + std::to_string(len) + ")";
+            } else if constexpr (std::is_same_v<T, BuiltinFunction>) {
+                return "function(name=" + alt.name + ")";
+            } else {
+                std::string name = alt.name.empty() ? "<anon>" : alt.name;
+                return "function(name=" + name + ")";
+            }
+        },
+        value.storage());
+}
+
+Value builtin_debug(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "debug: expected 1 argument", interp.path(), loc);
+    }
+    Value value = args[0];
+    std::cerr << describe_value_for_debug(value) << std::endl;
     return Value();
 }
 
@@ -994,6 +1032,7 @@ void install_builtins(Env& env) {
     env.set_local("to_number", Value(BuiltinFunction{"to_number", builtin_to_number}));
     env.set_local("print", Value(BuiltinFunction{"print", builtin_print}));
     env.set_local("println", Value(BuiltinFunction{"println", builtin_println}));
+    env.set_local("debug", Value(BuiltinFunction{"debug", builtin_debug}));
     env.set_local("nl2br", Value(BuiltinFunction{"nl2br", builtin_nl2br}));
     env.set_local("htmlspecialchars", Value(BuiltinFunction{"htmlspecialchars", builtin_htmlspecialchars}));
     env.set_local("html_escape", Value(BuiltinFunction{"html_escape", builtin_html_escape}));
