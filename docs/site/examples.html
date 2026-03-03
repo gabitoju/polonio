@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Examples &mdash; Polonio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="name">Polonio</div>
+    <div class="tagline">v0.1.0</div>
+  </div>
+  <nav>
+    <div class="nav-section">
+      <div class="label">Getting Started</div>
+      <a href="index.html">Home</a>
+      <a class="sub" href="index.html#quickstart">Quick Start</a>
+      <a class="sub" href="index.html#cli">CLI Reference</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Reference</div>
+      <a href="language.html">Language</a>
+      <a href="builtins.html">Built-in Functions</a>
+      <a href="runtime.html">HTTP &amp; Server</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Learn</div>
+      <a href="examples.html">Examples</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">This Page</div>
+      <a href="#hello">Hello World</a>
+      <a href="#guestbook">Guestbook</a>
+      <a href="#todo">Todo Dashboard</a>
+      <a href="#includes">Includes</a>
+      <a href="#patterns">Common Patterns</a>
+      <a href="#prueba">Original prueba.html</a>
+    </div>
+  </nav>
+</aside>
+<main class="content">
+  <h1>Examples &amp; Cookbook</h1>
+  <p class="subtitle">Practical templates that mirror the shipping interpreter and built-in functions.</p>
+
+  <section id="hello">
+    <h2>Hello World</h2>
+    <p>The classic starter shows literal HTML, a `<% var %>` declaration, `$name` interpolation, and a spanning `<% if %>` block. Because interpolation is raw, call <code>html_escape</code> (alias of <code>htmlspecialchars</code>) whenever untrusted data is displayed.</p>
+    <pre><code>&lt;% <span class="kw">var</span> <span class="var">name</span> = _GET[<span class="str">"name"</span>] <span class="kw">or</span> <span class="str">"World"</span> %&gt;
+&lt;main class="hello"&gt;
+  &lt;h1&gt;Hola $name!&lt;/h1&gt;
+  &lt;% <span class="kw">if</span> not _GET[<span class="str">"name"</span>] %&gt;
+    &lt;p&gt;Append &lt;code&gt;?name=Ana&lt;/code&gt; to the query string.&lt;/p&gt;
+  &lt;% <span class="kw">else</span> %&gt;
+    &lt;p&gt;You sent: &lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(_GET[<span class="str">"name"</span>]) %&gt;&lt;/p&gt;
+  &lt;% <span class="kw">end</span> %&gt;
+&lt;/main&gt;</code></pre>
+    <div class="example-output">
+      <strong>Output:</strong> <code>&lt;h1&gt;Hola Ana!&lt;/h1&gt;</code> *(when <code>?name=Ana</code> is provided)*
+    </div>
+  </section>
+
+  <section id="guestbook">
+    <h2>Guestbook</h2>
+    <p>Polonio’s CGI mode populates `_GET`, `_POST`, `_COOKIE`, and `_SERVER`. This guestbook stores messages in-memory (per request) and demonstrates loop constructs, <code>push</code>, and date helpers.</p>
+    <pre><code>&lt;%
+<span class="kw">var</span> <span class="var">entries</span> = []
+<span class="kw">if</span> _POST[<span class="str">"message"</span>] %&gt;
+  &lt;% <span class="fn">push</span>(entries, {
+    <span class="str">"body"</span>: _POST[<span class="str">"message"</span>],
+    <span class="str">"stamp"</span>: <span class="fn">date_format</span>(<span class="fn">now</span>(), <span class="str">"YYYY-MM-DD HH:mm"</span>)
+  }) %&gt;
+&lt;% <span class="kw">end</span> %&gt;
+&lt;form method=<span class="str">"post"</span>&gt;
+  &lt;textarea name=<span class="str">"message"</span>&gt;&lt;/textarea&gt;
+  &lt;button&gt;Sign&lt;/button&gt;
+&lt;/form&gt;
+&lt;ul class=<span class="str">"entries"</span>&gt;
+  &lt;% <span class="kw">for</span> <span class="var">entry</span> <span class="kw">in</span> entries %&gt;
+    &lt;li&gt;
+      &lt;strong&gt;&lt;% <span class="kw">echo</span> entry[<span class="str">"stamp"</span>] %&gt;&lt;/strong&gt;
+      &lt;p&gt;&lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(entry[<span class="str">"body"</span>]) %&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;% <span class="kw">end</span> %&gt;
+&lt;/ul&gt;</code></pre>
+    <div class="note">For persistent storage you would wire entries to a file or database. Polonio keeps arrays and objects alive for the request and reinitializes them on the next run.</div>
+  </section>
+
+  <section id="todo">
+    <h2>Todo Dashboard</h2>
+    <p>Arrays of objects plus <code>for i, item in items</code> make simple dashboards ergonomic.</p>
+    <pre><code>&lt;%
+<span class="kw">var</span> <span class="var">todos</span> = [
+  {<span class="str">"title"</span>: <span class="str">"Ship docs"</span>, <span class="str">"done"</span>: <span class="kw">false</span>},
+  {<span class="str">"title"</span>: <span class="str">"Polish lexer"</span>, <span class="str">"done"</span>: <span class="kw">true</span>}
+]
+%&gt;
+&lt;table class=<span class="str">"todo"</span>&gt;
+  &lt;tr&gt;&lt;th>#&lt;/th&gt;&lt;th&gt;Task&lt;/th&gt;&lt;th&gt;Status&lt;/th&gt;&lt;/tr&gt;
+  &lt;% <span class="kw">for</span> <span class="var">i</span>, <span class="var">task</span> <span class="kw">in</span> todos %&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;% <span class="kw">echo</span> i + 1 %&gt;&lt;/td&gt;
+      &lt;td&gt;&lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(task[<span class="str">"title"</span>]) %&gt;&lt;/td&gt;
+      &lt;td&gt;
+        &lt;% <span class="kw">if</span> task[<span class="str">"done"</span>] %&gt;
+          &lt;span class=<span class="str">"done"</span>&gt;Complete&lt;/span&gt;
+        &lt;% <span class="kw">else</span> %&gt;
+          &lt;span class=<span class="str">"pending"</span>&gt;In progress&lt;/span&gt;
+        &lt;% <span class="kw">end</span> %&gt;
+      &lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;% <span class="kw">end</span> %&gt;
+&lt;/table&gt;</code></pre>
+    <div class="example-output">
+      <strong>Tip:</strong> Combine with <code>concat</code> to merge todos loaded from multiple includes.</div>
+  </section>
+
+  <section id="includes">
+    <h2>Includes &amp; Partials</h2>
+    <p><code>include "file.pol"</code> executes another template using the current interpreter state. Paths are resolved relative to the including file, with a depth limit of 50 and cycle detection (see <code>template_renderer.cpp</code>).</p>
+    <pre><code>&lt;% <span class="kw">var</span> <span class="var">page</span> = <span class="str">"docs"</span> %&gt;
+&lt;% include <span class="str">"partials/header.pol"</span> %&gt;
+&lt;section&gt;
+  &lt;h2&gt;Content&lt;/h2&gt;
+&lt;/section&gt;
+&lt;% include <span class="str">"partials/footer.pol"</span> %&gt;</code></pre>
+    <div class="warn">Included templates inherit the same scope, so variables declared before an <code>include</code> remain available (and mutable) inside the partial.</div>
+  </section>
+
+  <section id="patterns">
+    <h2>Common Patterns</h2>
+    <ul>
+      <li><strong>Formatting helpers:</strong> Use <code>date_format(now(), "YYYY-MM-DD")</code> or <code>date_add_days</code> for schedule pages.</li>
+      <li><strong>Safe output:</strong> Prefer <code>html_escape</code> over <code>htmlspecialchars</code> (they are equivalent) for clarity, and <code>nl2br</code> when preserving multiline text.</li>
+      <li><strong>Objects as dictionaries:</strong> Pair <code>set</code>, <code>get</code>, and <code>has_key</code> to emulate associative arrays.</li>
+      <li><strong>Debugging:</strong> <code>debug(value)</code> writes a single-line description to <code>stderr</code> without disrupting page output.</li>
+      <li><strong>Loop guards:</strong> The interpreter aborts loops after 100,000 iterations; chunk long work or pre-filter arrays first.</li>
+    </ul>
+  </section>
+
+  <section id="prueba">
+    <h2>Original <code>prueba.html</code></h2>
+    <p>The repository’s <code>history/prueba.html</code> captures the 2005 prototype: ISO-8859-1 markup, inline `/* ... */` comment experiments, and the uppercase <code>VAR</code> declaration that lived before the current <code>var</code> keyword.</p>
+    <pre><code class="language-html">&lt;h1&gt;Prueba&lt;/h1&gt;
+Hola/*&lt;br&gt;
+Ho#la
+&lt;% VAR pepe &gt;
+$pepe</code></pre>
+    <ul>
+      <li>Polonio still strips `/* ... */` comments while scanning template text, a direct nod to that file.</li>
+      <li>Modern Polonio expects the lowercase <code>var</code> keyword; the legacy uppercase spelling is kept in the history file only.</li>
+      <li>Encoding quirks (ISO-8859-1 headers, repeated meta tags) are preserved in the history folder for posterity.</li>
+    </ul>
+    <div class="note">Today’s interpreter normalizes everything to UTF-8 and requires `<% var name = "value" %>`—convert historic `VAR` declarations before running them.</div>
+  </section>
+</main>
+</body>
+</html>

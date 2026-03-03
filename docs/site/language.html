@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Language &mdash; Polonio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="name">Polonio</div>
+    <div class="tagline">v0.1.0</div>
+  </div>
+  <nav>
+    <div class="nav-section">
+      <div class="label">Getting Started</div>
+      <a href="index.html">Home</a>
+      <a class="sub" href="index.html#quickstart">Quick Start</a>
+      <a class="sub" href="index.html#cli">CLI Reference</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Reference</div>
+      <a href="language.html">Language</a>
+      <a href="builtins.html">Built-in Functions</a>
+      <a href="runtime.html">HTTP &amp; Server</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Learn</div>
+      <a href="examples.html">Examples</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">This Page</div>
+      <a href="#template-structure">Template Structure</a>
+      <a href="#types">Types</a>
+      <a href="#variables">Variables</a>
+      <a href="#operators">Operators</a>
+      <a href="#control-flow">Control Flow</a>
+      <a href="#functions">Functions</a>
+      <a href="#includes">Includes</a>
+      <a href="#truthiness">Truthiness</a>
+      <a href="#scope">Scope</a>
+    </div>
+  </nav>
+</aside>
+<main class="content">
+  <h1>Language Reference</h1>
+  <p class="subtitle">Summary of the Polonio v0.1.0 grammar, semantics, and interpreter behavior.</p>
+
+  <section id="template-structure">
+    <h2>Template Structure</h2>
+    <p>Templates mix literal HTML (emitted verbatim) with embedded code blocks. Files usually carry the <code>.pol</code> extension, but any extension works when you call <code>polonio run</code>.</p>
+    <div class="grid-2">
+      <div>
+        <h3>Code blocks</h3>
+        <pre><code><span class="tag">&lt;%</span>
+<span class="kw">var</span> <span class="var">title</span> = <span class="str">"Docs"</span>
+<span class="kw">if</span> _SERVER[<span class="str">"REQUEST_METHOD"</span>] == <span class="str">"POST"</span>
+  <span class="kw">echo</span> <span class="str">"Posted"</span>
+<span class="kw">end</span>
+<span class="tag">%&gt;</span></code></pre>
+      </div>
+      <div>
+        <h3>Interpolation + inline echo</h3>
+        <pre><code>&lt;h1&gt;$title&lt;/h1&gt;
+&lt;p&gt;2 + 3 = &lt;% <span class="kw">echo</span> 2 + 3 %&gt;&lt;/p&gt;
+&lt;p&gt;Literal <span class="cmt">$</span>: write <span class="str">"$$"</span> in text.</code></pre>
+      </div>
+    </div>
+    <ul>
+      <li><strong>`<% ... %>`:</strong> Multiline code, including control flow, function declarations, and includes.</li>
+      <li><strong>`$var`:</strong> Works only in HTML/text segments. `null` becomes the empty string, and no escaping happens automatically.</li>
+      <li><strong>Inline `<% echo expr %>`:</strong> Shortcut inside HTML where full blocks would be awkward.</li>
+    </ul>
+    <div class="note">Both the lexer and the template scanner support `/* ... */` block comments. Inside HTML segments those comments are stripped before code runs, mirroring the original <code>prueba.html</code> behavior.</div>
+  </section>
+
+  <section id="types">
+    <h2>Types</h2>
+    <p>Polonio has seven runtime types implemented in <code>Value</code> (<code>src/polonio/runtime/value.cpp</code>).</p>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>null</code></td><td>Default value for uninitialized variables and missing function arguments.</td></tr>
+          <tr><td><code>bool</code></td><td><code>true</code> / <code>false</code>.</td></tr>
+          <tr><td><code>number</code></td><td>Double-precision floating point (all integers are represented as doubles).</td></tr>
+          <tr><td><code>string</code></td><td>UTF-8 text with <code>"</code> or <code>'</code> quoting plus <code>\n</code>, <code>\t</code>, <code>\"</code>, <code>\'</code> escapes.</td></tr>
+          <tr><td><code>array</code></td><td>Ordered list (<code>std::vector</code>) accessed with numeric indices.</td></tr>
+          <tr><td><code>object</code></td><td>String-keyed map storing arbitrary values.</td></tr>
+          <tr><td><code>function</code></td><td>User-defined or builtin function values with lexical closures.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="variables">
+    <h2>Variables</h2>
+    <pre><code><span class="tag">&lt;%</span>
+<span class="kw">var</span> <span class="var">name</span>
+<span class="kw">var</span> <span class="var">count</span> = 2
+name = <span class="str">"Ana"</span>
+count += 3
+count ..= <span class="str">" total"</span>
+<span class="tag">%&gt;</span></code></pre>
+    <ul>
+      <li><strong>`var name`:</strong> Declares a variable initialized to <code>null</code>.</li>
+      <li><strong>`var name = expr`:</strong> Declares and initializes.</li>
+      <li><strong>Assignment:</strong> `=`, compound math (`+= -= *= /= %=`) and concatenation (`..=`) operators are implemented in the interpreter.</li>
+      <li><strong>Legacy casing:</strong> Only lowercase <code>var</code> is recognized; the uppercase <code>VAR</code> from archived templates is no longer tokenized as a keyword.</li>
+    </ul>
+  </section>
+
+  <section id="operators">
+    <h2>Operators</h2>
+    <p>Expressions follow Pratt-precedence parsing (<code>parser/parser.cpp</code>). Everything is right-associative for assignments, and function calls/indexing bind tight.</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Precedence (high → low)</th><th>Operators</th></tr></thead>
+        <tbody>
+          <tr><td>Call / Index</td><td><code>fn()</code>, <code>array[index]</code>, <code>object["key"]</code></td></tr>
+          <tr><td>Unary</td><td><code>-expr</code>, <code>not expr</code></td></tr>
+          <tr><td>Multiplicative</td><td><code>*</code>, <code>/</code>, <code>%</code></td></tr>
+          <tr><td>Additive</td><td><code>+</code>, <code>-</code></td></tr>
+          <tr><td>Concatenation</td><td><code>..</code></td></tr>
+          <tr><td>Comparison</td><td><code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code></td></tr>
+          <tr><td>Equality</td><td><code>==</code>, <code>!=</code></td></tr>
+          <tr><td>Logical AND</td><td><code>and</code></td></tr>
+          <tr><td>Logical OR</td><td><code>or</code></td></tr>
+          <tr><td>Assignment</td><td><code>=</code>, <code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code>, <code>..=</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">Comparisons do not coerce types. Only `number == number`, `string == string`, etc. return true; mixed types compare as false.</div>
+  </section>
+
+  <section id="control-flow">
+    <h2>Control Flow</h2>
+    <div class="grid-2">
+      <div>
+        <h3>If / Elseif / Else</h3>
+        <pre><code><span class="tag">&lt;%</span>
+<span class="kw">if</span> user[<span class="str">"role"</span>] == <span class="str">"admin"</span>
+  <span class="kw">echo</span> <span class="str">"Welcome"</span>
+<span class="kw">elseif</span> user[<span class="str">"role"</span>] == <span class="str">"editor"</span>
+  <span class="kw">echo</span> <span class="str">"Hi"</span>
+<span class="kw">else</span>
+  <span class="kw">echo</span> <span class="str">"Guest"</span>
+<span class="kw">end</span>
+<span class="tag">%&gt;</span></code></pre>
+      </div>
+      <div>
+        <h3>Loops</h3>
+        <pre><code><span class="tag">&lt;%</span>
+<span class="kw">for</span> <span class="var">i</span>, <span class="var">item</span> <span class="kw">in</span> items
+  <span class="kw">echo</span> i .. <span class="str">": "</span> .. item
+<span class="kw">end</span>
+
+<span class="kw">while</span> total &lt; 10
+  total += 1
+<span class="kw">end</span>
+<span class="tag">%&gt;</span></code></pre>
+      </div>
+    </div>
+    <ul>
+      <li><strong>for/in:</strong> Iterates arrays and objects. Use <code>for value in array</code> or <code>for index, value in array</code>. Objects yield <code>key</code> + <code>value</code> pairs.</li>
+      <li><strong>while:</strong> Evaluated each loop. Once the condition becomes false or the iteration cap is hit the loop exits.</li>
+    </ul>
+    <div class="warn">A global iteration guard (<code>kLoopIterationLimit = 100000</code> in <code>interpreter.cpp</code>) applies to <code>for</code> and <code>while</code>. Hitting the limit raises “loop limit exceeded”.</div>
+  </section>
+
+  <section id="functions">
+    <h2>Functions</h2>
+    <pre><code><span class="tag">&lt;%</span>
+<span class="kw">function</span> <span class="fn">greet</span>(<span class="var">name</span>)
+  <span class="kw">return</span> <span class="str">"Hello "</span> .. name
+<span class="kw">end</span>
+
+<span class="kw">function</span> <span class="fn">counter</span>()
+  <span class="kw">var</span> <span class="var">value</span> = 0
+  <span class="kw">return</span> <span class="kw">function</span>()
+    value += 1
+    <span class="kw">return</span> value
+  <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="tag">%&gt;</span></code></pre>
+    <ul>
+      <li>Functions capture their surrounding environment; returning a nested <code>function</code> produces a closure.</li>
+      <li>Parameters default to <code>null</code> when callers omit arguments (see <code>eval_call</code>).</li>
+      <li><code>return</code> exits the nearest function. If no value is provided, <code>null</code> is returned.</li>
+      <li>Named functions are self-recursive because the interpreter binds the function name inside its environment.</li>
+    </ul>
+  </section>
+
+  <section id="includes">
+    <h2>Includes</h2>
+    <p><code>include "partial.pol"</code> streams another template using the same interpreter and environments.</p>
+    <pre><code><span class="tag">&lt;%</span> include <span class="str">"partials/nav.pol"</span> <span class="tag">%&gt;</span></code></pre>
+    <ul>
+      <li>Paths are resolved relative to the including file’s directory.</li>
+      <li>The renderer canonicalizes paths and enforces a depth limit of 50. Circular chains raise “include cycle detected.”</li>
+      <li>Variables defined before the include remain readable and writable inside the partial.</li>
+      <li>Includes are disabled outside template rendering (you will see “include not supported here” if no include callback is registered).</li>
+    </ul>
+  </section>
+
+  <section id="truthiness">
+    <h2>Truthiness</h2>
+    <p>The interpreter uses <code>Value::is_truthy</code>:</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Value</th><th>Truthy?</th></tr></thead>
+        <tbody>
+          <tr><td><code>null</code></td><td>false</td></tr>
+          <tr><td><code>false</code></td><td>false</td></tr>
+          <tr><td><code>true</code></td><td>true</td></tr>
+          <tr><td><code>number</code></td><td>false if <code>0.0</code>, otherwise true.</td></tr>
+          <tr><td><code>string</code></td><td>false if empty, otherwise true.</td></tr>
+          <tr><td><code>array</code> / <code>object</code></td><td>true (even if empty) because they store shared pointers.</td></tr>
+          <tr><td><code>function</code></td><td>Always true.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="scope">
+    <h2>Scope &amp; Closures</h2>
+    <p>Polonio uses lexical environments (<code>Env</code>):</p>
+    <ul>
+      <li>Each <code>function</code> stores a pointer to the environment active at definition time (<code>closure</code> in <code>FunctionValue</code>).</li>
+      <li>Loops create child environments when binding <code>for</code> indices/values, so inner assignments don’t leak out unless you write to outer variables explicitly.</li>
+      <li><code>include</code> does not create a new environment; partials share the same scope to keep template variables fluid.</li>
+      <li>Globals live in the interpreter’s root environment, which is preloaded with builtins.</li>
+    </ul>
+    <div class="note">Use helper functions to hide state when needed. Large templates often wrap logic in <code>function render_item(item)</code> and call it immediately to avoid polluting globals.</div>
+  </section>
+</main>
+</body>
+</html>
