@@ -50,6 +50,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-10) concat builtin
 - [DONE] (M6-11) debug builtin
 - [DONE] (M6-12) date_add_days builtin
+- [DONE] (M6-13) date_parse builtin
 
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks

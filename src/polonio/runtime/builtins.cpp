@@ -103,6 +103,7 @@ Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& ar
 Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_add_days(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_date_parse(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -777,6 +778,105 @@ Value builtin_date_add_days(Interpreter& interp, const std::vector<Value>& args,
     return Value(seconds + day_count * 86400.0);
 }
 
+bool parse_fixed_number(const std::string& text, std::size_t start, std::size_t length, int& out) {
+    if (start + length > text.size()) return false;
+    int value = 0;
+    for (std::size_t i = 0; i < length; ++i) {
+        char ch = text[start + i];
+        if (ch < '0' || ch > '9') {
+            return false;
+        }
+        value = value * 10 + (ch - '0');
+    }
+    out = value;
+    return true;
+}
+
+bool parse_date_time_fields(const std::string& text,
+                            int& year,
+                            int& month,
+                            int& day,
+                            int& hour,
+                            int& minute,
+                            int& second,
+                            bool include_time,
+                            char separator) {
+    if (!parse_fixed_number(text, 0, 4, year)) return false;
+    if (text.size() < 7 || text[4] != '-' || text[7] != '-') return false;
+    if (!parse_fixed_number(text, 5, 2, month)) return false;
+    if (!parse_fixed_number(text, 8, 2, day)) return false;
+    if (!include_time) {
+        hour = minute = second = 0;
+        return text.size() == 10;
+    }
+    if (text.size() < 19) return false;
+    if (text[10] != separator) return false;
+    if (!parse_fixed_number(text, 11, 2, hour)) return false;
+    if (text[13] != ':') return false;
+    if (!parse_fixed_number(text, 14, 2, minute)) return false;
+    if (text[16] != ':') return false;
+    if (!parse_fixed_number(text, 17, 2, second)) return false;
+    return text.size() == 19;
+}
+
+bool is_leap_year(int year) {
+    if (year % 400 == 0) return true;
+    if (year % 100 == 0) return false;
+    return year % 4 == 0;
+}
+
+bool validate_date_fields(int year, int month, int day, int hour, int minute, int second) {
+    if (year < 0 || year > 9999) return false;
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > 31) return false;
+    static const int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    int dim = days_in_month[month - 1];
+    if (month == 2 && is_leap_year(year)) dim = 29;
+    if (day > dim) return false;
+    if (hour < 0 || hour > 23) return false;
+    if (minute < 0 || minute > 59) return false;
+    if (second < 0 || second > 59) return false;
+    return true;
+}
+
+long long days_since_epoch(int year, int month, int day) {
+    // Convert to days since 1970-01-01 using algorithm based on civil_from_days inverse.
+    int y = year;
+    int m = month;
+    int d = day;
+    y -= m <= 2;
+    const int era = (y >= 0 ? y : y - 399) / 400;
+    const unsigned yoe = static_cast<unsigned>(y - era * 400);
+    const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    return era * 146097LL + static_cast<long long>(doe) - 719468LL;
+}
+
+Value builtin_date_parse(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    std::string input = OutputBuffer::value_to_string(ensure_arg("date_parse", 0, args, interp, loc));
+    bool include_time = false;
+    char separator = ' ';
+    if (input.size() == 10) {
+        include_time = false;
+    } else if (input.size() == 19 && input[10] == ' ') {
+        include_time = true;
+        separator = ' ';
+    } else if (input.size() == 19 && input[10] == 'T') {
+        include_time = true;
+        separator = 'T';
+    } else {
+        throw PolonioError(ErrorKind::Runtime, "date_parse: invalid format", interp.path(), loc);
+    }
+    int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
+    if (!parse_date_time_fields(input, year, month, day, hour, minute, second, include_time, separator) ||
+        !validate_date_fields(year, month, day, hour, minute, second)) {
+        throw PolonioError(ErrorKind::Runtime, "date_parse: invalid format", interp.path(), loc);
+    }
+    long long days = days_since_epoch(year, month, day);
+    long long seconds = days * 86400LL + hour * 3600 + minute * 60 + second;
+    return Value(static_cast<double>(seconds));
+}
+
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("count", 0, args, interp, loc);
     if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
@@ -1099,6 +1199,7 @@ void install_builtins(Env& env) {
     env.set_local("date_parts", Value(BuiltinFunction{"date_parts", builtin_date_parts}));
     env.set_local("date_format", Value(BuiltinFunction{"date_format", builtin_date_format}));
     env.set_local("date_add_days", Value(BuiltinFunction{"date_add_days", builtin_date_add_days}));
+    env.set_local("date_parse", Value(BuiltinFunction{"date_parse", builtin_date_parse}));
 }
 
 } // namespace polonio
