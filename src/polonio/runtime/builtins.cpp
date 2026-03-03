@@ -10,11 +10,13 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include "polonio/common/error.h"
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/output.h"
+#include "polonio/runtime/cgi.h"
 #include "polonio/common/location.h"
 
 namespace polonio {
@@ -64,6 +66,259 @@ std::mt19937_64& global_rng() {
     return rng;
 }
 
+CGIContext* current_cgi_context(Interpreter& interp) { return interp.cgi_context(); }
+
+std::string normalize_header_lookup(const std::string& name) {
+    std::string normalized;
+    normalized.reserve(name.size());
+    for (char ch : name) {
+        if (ch == '_') {
+            normalized.push_back('-');
+        } else {
+            normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+        }
+    }
+    return normalized;
+}
+
+class JsonParser {
+public:
+    JsonParser(const std::string& text, Interpreter& interp, const Location& loc)
+        : text_(text), interp_(interp), loc_(loc) {}
+
+    Value parse() {
+        skip_ws();
+        Value result = parse_value();
+        skip_ws();
+        if (!is_end()) {
+            error();
+        }
+        return result;
+    }
+
+private:
+    void error() const {
+        throw PolonioError(ErrorKind::Runtime, "request_json: invalid json", interp_.path(), loc_);
+    }
+
+    bool is_end() const { return pos_ >= text_.size(); }
+
+    char peek() const { return is_end() ? '\0' : text_[pos_]; }
+
+    char advance() {
+        if (is_end()) {
+            return '\0';
+        }
+        return text_[pos_++];
+    }
+
+    void skip_ws() {
+        while (!is_end()) {
+            char ch = peek();
+            if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+                advance();
+            } else {
+                break;
+            }
+        }
+    }
+
+    Value parse_value() {
+        if (is_end()) {
+            error();
+        }
+        char ch = peek();
+        if (ch == '"') {
+            return Value(parse_string());
+        }
+        if (ch == '{') {
+            return Value(parse_object());
+        }
+        if (ch == '[') {
+            return Value(parse_array());
+        }
+        if (ch == 't' || ch == 'f' || ch == 'n') {
+            return parse_literal();
+        }
+        if (ch == '-' || std::isdigit(static_cast<unsigned char>(ch))) {
+            return Value(parse_number());
+        }
+        error();
+        return Value();
+    }
+
+    std::string parse_string() {
+        if (advance() != '"') {
+            error();
+        }
+        std::string out;
+        while (!is_end()) {
+            char ch = advance();
+            if (ch == '"') {
+                return out;
+            }
+            if (ch == '\\') {
+                if (is_end()) {
+                    error();
+                }
+                char esc = advance();
+                switch (esc) {
+                case '"':
+                case '\\':
+                case '/': out.push_back(esc); break;
+                case 'b': out.push_back('\b'); break;
+                case 'f': out.push_back('\f'); break;
+                case 'n': out.push_back('\n'); break;
+                case 'r': out.push_back('\r'); break;
+                case 't': out.push_back('\t'); break;
+                default: error();
+                }
+            } else {
+                if (static_cast<unsigned char>(ch) < 0x20) {
+                    error();
+                }
+                out.push_back(ch);
+            }
+        }
+        error();
+        return std::string();
+    }
+
+    Value parse_literal() {
+        if (match_literal("true")) {
+            return Value(true);
+        }
+        if (match_literal("false")) {
+            return Value(false);
+        }
+        if (match_literal("null")) {
+            return Value();
+        }
+        error();
+        return Value();
+    }
+
+    bool match_literal(const char* literal) {
+        std::size_t len = std::strlen(literal);
+        if (text_.compare(pos_, len, literal) == 0) {
+            pos_ += len;
+            return true;
+        }
+        return false;
+    }
+
+    Value::Object parse_object() {
+        if (advance() != '{') {
+            error();
+        }
+        Value::Object result;
+        skip_ws();
+        if (peek() == '}') {
+            advance();
+            return result;
+        }
+        while (true) {
+            skip_ws();
+            if (peek() != '"') {
+                error();
+            }
+            std::string key = parse_string();
+            skip_ws();
+            if (advance() != ':') {
+                error();
+            }
+            skip_ws();
+            Value value = parse_value();
+            result[key] = value;
+            skip_ws();
+            char ch = advance();
+            if (ch == '}') {
+                break;
+            }
+            if (ch != ',') {
+                error();
+            }
+            skip_ws();
+        }
+        return result;
+    }
+
+    Value::Array parse_array() {
+        if (advance() != '[') {
+            error();
+        }
+        Value::Array values;
+        skip_ws();
+        if (peek() == ']') {
+            advance();
+            return values;
+        }
+        while (true) {
+            skip_ws();
+            values.emplace_back(parse_value());
+            skip_ws();
+            char ch = advance();
+            if (ch == ']') {
+                break;
+            }
+            if (ch != ',') {
+                error();
+            }
+            skip_ws();
+        }
+        return values;
+    }
+
+    double parse_number() {
+        std::size_t start = pos_;
+        if (peek() == '-') {
+            advance();
+        }
+        if (!std::isdigit(static_cast<unsigned char>(peek()))) {
+            error();
+        }
+        if (peek() == '0') {
+            advance();
+        } else {
+            while (std::isdigit(static_cast<unsigned char>(peek()))) {
+                advance();
+            }
+        }
+        if (peek() == '.') {
+            advance();
+            if (!std::isdigit(static_cast<unsigned char>(peek()))) {
+                error();
+            }
+            while (std::isdigit(static_cast<unsigned char>(peek()))) {
+                advance();
+            }
+        }
+        if (peek() == 'e' || peek() == 'E') {
+            advance();
+            if (peek() == '+' || peek() == '-') {
+                advance();
+            }
+            if (!std::isdigit(static_cast<unsigned char>(peek()))) {
+                error();
+            }
+            while (std::isdigit(static_cast<unsigned char>(peek()))) {
+                advance();
+            }
+        }
+        std::string number = text_.substr(start, pos_ - start);
+        try {
+            return std::stod(number);
+        } catch (...) {
+            error();
+        }
+        return 0.0;
+    }
+
+    const std::string& text_;
+    Interpreter& interp_;
+    const Location& loc_;
+    std::size_t pos_ = 0;
+};
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_tostring(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_to_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -112,6 +367,11 @@ Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, co
 Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_add_days(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_parse(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_request_body(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_request_header(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_request_headers(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_cookies(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_request_json(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -909,6 +1169,66 @@ Value builtin_date_parse(Interpreter& interp, const std::vector<Value>& args, co
     return Value(static_cast<double>(seconds));
 }
 
+Value builtin_request_body(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "request_body: expected 0 arguments", interp.path(), loc);
+    }
+    auto* ctx = current_cgi_context(interp);
+    if (!ctx) {
+        return Value(std::string());
+    }
+    return Value(ctx->body);
+}
+
+Value builtin_request_header(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    std::string header = OutputBuffer::value_to_string(ensure_arg("request_header", 0, args, interp, loc));
+    auto* ctx = current_cgi_context(interp);
+    if (!ctx) {
+        return Value();
+    }
+    std::string key = normalize_header_lookup(header);
+    auto it = ctx->headers.find(key);
+    if (it == ctx->headers.end()) {
+        return Value();
+    }
+    return it->second;
+}
+
+Value builtin_request_headers(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "request_headers: expected 0 arguments", interp.path(), loc);
+    }
+    auto* ctx = current_cgi_context(interp);
+    if (!ctx) {
+        return Value(Value::Object());
+    }
+    return Value(ctx->headers);
+}
+
+Value builtin_cookies(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "cookies: expected 0 arguments", interp.path(), loc);
+    }
+    auto* ctx = current_cgi_context(interp);
+    if (!ctx) {
+        return Value(Value::Object());
+    }
+    return Value(ctx->cookie);
+}
+
+Value builtin_request_json(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "request_json: expected 0 arguments", interp.path(), loc);
+    }
+    auto* ctx = current_cgi_context(interp);
+    std::string body = ctx ? ctx->body : std::string();
+    if (body.empty()) {
+        return Value();
+    }
+    JsonParser parser(body, interp, loc);
+    return parser.parse();
+}
+
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("count", 0, args, interp, loc);
     if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
@@ -1234,6 +1554,11 @@ void install_builtins(Env& env) {
     env.set_local("date_format", Value(BuiltinFunction{"date_format", builtin_date_format}));
     env.set_local("date_add_days", Value(BuiltinFunction{"date_add_days", builtin_date_add_days}));
     env.set_local("date_parse", Value(BuiltinFunction{"date_parse", builtin_date_parse}));
+    env.set_local("request_body", Value(BuiltinFunction{"request_body", builtin_request_body}));
+    env.set_local("request_header", Value(BuiltinFunction{"request_header", builtin_request_header}));
+    env.set_local("request_headers", Value(BuiltinFunction{"request_headers", builtin_request_headers}));
+    env.set_local("cookies", Value(BuiltinFunction{"cookies", builtin_cookies}));
+    env.set_local("request_json", Value(BuiltinFunction{"request_json", builtin_request_json}));
 }
 
 } // namespace polonio

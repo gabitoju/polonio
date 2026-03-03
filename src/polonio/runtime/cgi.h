@@ -12,6 +12,8 @@ struct CGIContext {
     Value::Object post;
     Value::Object cookie;
     Value::Object server;
+    Value::Object headers;
+    std::string body;
     std::string script_filename;
 };
 

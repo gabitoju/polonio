@@ -739,6 +739,126 @@ TEST_CASE("redirect builtin allows custom status") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("request_body returns raw CGI body") {
+    auto path = create_temp_file_with_content("polonio_request_body", "<% echo request_body() %>");
+    std::string body = "a=1&b=2";
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"REQUEST_METHOD", "POST"},
+        {"CONTENT_LENGTH", std::to_string(body.size())},
+    };
+    auto result = run_polonio_cgi(env, body);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == body);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("request_header is case-insensitive and null on miss") {
+    auto path = create_temp_file_with_content("polonio_request_header",
+                                              "<% echo request_header(\"X-Test\") %>|"
+                                              "<% echo request_header(\"content-type\") %>|"
+                                              "<% if request_header(\"missing\") == null %>none<% end %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"HTTP_X_TEST", "abc"},
+        {"CONTENT_TYPE", "text/plain"},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "abc|text/plain|none");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("request_headers returns normalized map of headers") {
+    auto path = create_temp_file_with_content("polonio_request_headers",
+                                              "<% var h = request_headers(); %>"
+                                              "<% echo h[\"x-test\"] %>|"
+                                              "<% echo h[\"content-type\"] %>|"
+                                              "<% echo h[\"x-custom\"] %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"CONTENT_TYPE", "text/plain"},
+        {"CONTENT_LENGTH", "5"},
+        {"HTTP_X_TEST", "abc"},
+        {"HTTP_X_CUSTOM", "42"},
+    };
+    auto result = run_polonio_cgi(env, "hello");
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "abc|text/plain|42");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("cookies builtin exposes parsed cookie jar") {
+    auto path = create_temp_file_with_content("polonio_cookies_builtin",
+                                              "<% var c = cookies(); %>"
+                                              "<% echo c[\"a\"] %>|<% echo c[\"b\"] %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"HTTP_COOKIE", "a=1; b=two"},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "1|two");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("request_json parses JSON bodies") {
+    auto path = create_temp_file_with_content(
+        "polonio_request_json",
+        "<% var data = request_json(); %>"
+        "<% echo data[\"a\"] %>|"
+        "<% echo data[\"b\"][0] %>|"
+        "<% if data[\"b\"][1] == null %>null<% end %>|"
+        "<% echo data[\"b\"][2] %>");
+    std::string body = "{\"a\":1,\"b\":[true,null,\"x\"]}";
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"REQUEST_METHOD", "POST"},
+        {"CONTENT_TYPE", "application/json"},
+        {"CONTENT_LENGTH", std::to_string(body.size())},
+    };
+    auto result = run_polonio_cgi(env, body);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "1|true|null|x");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("request_json returns null on empty body") {
+    auto path = create_temp_file_with_content("polonio_request_json_empty",
+                                              "<% var data = request_json(); %>"
+                                              "<% if data == null %>empty<% end %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code == 0);
+    CHECK(extract_cgi_body(result.stdout_output) == "empty");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("request_json reports invalid payloads") {
+    auto path = create_temp_file_with_content("polonio_request_json_invalid",
+                                              "<% request_json(); %>");
+    std::string body = "{\"a\":";
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"REQUEST_METHOD", "POST"},
+        {"CONTENT_TYPE", "application/json"},
+        {"CONTENT_LENGTH", std::to_string(body.size())},
+    };
+    auto result = run_polonio_cgi(env, body);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("invalid json") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
                                               "<% header(\"bad header\") %>");

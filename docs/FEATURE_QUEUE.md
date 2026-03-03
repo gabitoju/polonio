@@ -84,3 +84,6 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [TODO] (M10-4) POST handling + superglobals
 - [TODO] (M10-5) Response helpers + redirects
 - [TODO] (M10-6) Documentation + help updates
+
+## Milestone 11 — Request helpers
+- [DONE] (M11-1) request helper builtins (body/headers/cookies/json)
