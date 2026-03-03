@@ -3,158 +3,357 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Examples &mdash; Polonio</title>
+  <title>Examples &amp; Cookbook &mdash; Polonio</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
 <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
 <aside class="sidebar">
-  <div class="brand">
-    <div class="name">Polonio</div>
+  <div class="sidebar-brand">
+    <h2>Polonio</h2>
     <div class="tagline">v0.1.0</div>
   </div>
   <nav>
-    <div class="nav-section">
-      <div class="label">Getting Started</div>
-      <a href="index.html">Home</a>
-      <a class="sub" href="index.html#quickstart">Quick Start</a>
-      <a class="sub" href="index.html#cli">CLI Reference</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">Reference</div>
-      <a href="language.html">Language</a>
-      <a href="builtins.html">Built-in Functions</a>
-      <a href="runtime.html">HTTP &amp; Server</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">Learn</div>
-      <a href="examples.html">Examples</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">This Page</div>
-      <a href="#hello">Hello World</a>
-      <a href="#guestbook">Guestbook</a>
-      <a href="#todo">Todo Dashboard</a>
-      <a href="#includes">Includes</a>
-      <a href="#patterns">Common Patterns</a>
-      <a href="#prueba">Original prueba.html</a>
-    </div>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Home</a>
+    <div class="nav-section">Reference</div>
+    <a href="language.html">Language</a>
+    <a href="builtins.html">Built-in Functions</a>
+    <a href="runtime.html">HTTP &amp; Server</a>
+    <div class="nav-section">Learn</div>
+    <a href="examples.html">Examples</a>
   </nav>
 </aside>
+
 <main class="content">
+
   <h1>Examples &amp; Cookbook</h1>
-  <p class="subtitle">Practical templates that mirror the shipping interpreter and built-in functions.</p>
+  <p class="subtitle">Complete annotated examples and common patterns.</p>
 
-  <section id="hello">
-    <h2>Hello World</h2>
-    <p>The classic starter shows literal HTML, a `<% var %>` declaration, `$name` interpolation, and a spanning `<% if %>` block. Because interpolation is raw, call <code>html_escape</code> (alias of <code>htmlspecialchars</code>) whenever untrusted data is displayed.</p>
-    <pre><code>&lt;% <span class="kw">var</span> <span class="var">name</span> = _GET[<span class="str">"name"</span>] <span class="kw">or</span> <span class="str">"World"</span> %&gt;
-&lt;main class="hello"&gt;
-  &lt;h1&gt;Hola $name!&lt;/h1&gt;
-  &lt;% <span class="kw">if</span> not _GET[<span class="str">"name"</span>] %&gt;
-    &lt;p&gt;Append &lt;code&gt;?name=Ana&lt;/code&gt; to the query string.&lt;/p&gt;
-  &lt;% <span class="kw">else</span> %&gt;
-    &lt;p&gt;You sent: &lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(_GET[<span class="str">"name"</span>]) %&gt;&lt;/p&gt;
-  &lt;% <span class="kw">end</span> %&gt;
-&lt;/main&gt;</code></pre>
-    <div class="example-output">
-      <strong>Output:</strong> <code>&lt;h1&gt;Hola Ana!&lt;/h1&gt;</code> *(when <code>?name=Ana</code> is provided)*
-    </div>
-  </section>
+  <p>All examples in this section are real files from the <code>examples/</code> directory. You can run them with the dev server:</p>
+  <pre><code>polonio serve --root ./examples</code></pre>
 
-  <section id="guestbook">
-    <h2>Guestbook</h2>
-    <p>Polonio’s CGI mode populates `_GET`, `_POST`, `_COOKIE`, and `_SERVER`. This guestbook stores messages in-memory (per request) and demonstrates loop constructs, <code>push</code>, and date helpers.</p>
-    <pre><code>&lt;%
-<span class="kw">var</span> <span class="var">entries</span> = []
-<span class="kw">if</span> _POST[<span class="str">"message"</span>] %&gt;
-  &lt;% <span class="fn">push</span>(entries, {
-    <span class="str">"body"</span>: _POST[<span class="str">"message"</span>],
-    <span class="str">"stamp"</span>: <span class="fn">date_format</span>(<span class="fn">now</span>(), <span class="str">"YYYY-MM-DD HH:mm"</span>)
-  }) %&gt;
-&lt;% <span class="kw">end</span> %&gt;
-&lt;form method=<span class="str">"post"</span>&gt;
-  &lt;textarea name=<span class="str">"message"</span>&gt;&lt;/textarea&gt;
-  &lt;button&gt;Sign&lt;/button&gt;
-&lt;/form&gt;
-&lt;ul class=<span class="str">"entries"</span>&gt;
-  &lt;% <span class="kw">for</span> <span class="var">entry</span> <span class="kw">in</span> entries %&gt;
-    &lt;li&gt;
-      &lt;strong&gt;&lt;% <span class="kw">echo</span> entry[<span class="str">"stamp"</span>] %&gt;&lt;/strong&gt;
-      &lt;p&gt;&lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(entry[<span class="str">"body"</span>]) %&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;% <span class="kw">end</span> %&gt;
-&lt;/ul&gt;</code></pre>
-    <div class="note">For persistent storage you would wire entries to a file or database. Polonio keeps arrays and objects alive for the request and reinitializes them on the next run.</div>
-  </section>
+  <!-- ════════════════════════ Hello World ════════════════════════ -->
+  <h2 id="hello">Hello World</h2>
+  <p><strong>File:</strong> <code>examples/hello.pol</code></p>
+  <p>A complete template demonstrating variables, interpolation, arrays, loops, conditionals, and expressions.</p>
 
-  <section id="todo">
-    <h2>Todo Dashboard</h2>
-    <p>Arrays of objects plus <code>for i, item in items</code> make simple dashboards ergonomic.</p>
-    <pre><code>&lt;%
-<span class="kw">var</span> <span class="var">todos</span> = [
-  {<span class="str">"title"</span>: <span class="str">"Ship docs"</span>, <span class="str">"done"</span>: <span class="kw">false</span>},
-  {<span class="str">"title"</span>: <span class="str">"Polish lexer"</span>, <span class="str">"done"</span>: <span class="kw">true</span>}
+  <pre><code><span class="kw">&lt;%</span> <span class="kw">var</span> name = <span class="str">"World"</span> <span class="kw">%&gt;</span>
+<span class="kw">&lt;%</span> <span class="kw">var</span> greeting = <span class="str">"Hello"</span> <span class="kw">%&gt;</span>
+<span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+<span class="tag">&lt;head&gt;&lt;title&gt;</span><span class="var">$greeting</span>, <span class="var">$name</span>!<span class="tag">&lt;/title&gt;&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+  <span class="tag">&lt;h1&gt;</span><span class="var">$greeting</span>, <span class="var">$name</span>!<span class="tag">&lt;/h1&gt;</span>
+  <span class="tag">&lt;p&gt;</span>Welcome to Polonio.<span class="tag">&lt;/p&gt;</span>
+
+  <span class="kw">&lt;%</span> <span class="kw">var</span> items = [<span class="str">"apple"</span>, <span class="str">"banana"</span>, <span class="str">"cherry"</span>] <span class="kw">%&gt;</span>
+  <span class="tag">&lt;h2&gt;</span>Fruits:<span class="tag">&lt;/h2&gt;</span>
+  <span class="tag">&lt;ul&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">for</span> fruit <span class="kw">in</span> items <span class="kw">%&gt;</span>
+    <span class="tag">&lt;li&gt;</span><span class="var">$fruit</span><span class="tag">&lt;/li&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
+  <span class="tag">&lt;/ul&gt;</span>
+
+  <span class="kw">&lt;%</span> <span class="kw">if</span> name == <span class="str">"World"</span> <span class="kw">%&gt;</span>
+    <span class="tag">&lt;p&gt;</span>This is the default greeting.<span class="tag">&lt;/p&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">else</span> <span class="kw">%&gt;</span>
+    <span class="tag">&lt;p&gt;</span>Custom greeting for <span class="var">$name</span>.<span class="tag">&lt;/p&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
+
+  <span class="tag">&lt;p&gt;</span>2 + 3 = <span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="num">2</span> + <span class="num">3</span> <span class="kw">%&gt;</span><span class="tag">&lt;/p&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+
+  <p><strong>Key concepts:</strong></p>
+  <ul>
+    <li><code>$greeting</code> and <code>$name</code> are interpolated directly into HTML and attributes</li>
+    <li><code>for fruit in items</code> iterates the array, outputting HTML for each element</li>
+    <li><code>if/else</code> blocks conditionally include HTML sections</li>
+    <li><code>&lt;% echo 2 + 3 %&gt;</code> evaluates an expression inline</li>
+  </ul>
+
+  <!-- ════════════════════════ Guestbook ════════════════════════ -->
+  <h2 id="guestbook">Guestbook</h2>
+  <p><strong>File:</strong> <code>examples/guestbook.pol</code></p>
+  <p>A guestbook that displays entries from an array of objects, with a form for new submissions. Demonstrates objects, loops with index, built-in functions, and HTTP superglobals.</p>
+
+  <pre><code><span class="kw">&lt;%</span>
+<span class="kw">var</span> <span class="var">entries</span> = [
+  {<span class="str">"name"</span>: <span class="str">"Juan"</span>, <span class="str">"message"</span>: <span class="str">"First post!"</span>, <span class="str">"date"</span>: <span class="str">"2005-03-22"</span>},
+  {<span class="str">"name"</span>: <span class="str">"Maria"</span>, <span class="str">"message"</span>: <span class="str">"Polonio is back!"</span>, <span class="str">"date"</span>: <span class="str">"2026-02-20"</span>},
+  {<span class="str">"name"</span>: <span class="str">"Carlos"</span>, <span class="str">"message"</span>: <span class="str">"21 years later, still going."</span>, <span class="str">"date"</span>: <span class="str">"2026-02-20"</span>}
 ]
-%&gt;
-&lt;table class=<span class="str">"todo"</span>&gt;
-  &lt;tr&gt;&lt;th>#&lt;/th&gt;&lt;th&gt;Task&lt;/th&gt;&lt;th&gt;Status&lt;/th&gt;&lt;/tr&gt;
-  &lt;% <span class="kw">for</span> <span class="var">i</span>, <span class="var">task</span> <span class="kw">in</span> todos %&gt;
-    &lt;tr&gt;
-      &lt;td&gt;&lt;% <span class="kw">echo</span> i + 1 %&gt;&lt;/td&gt;
-      &lt;td&gt;&lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(task[<span class="str">"title"</span>]) %&gt;&lt;/td&gt;
-      &lt;td&gt;
-        &lt;% <span class="kw">if</span> task[<span class="str">"done"</span>] %&gt;
-          &lt;span class=<span class="str">"done"</span>&gt;Complete&lt;/span&gt;
-        &lt;% <span class="kw">else</span> %&gt;
-          &lt;span class=<span class="str">"pending"</span>&gt;In progress&lt;/span&gt;
-        &lt;% <span class="kw">end</span> %&gt;
-      &lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;% <span class="kw">end</span> %&gt;
-&lt;/table&gt;</code></pre>
-    <div class="example-output">
-      <strong>Tip:</strong> Combine with <code>concat</code> to merge todos loaded from multiple includes.</div>
-  </section>
+<span class="kw">%&gt;</span>
+<span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+<span class="tag">&lt;head&gt;</span>
+  <span class="tag">&lt;title&gt;</span>Guestbook - Polonio<span class="tag">&lt;/title&gt;</span>
+<span class="tag">&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+  <span class="tag">&lt;h1&gt;</span>Guestbook<span class="tag">&lt;/h1&gt;</span>
+  <span class="tag">&lt;p&gt;</span>Total entries: <span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">count</span>(entries) <span class="kw">%&gt;</span><span class="tag">&lt;/p&gt;</span>
 
-  <section id="includes">
-    <h2>Includes &amp; Partials</h2>
-    <p><code>include "file.pol"</code> executes another template using the current interpreter state. Paths are resolved relative to the including file, with a depth limit of 50 and cycle detection (see <code>template_renderer.cpp</code>).</p>
-    <pre><code>&lt;% <span class="kw">var</span> <span class="var">page</span> = <span class="str">"docs"</span> %&gt;
-&lt;% include <span class="str">"partials/header.pol"</span> %&gt;
-&lt;section&gt;
-  &lt;h2&gt;Content&lt;/h2&gt;
-&lt;/section&gt;
-&lt;% include <span class="str">"partials/footer.pol"</span> %&gt;</code></pre>
-    <div class="warn">Included templates inherit the same scope, so variables declared before an <code>include</code> remain available (and mutable) inside the partial.</div>
-  </section>
+  <span class="kw">&lt;%</span> <span class="kw">for</span> i, entry <span class="kw">in</span> entries <span class="kw">%&gt;</span>
+  <span class="tag">&lt;div</span> <span class="attr">class</span>=<span class="str">"entry"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;h3&gt;</span><span class="kw">&lt;%</span> <span class="kw">echo</span> entry[<span class="str">"name"</span>] <span class="kw">%&gt;</span><span class="tag">&lt;/h3&gt;</span>
+    <span class="tag">&lt;p&gt;</span><span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">htmlspecialchars</span>(entry[<span class="str">"message"</span>]) <span class="kw">%&gt;</span><span class="tag">&lt;/p&gt;</span>
+    <span class="tag">&lt;span</span> <span class="attr">class</span>=<span class="str">"date"</span><span class="tag">&gt;</span><span class="kw">&lt;%</span> <span class="kw">echo</span> entry[<span class="str">"date"</span>] <span class="kw">%&gt;</span><span class="tag">&lt;/span&gt;</span>
+  <span class="tag">&lt;/div&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
 
-  <section id="patterns">
-    <h2>Common Patterns</h2>
-    <ul>
-      <li><strong>Formatting helpers:</strong> Use <code>date_format(now(), "YYYY-MM-DD")</code> or <code>date_add_days</code> for schedule pages.</li>
-      <li><strong>Safe output:</strong> Prefer <code>html_escape</code> over <code>htmlspecialchars</code> (they are equivalent) for clarity, and <code>nl2br</code> when preserving multiline text.</li>
-      <li><strong>Objects as dictionaries:</strong> Pair <code>set</code>, <code>get</code>, and <code>has_key</code> to emulate associative arrays.</li>
-      <li><strong>Debugging:</strong> <code>debug(value)</code> writes a single-line description to <code>stderr</code> without disrupting page output.</li>
-      <li><strong>Loop guards:</strong> The interpreter aborts loops after 100,000 iterations; chunk long work or pre-filter arrays first.</li>
-    </ul>
-  </section>
+  <span class="kw">&lt;%</span> <span class="kw">if</span> _SERVER[<span class="str">"REQUEST_METHOD"</span>] == <span class="str">"POST"</span> <span class="kw">%&gt;</span>
+    <span class="tag">&lt;p&gt;&lt;strong&gt;</span>Thank you for your entry!<span class="tag">&lt;/strong&gt;&lt;/p&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
 
-  <section id="prueba">
-    <h2>Original <code>prueba.html</code></h2>
-    <p>The repository’s <code>history/prueba.html</code> captures the 2005 prototype: ISO-8859-1 markup, inline `/* ... */` comment experiments, and the uppercase <code>VAR</code> declaration that lived before the current <code>var</code> keyword.</p>
-    <pre><code class="language-html">&lt;h1&gt;Prueba&lt;/h1&gt;
-Hola/*&lt;br&gt;
+  <span class="tag">&lt;h2&gt;</span>Sign the Guestbook<span class="tag">&lt;/h2&gt;</span>
+  <span class="tag">&lt;form</span> <span class="attr">method</span>=<span class="str">"post"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;p&gt;</span>Name: <span class="tag">&lt;input</span> <span class="attr">type</span>=<span class="str">"text"</span> <span class="attr">name</span>=<span class="str">"name"</span><span class="tag">&gt;&lt;/p&gt;</span>
+    <span class="tag">&lt;p&gt;</span>Message: <span class="tag">&lt;textarea</span> <span class="attr">name</span>=<span class="str">"message"</span><span class="tag">&gt;&lt;/textarea&gt;&lt;/p&gt;</span>
+    <span class="tag">&lt;p&gt;&lt;input</span> <span class="attr">type</span>=<span class="str">"submit"</span> <span class="attr">value</span>=<span class="str">"Sign"</span><span class="tag">&gt;&lt;/p&gt;</span>
+  <span class="tag">&lt;/form&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+
+  <p><strong>Key concepts:</strong></p>
+  <ul>
+    <li>Array of objects as data source</li>
+    <li><code>for i, entry in entries</code> iterates with both index and value</li>
+    <li><code>entry["name"]</code> accesses object fields with bracket notation</li>
+    <li><code>htmlspecialchars()</code> escapes user content for safe HTML output</li>
+    <li><code>_SERVER["REQUEST_METHOD"]</code> detects POST submissions</li>
+  </ul>
+
+  <!-- ════════════════════════ Todo List ════════════════════════ -->
+  <h2 id="todo">Todo List</h2>
+  <p><strong>File:</strong> <code>examples/todo.pol</code></p>
+  <p>A todo list with completion tracking, conditional CSS classes, helper functions, and a progress bar. This example shows functions that output HTML directly.</p>
+
+  <pre><code><span class="kw">&lt;%</span>
+<span class="kw">function</span> <span class="fn">badge</span>(text, color)
+  <span class="kw">echo</span> <span class="str">"&lt;span style='background:"</span> .. color .. <span class="str">";color:white;padding:2px 8px;"</span>
+  <span class="kw">echo</span> <span class="str">"border-radius:3px;font-size:0.8em;'&gt;"</span>
+  <span class="kw">echo</span> <span class="fn">htmlspecialchars</span>(text) .. <span class="str">"&lt;/span&gt;"</span>
+<span class="kw">end</span>
+
+<span class="kw">var</span> todos = [
+  {<span class="str">"task"</span>: <span class="str">"Revive Polonio"</span>, <span class="str">"done"</span>: <span class="kw">true</span>},
+  {<span class="str">"task"</span>: <span class="str">"Implement lexer"</span>, <span class="str">"done"</span>: <span class="kw">true</span>},
+  {<span class="str">"task"</span>: <span class="str">"Implement parser"</span>, <span class="str">"done"</span>: <span class="kw">true</span>},
+  {<span class="str">"task"</span>: <span class="str">"Implement interpreter"</span>, <span class="str">"done"</span>: <span class="kw">true</span>},
+  {<span class="str">"task"</span>: <span class="str">"Build HTTP server"</span>, <span class="str">"done"</span>: <span class="kw">true</span>},
+  {<span class="str">"task"</span>: <span class="str">"Add built-in functions"</span>, <span class="str">"done"</span>: <span class="kw">true</span>},
+  {<span class="str">"task"</span>: <span class="str">"Write documentation"</span>, <span class="str">"done"</span>: <span class="kw">false</span>},
+  {<span class="str">"task"</span>: <span class="str">"World domination"</span>, <span class="str">"done"</span>: <span class="kw">false</span>}
+]
+
+<span class="kw">var</span> completed = <span class="num">0</span>
+<span class="kw">for</span> todo <span class="kw">in</span> todos
+  <span class="kw">if</span> todo[<span class="str">"done"</span>]
+    completed += <span class="num">1</span>
+  <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="kw">%&gt;</span>
+<span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+<span class="tag">&lt;head&gt;&lt;title&gt;</span>Todo List<span class="tag">&lt;/title&gt;&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+  <span class="tag">&lt;h1&gt;</span>Todo List<span class="tag">&lt;/h1&gt;</span>
+  <span class="tag">&lt;p&gt;</span>Progress: <span class="kw">&lt;%</span> <span class="kw">echo</span> completed <span class="kw">%&gt;</span> / <span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">count</span>(todos) <span class="kw">%&gt;</span> completed<span class="tag">&lt;/p&gt;</span>
+
+  <span class="kw">&lt;%</span> <span class="kw">for</span> i, todo <span class="kw">in</span> todos <span class="kw">%&gt;</span>
+  <span class="tag">&lt;div</span> <span class="attr">class</span>=<span class="str">"todo<span class="kw">&lt;%</span> <span class="kw">if</span> todo[<span class="str">"done"</span>] <span class="kw">%&gt;</span> done<span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>"</span><span class="tag">&gt;</span>
+    <span class="kw">&lt;%</span> <span class="kw">if</span> todo[<span class="str">"done"</span>] <span class="kw">%&gt;</span>
+      <span class="kw">&lt;%</span> <span class="fn">badge</span>(<span class="str">"DONE"</span>, <span class="str">"#4CAF50"</span>) <span class="kw">%&gt;</span>
+    <span class="kw">&lt;%</span> <span class="kw">else</span> <span class="kw">%&gt;</span>
+      <span class="kw">&lt;%</span> <span class="fn">badge</span>(<span class="str">"TODO"</span>, <span class="str">"#FF9800"</span>) <span class="kw">%&gt;</span>
+    <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
+    <span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">htmlspecialchars</span>(todo[<span class="str">"task"</span>]) <span class="kw">%&gt;</span>
+  <span class="tag">&lt;/div&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
+
+  <span class="kw">&lt;%</span>
+  <span class="kw">function</span> <span class="fn">progress_bar</span>(percent)
+    <span class="kw">echo</span> <span class="str">"&lt;div style='background:#eee;border-radius:5px;overflow:hidden;'&gt;"</span>
+    <span class="kw">echo</span> <span class="str">"&lt;div style='background:#4CAF50;height:20px;width:"</span>
+    <span class="kw">echo</span> <span class="fn">to_string</span>(percent) .. <span class="str">"%'&gt;&lt;/div&gt;&lt;/div&gt;"</span>
+  <span class="kw">end</span>
+  <span class="kw">%&gt;</span>
+  <span class="tag">&lt;br&gt;</span>
+  <span class="kw">&lt;%</span> <span class="fn">progress_bar</span>(completed * <span class="num">100</span> / <span class="fn">count</span>(todos)) <span class="kw">%&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+
+  <p><strong>Key concepts:</strong></p>
+  <ul>
+    <li><code>badge()</code> and <code>progress_bar()</code> output styled HTML components</li>
+    <li>Inline conditional CSS for classes: <code>class="todo&lt;% if ... %&gt; done&lt;% end %&gt;"</code></li>
+    <li>Manual counting with <code>+=</code> to derive completion stats</li>
+    <li>String concatenation (<code>..</code>) to build inline styles</li>
+  </ul>
+
+  <!-- ════════════════════════ Includes ════════════════════════ -->
+  <h2 id="includes">Include System</h2>
+  <p><strong>Files:</strong> <code>examples/includes/</code></p>
+  <p>A multi-file template setup with shared header and footer.</p>
+
+  <h3>header.pol</h3>
+  <pre><code><span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+<span class="tag">&lt;head&gt;</span>
+  <span class="tag">&lt;title&gt;</span><span class="var">$page_title</span> - Polonio<span class="tag">&lt;/title&gt;</span>
+  <span class="tag">&lt;style&gt;</span>
+    body { font-family: Arial, sans-serif; max-width: 800px;
+           margin: 0 auto; padding: 20px; }
+    nav { background: #333; padding: 10px; margin-bottom: 20px;
+          border-radius: 5px; }
+    nav a { color: white; text-decoration: none; margin-right: 15px; }
+  <span class="tag">&lt;/style&gt;</span>
+<span class="tag">&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+  <span class="tag">&lt;nav&gt;</span>
+    <span class="tag">&lt;a</span> <span class="attr">href</span>=<span class="str">"/"</span><span class="tag">&gt;</span>Home<span class="tag">&lt;/a&gt;</span>
+    <span class="tag">&lt;a</span> <span class="attr">href</span>=<span class="str">"/about"</span><span class="tag">&gt;</span>About<span class="tag">&lt;/a&gt;</span>
+    <span class="tag">&lt;a</span> <span class="attr">href</span>=<span class="str">"/contact"</span><span class="tag">&gt;</span>Contact<span class="tag">&lt;/a&gt;</span>
+  <span class="tag">&lt;/nav&gt;</span></code></pre>
+
+  <h3>footer.pol</h3>
+  <pre><code>  <span class="tag">&lt;footer&gt;</span>
+    <span class="tag">&lt;p&gt;</span>Powered by Polonio v0.1.0 &amp;mdash; A language born in 2005, reborn in 2026.<span class="tag">&lt;/p&gt;</span>
+    <span class="tag">&lt;p&gt;</span>Generated at <span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">date</span>(<span class="str">"%Y-%m-%d %H:%M:%S"</span>) <span class="kw">%&gt;</span><span class="tag">&lt;/p&gt;</span>
+  <span class="tag">&lt;/footer&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+
+  <h3>index.pol</h3>
+  <pre><code><span class="kw">&lt;%</span> <span class="kw">var</span> page_title = <span class="str">"Home"</span> <span class="kw">%&gt;</span>
+<span class="kw">&lt;%</span> <span class="kw">include</span> <span class="str">"header.pol"</span> <span class="kw">%&gt;</span>
+
+  <span class="tag">&lt;h1&gt;</span>Welcome to Polonio<span class="tag">&lt;/h1&gt;</span>
+  <span class="tag">&lt;p&gt;</span>This page demonstrates the include system.<span class="tag">&lt;/p&gt;</span>
+
+  <span class="kw">&lt;%</span>
+  <span class="kw">function</span> <span class="fn">feature_card</span>(title, desc)
+    <span class="kw">echo</span> <span class="str">"&lt;div style='border:1px solid #ddd;padding:15px;"</span>
+    <span class="kw">echo</span> <span class="str">"margin:10px 0;border-radius:5px;'&gt;"</span>
+    <span class="kw">echo</span> <span class="str">"&lt;h3&gt;"</span> .. <span class="fn">htmlspecialchars</span>(title) .. <span class="str">"&lt;/h3&gt;"</span>
+    <span class="kw">echo</span> <span class="str">"&lt;p&gt;"</span> .. <span class="fn">htmlspecialchars</span>(desc) .. <span class="str">"&lt;/p&gt;&lt;/div&gt;"</span>
+  <span class="kw">end</span>
+  <span class="kw">%&gt;</span>
+
+  <span class="tag">&lt;h2&gt;</span>Features<span class="tag">&lt;/h2&gt;</span>
+  <span class="kw">&lt;%</span> <span class="fn">feature_card</span>(<span class="str">"Template Syntax"</span>, <span class="str">"Embed code with &lt;% ... %&gt; and interpolate with $var"</span>) <span class="kw">%&gt;</span>
+  <span class="kw">&lt;%</span> <span class="fn">feature_card</span>(<span class="str">"Control Flow"</span>, <span class="str">"if/elseif/else, for loops, while loops"</span>) <span class="kw">%&gt;</span>
+  <span class="kw">&lt;%</span> <span class="fn">feature_card</span>(<span class="str">"Functions"</span>, <span class="str">"User-defined functions with closures and recursion"</span>) <span class="kw">%&gt;</span>
+  <span class="kw">&lt;%</span> <span class="fn">feature_card</span>(<span class="str">"Built-ins"</span>, <span class="str">"50+ built-in functions for strings, arrays, math, and more"</span>) <span class="kw">%&gt;</span>
+
+<span class="kw">&lt;%</span> <span class="kw">include</span> <span class="str">"footer.pol"</span> <span class="kw">%&gt;</span></code></pre>
+
+  <p><strong>Key concepts:</strong></p>
+  <ul>
+    <li>Set <code>page_title</code> before including the header so <code>$page_title</code> is available</li>
+    <li>Includes run relative to the current template directory</li>
+    <li>Functions declared in the main template are callable inside includes</li>
+  </ul>
+
+  <!-- ════════════════════════ Common Patterns ════════════════════════ -->
+  <h2 id="patterns">Common Patterns</h2>
+
+  <h3 id="loop-html">Loops + HTML Tables</h3>
+  <p>Generate an HTML table from an array of objects:</p>
+  <pre><code><span class="kw">&lt;%</span>
+<span class="kw">var</span> users = [
+  {<span class="str">"name"</span>: <span class="str">"Alice"</span>, <span class="str">"role"</span>: <span class="str">"Admin"</span>},
+  {<span class="str">"name"</span>: <span class="str">"Bob"</span>, <span class="str">"role"</span>: <span class="str">"Editor"</span>},
+  {<span class="str">"name"</span>: <span class="str">"Carol"</span>, <span class="str">"role"</span>: <span class="str">"Viewer"</span>}
+]
+<span class="kw">%&gt;</span>
+<span class="tag">&lt;table&gt;</span>
+  <span class="tag">&lt;tr&gt;&lt;th&gt;</span>Name<span class="tag">&lt;/th&gt;&lt;th&gt;</span>Role<span class="tag">&lt;/th&gt;&lt;/tr&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">for</span> user <span class="kw">in</span> users <span class="kw">%&gt;</span>
+  <span class="tag">&lt;tr&gt;</span>
+    <span class="tag">&lt;td&gt;</span><span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">htmlspecialchars</span>(user.<span class="fn">name</span>) <span class="kw">%&gt;</span><span class="tag">&lt;/td&gt;</span>
+    <span class="tag">&lt;td&gt;</span><span class="kw">&lt;%</span> <span class="kw">echo</span> <span class="fn">htmlspecialchars</span>(user.<span class="fn">role</span>) <span class="kw">%&gt;</span><span class="tag">&lt;/td&gt;</span>
+  <span class="tag">&lt;/tr&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>
+<span class="tag">&lt;/table&gt;</span></code></pre>
+
+  <h3 id="conditional-classes">Conditional CSS Classes</h3>
+  <p>Add CSS classes based on conditions:</p>
+  <pre><code><span class="kw">&lt;%</span> <span class="kw">for</span> i, item <span class="kw">in</span> items <span class="kw">%&gt;</span>
+<span class="tag">&lt;div</span> <span class="attr">class</span>=<span class="str">"item<span class="kw">&lt;%</span> <span class="kw">if</span> i == <span class="num">0</span> <span class="kw">%&gt;</span> first<span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span><span class="kw">&lt;%</span> <span class="kw">if</span> item.<span class="fn">active</span> <span class="kw">%&gt;</span> active<span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>"</span><span class="tag">&gt;</span>
+  <span class="kw">&lt;%</span> <span class="kw">echo</span> item.<span class="fn">name</span> <span class="kw">%&gt;</span>
+<span class="tag">&lt;/div&gt;</span>
+<span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span></code></pre>
+
+  <h3 id="template-functions">Template Functions (Components)</h3>
+  <p>Use functions as reusable HTML components:</p>
+  <pre><code><span class="kw">&lt;%</span>
+<span class="kw">function</span> <span class="fn">alert_box</span>(type, message)
+  <span class="kw">var</span> colors = {<span class="str">"success"</span>: <span class="str">"#4CAF50"</span>, <span class="str">"error"</span>: <span class="str">"#f44336"</span>, <span class="str">"info"</span>: <span class="str">"#2196F3"</span>}
+  <span class="kw">var</span> color = colors[type]
+  <span class="kw">if</span> <span class="kw">not</span> color
+    color = <span class="str">"#666"</span>
+  <span class="kw">end</span>
+  <span class="kw">echo</span> <span class="str">"&lt;div style='padding:12px;border-left:4px solid "</span> .. color
+  <span class="kw">echo</span> <span class="str">";background:#f9f9f9;margin:10px 0;'&gt;"</span>
+  <span class="kw">echo</span> <span class="fn">htmlspecialchars</span>(message)
+  <span class="kw">echo</span> <span class="str">"&lt;/div&gt;"</span>
+<span class="kw">end</span>
+<span class="kw">%&gt;</span>
+
+<span class="kw">&lt;%</span> <span class="fn">alert_box</span>(<span class="str">"success"</span>, <span class="str">"Item saved successfully!"</span>) <span class="kw">%&gt;</span>
+<span class="kw">&lt;%</span> <span class="fn">alert_box</span>(<span class="str">"error"</span>, <span class="str">"Something went wrong."</span>) <span class="kw">%&gt;</span>
+<span class="kw">&lt;%</span> <span class="fn">alert_box</span>(<span class="str">"info"</span>, <span class="str">"Remember to save your work."</span>) <span class="kw">%&gt;</span></code></pre>
+
+  <h3 id="build-strings">Building Strings</h3>
+  <p>Use the <code>..</code> concatenation operator and <code>..=</code> append operator to build strings dynamically:</p>
+  <pre><code><span class="kw">&lt;%</span>
+<span class="kw">var</span> items = [<span class="str">"Home"</span>, <span class="str">"About"</span>, <span class="str">"Contact"</span>]
+<span class="kw">var</span> nav = <span class="str">""</span>
+<span class="kw">for</span> item <span class="kw">in</span> items
+  nav ..= <span class="str">"&lt;a href='/"</span> .. <span class="fn">strtolower</span>(item) .. <span class="str">"'&gt;"</span> .. item .. <span class="str">"&lt;/a&gt; "</span>
+<span class="kw">end</span>
+<span class="kw">echo</span> nav
+<span class="kw">%&gt;</span></code></pre>
+
+  <h3 id="alternating-rows">Alternating Row Colors</h3>
+  <pre><code><span class="kw">&lt;%</span> <span class="kw">for</span> i, row <span class="kw">in</span> data <span class="kw">%&gt;</span>
+<span class="tag">&lt;tr</span> <span class="attr">style</span>=<span class="str">"background: <span class="kw">&lt;%</span> <span class="kw">if</span> i % <span class="num">2</span> == <span class="num">0</span> <span class="kw">%&gt;</span>#fff<span class="kw">&lt;%</span> <span class="kw">else</span> <span class="kw">%&gt;</span>#f5f5f5<span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span>"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;td&gt;</span><span class="kw">&lt;%</span> <span class="kw">echo</span> row <span class="kw">%&gt;</span><span class="tag">&lt;/td&gt;</span>
+<span class="tag">&lt;/tr&gt;</span>
+<span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span></code></pre>
+
+  <h2 id="prueba">The Original <code>prueba.html</code></h2>
+  <p>The name Polonio comes from <a href="https://en.wikipedia.org/wiki/Cabo_Polonio">Cabo Polonio</a>, a remote off-grid hamlet on the eastern coast of Uruguay. Sitting on a peninsula that juts into the Atlantic, reachable only by 4x4 across sand dunes, with no electricity grid and a lighthouse as its only artificial light &mdash; it's a place apart from the rest of the world. A fitting namesake for a scrappy little language built from scratch.</p>
+  <p>In 2005, a developer in Uruguay created a CGI program called <code>hola.exe</code> &mdash; a C++ executable that read HTML template files and processed embedded Polonio directives. The very first test template was <code>prueba.html</code>:</p>
+  <pre><code><span class="tag">&lt;?xml</span> version="1.0" encoding="iso-8859-1"<span class="tag">?&gt;</span>
+<span class="tag">&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"</span>
+  <span class="tag">"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"&gt;</span>
+<span class="tag">&lt;html</span> <span class="attr">xmlns</span>=<span class="str">"http://www.w3.org/1999/xhtml"</span><span class="tag">&gt;</span>
+<span class="tag">&lt;head&gt;</span>
+<span class="tag">&lt;title&gt;</span>Pruebilla<span class="tag">&lt;/title&gt;</span>
+<span class="tag">&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+<span class="tag">&lt;h1&gt;</span>Prueba<span class="tag">&lt;/h1&gt;</span>
+Hola<span class="cmt">/*&lt;br&gt;</span>
 Ho#la
-&lt;% VAR pepe &gt;
-$pepe</code></pre>
-    <ul>
-      <li>Polonio still strips `/* ... */` comments while scanning template text, a direct nod to that file.</li>
-      <li>Modern Polonio expects the lowercase <code>var</code> keyword; the legacy uppercase spelling is kept in the history file only.</li>
-      <li>Encoding quirks (ISO-8859-1 headers, repeated meta tags) are preserved in the history folder for posterity.</li>
-    </ul>
-    <div class="note">Today’s interpreter normalizes everything to UTF-8 and requires `<% var name = "value" %>`—convert historic `VAR` declarations before running them.</div>
-  </section>
+<span class="kw">&lt;% VAR pepe &gt;</span>
+<span class="var">$pepe</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+  <p>This tiny template &mdash; with its XHTML declaration, its <code>iso-8859-1</code> encoding, and its single variable named <code>pepe</code> &mdash; was the seed that grew into everything you see today.</p>
+
+  <p>Notice the original syntax:</p>
+  <ul>
+    <li><code>&lt;% VAR pepe &gt;</code> &mdash; uppercase keyword, single <code>&gt;</code> terminator</li>
+    <li><code>$pepe</code> interpolation identical to modern Polonio</li>
+    <li><code>/* ... */</code> comment stripped during rendering</li>
+    <li>The interpreter was compiled with Visual Studio 6.0, deployed as <code>hola.exe</code> under Apache on Windows</li>
+  </ul>
 </main>
+<script src="highlight.js"></script>
 </body>
 </html>

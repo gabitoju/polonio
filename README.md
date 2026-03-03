@@ -70,12 +70,12 @@ polonio serve [--port N] [--root DIR]
 
 ## Built-in Functions (Highlights)
 
-- **String**: `len`, `lower`, `upper`, `trim`, `replace`, `split`, `contains`, `htmlspecialchars`
-- **Array/Object**: `count`, `push`, `pop`, `join`, `keys`, `has_key`, `get`, `set`
-- **Math/Type**: `abs`, `floor`, `ceil`, `round`, `min`, `max`, `type`, `is_*`, `to_string`, `to_number`
-- **Date**: `now`, `date_format`, `date_parts`
-- **Output**: `echo`, `print`, `println`, `nl2br`
-- **HTTP/Response**: `status`, `header`, `http_status`, `http_header`, `http_content_type`, `redirect`, `urlencode`, `urldecode`
+- **String (11)**: `len`, `lower`, `upper`, `trim`, `replace`, `split`, `contains`, `htmlspecialchars`, etc.
+- **Array/Object (14)**: `count`, `push`, `pop`, `join`, `keys`, `has_key`, `get`, `set`, and more.
+- **Math/Type (21)**: `abs`, `floor`, `ceil`, `round`, `min`, `max`, `type`, `is_*`, `to_string`, `to_number`, etc.
+- **Date (5)**: `now`, `date_format`, `date_parts`, `date_parse`, `date_add_days`
+- **Output (4)**: `echo`, `print`, `println`, `nl2br`
+- **HTTP/Response (8)**: `status`, `header`, `http_status`, `http_header`, `http_content_type`, `redirect`, `urlencode`, `urldecode`
 
 ## CGI Mode
 

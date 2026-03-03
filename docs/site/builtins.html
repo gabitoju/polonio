@@ -9,309 +9,558 @@
 <body>
 <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
 <aside class="sidebar">
-  <div class="brand">
-    <div class="name">Polonio</div>
+  <div class="sidebar-brand">
+    <h2>Polonio</h2>
     <div class="tagline">v0.1.0</div>
   </div>
   <nav>
-    <div class="nav-section">
-      <div class="label">Getting Started</div>
-      <a href="index.html">Home</a>
-      <a class="sub" href="index.html#quickstart">Quick Start</a>
-      <a class="sub" href="index.html#cli">CLI Reference</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">Reference</div>
-      <a href="language.html">Language</a>
-      <a href="builtins.html">Built-in Functions</a>
-      <a href="runtime.html">HTTP &amp; Server</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">Learn</div>
-      <a href="examples.html">Examples</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">This Page</div>
-      <a href="#string">String</a>
-      <a href="#array">Array</a>
-      <a href="#object">Object</a>
-      <a href="#math">Math</a>
-      <a href="#type">Type</a>
-      <a href="#date">Date</a>
-      <a href="#output">Output</a>
-      <a href="#http">HTTP</a>
-    </div>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Home</a>
+    <a class="sub" href="index.html#quickstart">Quick Start</a>
+    <a class="sub" href="index.html#cli">CLI Reference</a>
+    <div class="nav-section">Reference</div>
+    <a href="language.html">Language</a>
+    <a href="builtins.html" class="active">Built-in Functions</a>
+    <a href="runtime.html">HTTP &amp; Server</a>
+    <div class="nav-section">Learn</div>
+    <a href="examples.html">Examples</a>
+    <div class="nav-section">This Page</div>
+    <a href="#string">String</a>
+    <a href="#array">Array</a>
+    <a href="#object">Object</a>
+    <a href="#math">Math</a>
+    <a href="#type">Type</a>
+    <a href="#date">Date</a>
+    <a href="#output">Output</a>
+    <a href="#http">HTTP</a>
   </nav>
 </aside>
 <main class="content">
   <h1>Built-in Functions</h1>
   <p class="subtitle">Shipping functions registered in <code>src/polonio/runtime/builtins.cpp</code> (v0.1.0).</p>
-
   <section id="string">
-    <h2>String Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>len(value)</code></h3>
-        <p>Converts the argument to a string (via the runtime output formatter) and returns its length in characters.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">len</span>(123) %&gt; <span class="cmt">&lt;!-- prints 3 --&gt;</span></code></pre>
-      </div>
-      <div class="card">
-        <h3><code>substr(text, start[, length])</code></h3>
-        <p>Extracts a substring; <code>start</code> accepts negative values and <code>length</code> trims the slice.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">substr</span>(<span class="str">"polonio"</span>, -3) %&gt; <span class="cmt">&lt;!-- nio --&gt;</span></code></pre>
-      </div>
-      <div class="card">
-        <h3><code>lower(text)</code> / <code>upper(text)</code></h3>
-        <p>ASCII-only case conversion.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">upper</span>(<span class="str">"hola"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>trim(text)</code></h3>
-        <p>Removes leading/trailing spaces, tabs, carriage returns, and newlines.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">trim</span>(<span class="str">"  hi \n"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>replace(text, from, to)</code></h3>
-        <p>Replaces all occurrences of <code>from</code> with <code>to</code>.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">replace</span>(<span class="str">"a-b-a"</span>, <span class="str">"-"</span>, <span class="str">"/"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>split(text, sep)</code></h3>
-        <p>Returns an array of strings split by <code>sep</code> (empty separators yield the whole string).</p>
-        <pre><code>&lt;% <span class="kw">var</span> <span class="var">parts</span> = <span class="fn">split</span>(<span class="str">"a,b,c"</span>, <span class="str">","</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>contains(haystack, needle)</code></h3>
-        <p>Boolean substring search.</p>
-        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">contains</span>(_SERVER[<span class="str">"HTTP_HOST"</span>], <span class="str">"beta"</span>) %&gt;...<span class="kw">end</span></code></pre>
-      </div>
-      <div class="card">
-        <h3><code>starts_with(text, prefix)</code> / <code>ends_with(text, suffix)</code></h3>
-        <p>Return <code>true</code> if the string begins/ends with the pattern.</p>
-        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">starts_with</span>(slug, <span class="str">"docs/"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>htmlspecialchars(text)</code> / <code>html_escape(text)</code></h3>
-        <p>Both functions escape <code>&amp;</code>, <code>&lt;</code>, <code>&gt;</code>, <code>"</code>, and <code>'</code>. Two names exist for compatibility; they produce identical output.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(_POST[<span class="str">"message"</span>]) %&gt;</code></pre>
-      </div>
+    <h2>String Helpers (11)</h2>
+    <p>Operate on any input coerced to a string.</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>len(value)</code></td><td>Return the length (in characters) of the rendered value.</td></tr>
+          <tr><td><code>substr(text, start[, length])</code></td><td>Slice text at the given start (negative values count from the end) and optional length.</td></tr>
+          <tr><td><code>lower(text)</code></td><td>Convert ASCII characters to lowercase.</td></tr>
+          <tr><td><code>upper(text)</code></td><td>Convert ASCII characters to uppercase.</td></tr>
+          <tr><td><code>trim(text)</code></td><td>Strip whitespace on both ends.</td></tr>
+          <tr><td><code>replace(text, from, to)</code></td><td>Replace every occurrence of one substring with another.</td></tr>
+          <tr><td><code>split(text, sep)</code></td><td>Split into an array of segments using the separator.</td></tr>
+          <tr><td><code>contains(haystack, needle)</code></td><td>Return true if the substring exists.</td></tr>
+          <tr><td><code>starts_with(text, prefix)</code></td><td>Return true if text begins with prefix.</td></tr>
+          <tr><td><code>ends_with(text, suffix)</code></td><td>Return true if text ends with suffix.</td></tr>
+          <tr><td><code>htmlspecialchars / html_escape</code></td><td>Escape &, <, >, " and ' for HTML output (aliases).</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="note">Use <code>html_escape</code> (or <code>htmlspecialchars</code>) before interpolating user input, because `$var` does not auto-escape.</div>
+    <article>
+      <h3><code>len(value)</code></h3>
+      <p>Return the length (in characters) of the rendered value.</p>
+      <pre><code>&lt;% echo len(123.45) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>6</code></div>
+    </article>
+    <article>
+      <h3><code>substr(text, start[, length])</code></h3>
+      <p>Slice text at the given start (negative values count from the end) and optional length.</p>
+      <pre><code>&lt;% echo substr(&quot;polonio&quot;, -3) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>nio</code></div>
+    </article>
+    <article>
+      <h3><code>lower(text)</code></h3>
+      <p>Convert ASCII characters to lowercase.</p>
+      <pre><code>&lt;% echo lower(&quot;Hola&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>hola</code></div>
+    </article>
+    <article>
+      <h3><code>upper(text)</code></h3>
+      <p>Convert ASCII characters to uppercase.</p>
+      <pre><code>&lt;% echo upper(&quot;hola&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>HOLA</code></div>
+    </article>
+    <article>
+      <h3><code>trim(text)</code></h3>
+      <p>Strip whitespace on both ends.</p>
+      <pre><code>&lt;% echo trim(&quot;  hi 
+&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>hi</code></div>
+    </article>
+    <article>
+      <h3><code>replace(text, from, to)</code></h3>
+      <p>Replace every occurrence of one substring with another.</p>
+      <pre><code>&lt;% echo replace(&quot;a-b-a&quot;, &quot;-&quot;, &quot;/&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>a/b/a</code></div>
+    </article>
+    <article>
+      <h3><code>split(text, sep)</code></h3>
+      <p>Split into an array of segments using the separator.</p>
+      <pre><code>&lt;% var parts = split(&quot;a,b,c&quot;, &quot;,&quot;) %&gt;
+&lt;% echo parts[1] %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>b</code></div>
+    </article>
+    <article>
+      <h3><code>contains(haystack, needle)</code></h3>
+      <p>Return true if the substring exists.</p>
+      <pre><code>&lt;% echo contains(&quot;preview&quot;, &quot;view&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>starts_with(text, prefix)</code></h3>
+      <p>Return true if text begins with prefix.</p>
+      <pre><code>&lt;% echo starts_with(&quot;docs/home&quot;, &quot;docs/&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>ends_with(text, suffix)</code></h3>
+      <p>Return true if text ends with suffix.</p>
+      <pre><code>&lt;% echo ends_with(&quot;index.html&quot;, &quot;.html&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>htmlspecialchars / html_escape</code></h3>
+      <p>Escape &, <, >, " and ' for HTML output (aliases).</p>
+      <pre><code>&lt;% echo html_escape(&quot;Rock &amp; Roll&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>Rock &amp; Roll</code></div>
+    </article>
   </section>
-
   <section id="array">
-    <h2>Array Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>count(arrayOrObject)</code></h3>
-        <p>Returns the length of an array or number of keys in an object.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">count</span>(users) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>push(array, value)</code></h3>
-        <p>Appends in-place and returns the new length.</p>
-        <pre><code>&lt;% <span class="fn">push</span>(todos, {<span class="str">"title"</span>: <span class="str">"Docs"</span>}) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>pop(array)</code></h3>
-        <p>Removes and returns the last element (or <code>null</code> if empty).</p>
-        <pre><code>&lt;% <span class="var">last</span> = <span class="fn">pop</span>(todos) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>shift(array)</code> / <code>unshift(array, value)</code></h3>
-        <p><code>shift</code> removes the first element. <code>unshift</code> inserts at the beginning and returns the new length.</p>
-        <pre><code>&lt;% <span class="fn">unshift</span>(nav, <span class="str">"Home"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>concat(a, b)</code></h3>
-        <p>Creates and returns a new array containing all items from <code>a</code> followed by <code>b</code>.</p>
-        <pre><code>&lt;% <span class="var">all</span> = <span class="fn">concat</span>(drafts, published) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>join(array, sep)</code></h3>
-        <p>Concatenates array elements into a string with the supplied separator.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">join</span>(tags, <span class="str">", "</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>slice(array, start[, length])</code></h3>
-        <p>Returns a shallow slice. Negative starts count from the end; omitting <code>length</code> slices to the end.</p>
-        <pre><code>&lt;% <span class="var">recent</span> = <span class="fn">slice</span>(posts, -3) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>range(count)</code></h3>
-        <p>Produces <code>[0, 1, ..., count-1]</code>. Non-positive counts return an empty array.</p>
-        <pre><code>&lt;% <span class="kw">for</span> <span class="var">i</span> <span class="kw">in</span> <span class="fn">range</span>(3) %&gt;&lt;li&gt;$i&lt;/li&gt;&lt;% <span class="kw">end</span> %&gt;</code></pre>
-      </div>
+    <h2>Array Helpers (9)</h2>
+    <p>Manipulate ordered collections.</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>count(arrayOrObject)</code></td><td>Return element (array) or key (object) count.</td></tr>
+          <tr><td><code>push(array, value)</code></td><td>Append and return the new length.</td></tr>
+          <tr><td><code>pop(array)</code></td><td>Remove and return the last element (or null).</td></tr>
+          <tr><td><code>shift(array)</code></td><td>Remove and return the first element.</td></tr>
+          <tr><td><code>unshift(array, value)</code></td><td>Insert at the beginning and return the new length.</td></tr>
+          <tr><td><code>concat(a, b)</code></td><td>Return a new array containing both inputs.</td></tr>
+          <tr><td><code>join(array, sep)</code></td><td>Join elements into a string using the separator.</td></tr>
+          <tr><td><code>slice(array, start[, length])</code></td><td>Return a shallow slice from start with optional length.</td></tr>
+          <tr><td><code>range(count)</code></td><td>Produce [0, 1, ..., count-1].</td></tr>
+        </tbody>
+      </table>
     </div>
+    <article>
+      <h3><code>count(arrayOrObject)</code></h3>
+      <p>Return element (array) or key (object) count.</p>
+      <pre><code>&lt;% echo count([1,2,3]) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>3</code></div>
+    </article>
+    <article>
+      <h3><code>push(array, value)</code></h3>
+      <p>Append and return the new length.</p>
+      <pre><code>&lt;% var todos = [&quot;a&quot;]; echo push(todos, &quot;b&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>2</code></div>
+    </article>
+    <article>
+      <h3><code>pop(array)</code></h3>
+      <p>Remove and return the last element (or null).</p>
+      <pre><code>&lt;% var todos = [&quot;x&quot;,&quot;y&quot;]; echo pop(todos) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>y</code></div>
+    </article>
+    <article>
+      <h3><code>shift(array)</code></h3>
+      <p>Remove and return the first element.</p>
+      <pre><code>&lt;% var todos = [&quot;x&quot;,&quot;y&quot;]; echo shift(todos) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>x</code></div>
+    </article>
+    <article>
+      <h3><code>unshift(array, value)</code></h3>
+      <p>Insert at the beginning and return the new length.</p>
+      <pre><code>&lt;% var todos = [&quot;x&quot;]; echo unshift(todos, &quot;y&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>2</code></div>
+    </article>
+    <article>
+      <h3><code>concat(a, b)</code></h3>
+      <p>Return a new array containing both inputs.</p>
+      <pre><code>&lt;% var both = concat([1,2],[3]); echo count(both) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>3</code></div>
+    </article>
+    <article>
+      <h3><code>join(array, sep)</code></h3>
+      <p>Join elements into a string using the separator.</p>
+      <pre><code>&lt;% echo join([&quot;a&quot;,&quot;b&quot;], &quot;:&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>a:b</code></div>
+    </article>
+    <article>
+      <h3><code>slice(array, start[, length])</code></h3>
+      <p>Return a shallow slice from start with optional length.</p>
+      <pre><code>&lt;% echo count(slice([1,2,3,4], 1, 2)) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>2</code></div>
+    </article>
+    <article>
+      <h3><code>range(count)</code></h3>
+      <p>Produce [0, 1, ..., count-1].</p>
+      <pre><code>&lt;% echo join(range(3), &quot;,&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>0,1,2</code></div>
+    </article>
   </section>
-
   <section id="object">
-    <h2>Object Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>keys(object)</code></h3>
-        <p>Returns a sorted array of keys.</p>
-        <pre><code>&lt;% <span class="kw">for</span> <span class="var">key</span> <span class="kw">in</span> <span class="fn">keys</span>(params) %&gt;...<span class="kw">end</span></code></pre>
-      </div>
-      <div class="card">
-        <h3><code>values(object)</code></h3>
-        <p>Returns the object’s values sorted by key order.</p>
-        <pre><code>&lt;% <span class="var">vals</span> = <span class="fn">values</span>(settings) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>has_key(object, name)</code></h3>
-        <p>Boolean membership check.</p>
-        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">has_key</span>(_SERVER, <span class="str">"HTTP_HOST"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>get(object, name[, default])</code></h3>
-        <p>Returns <code>object[name]</code> or <code>default</code> (null by default) when the key is missing.</p>
-        <pre><code>&lt;% <span class="var">theme</span> = <span class="fn">get</span>(_COOKIE, <span class="str">"theme"</span>, <span class="str">"dark"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>set(object, name, value)</code></h3>
-        <p>Mutates the object in place and returns the assigned value.</p>
-        <pre><code>&lt;% <span class="fn">set</span>(config, <span class="str">"locale"</span>, <span class="str">"es"</span>) %&gt;</code></pre>
-      </div>
+    <h2>Object Helpers (5)</h2>
+    <p>Work with string-keyed maps.</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>keys(object)</code></td><td>Return sorted keys.</td></tr>
+          <tr><td><code>values(object)</code></td><td>Return values sorted by key order.</td></tr>
+          <tr><td><code>has_key(object, name)</code></td><td>Return true if a key exists.</td></tr>
+          <tr><td><code>get(object, name[, default])</code></td><td>Fetch a value or default (null).</td></tr>
+          <tr><td><code>set(object, name, value)</code></td><td>Assign and return the stored value.</td></tr>
+        </tbody>
+      </table>
     </div>
+    <article>
+      <h3><code>keys(object)</code></h3>
+      <p>Return sorted keys.</p>
+      <pre><code>&lt;% echo join(keys({&quot;b&quot;:1,&quot;a&quot;:2}), &quot;,&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>a,b</code></div>
+    </article>
+    <article>
+      <h3><code>values(object)</code></h3>
+      <p>Return values sorted by key order.</p>
+      <pre><code>&lt;% echo join(values({&quot;b&quot;:1,&quot;a&quot;:2}), &quot;,&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>2,1</code></div>
+    </article>
+    <article>
+      <h3><code>has_key(object, name)</code></h3>
+      <p>Return true if a key exists.</p>
+      <pre><code>&lt;% echo has_key({&quot;x&quot;:1}, &quot;x&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>get(object, name[, default])</code></h3>
+      <p>Fetch a value or default (null).</p>
+      <pre><code>&lt;% echo get({&quot;x&quot;:1}, &quot;x&quot;, 0) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>1</code></div>
+    </article>
+    <article>
+      <h3><code>set(object, name, value)</code></h3>
+      <p>Assign and return the stored value.</p>
+      <pre><code>&lt;% var obj = {}; echo set(obj, &quot;lang&quot;, &quot;es&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>es</code></div>
+    </article>
   </section>
-
   <section id="math">
-    <h2>Math Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>abs(n)</code>, <code>floor(n)</code>, <code>ceil(n)</code>, <code>round(n)</code></h3>
-        <p>Standard numeric helpers (all arguments must be numbers).</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">floor</span>(price) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>pow(base, exp)</code> / <code>sqrt(n)</code></h3>
-        <p>Exponentiation and square root (negative inputs to <code>sqrt</code> raise runtime errors).</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">pow</span>(2, 8) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>min(a, b)</code> / <code>max(a, b)</code></h3>
-        <p>Return the smaller/larger of two numbers.</p>
-        <pre><code>&lt;% <span class="var">limit</span> = <span class="fn">min</span>(requested, 100) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>rand()</code> / <code>randint(min, max)</code></h3>
-        <p><code>rand</code> returns a floating-point value between 0 and 1. <code>randint</code> returns an integer in the inclusive range.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">randint</span>(1, 6) %&gt;</code></pre>
-      </div>
+    <h2>Math Helpers (10)</h2>
+    <p>Numeric helpers (all arguments must be numbers).</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>abs(n)</code></td><td>Absolute value.</td></tr>
+          <tr><td><code>floor(n)</code></td><td>Round down.</td></tr>
+          <tr><td><code>ceil(n)</code></td><td>Round up.</td></tr>
+          <tr><td><code>round(n)</code></td><td>Round to nearest integer.</td></tr>
+          <tr><td><code>pow(base, exp)</code></td><td>Raise base to exponent.</td></tr>
+          <tr><td><code>sqrt(n)</code></td><td>Square root (throws on negative input).</td></tr>
+          <tr><td><code>min(a, b)</code></td><td>Return the smaller number.</td></tr>
+          <tr><td><code>max(a, b)</code></td><td>Return the larger number.</td></tr>
+          <tr><td><code>rand()</code></td><td>Random floating-point value in [0, 1).</td></tr>
+          <tr><td><code>randint(min, max)</code></td><td>Random integer in inclusive range.</td></tr>
+        </tbody>
+      </table>
     </div>
+    <article>
+      <h3><code>abs(n)</code></h3>
+      <p>Absolute value.</p>
+      <pre><code>&lt;% echo abs(-3) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>3</code></div>
+    </article>
+    <article>
+      <h3><code>floor(n)</code></h3>
+      <p>Round down.</p>
+      <pre><code>&lt;% echo floor(3.8) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>3</code></div>
+    </article>
+    <article>
+      <h3><code>ceil(n)</code></h3>
+      <p>Round up.</p>
+      <pre><code>&lt;% echo ceil(3.1) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>4</code></div>
+    </article>
+    <article>
+      <h3><code>round(n)</code></h3>
+      <p>Round to nearest integer.</p>
+      <pre><code>&lt;% echo round(3.6) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>4</code></div>
+    </article>
+    <article>
+      <h3><code>pow(base, exp)</code></h3>
+      <p>Raise base to exponent.</p>
+      <pre><code>&lt;% echo pow(2, 5) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>32</code></div>
+    </article>
+    <article>
+      <h3><code>sqrt(n)</code></h3>
+      <p>Square root (throws on negative input).</p>
+      <pre><code>&lt;% echo sqrt(9) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>3</code></div>
+    </article>
+    <article>
+      <h3><code>min(a, b)</code></h3>
+      <p>Return the smaller number.</p>
+      <pre><code>&lt;% echo min(4, 7) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>4</code></div>
+    </article>
+    <article>
+      <h3><code>max(a, b)</code></h3>
+      <p>Return the larger number.</p>
+      <pre><code>&lt;% echo max(4, 7) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>7</code></div>
+    </article>
+    <article>
+      <h3><code>rand()</code></h3>
+      <p>Random floating-point value in [0, 1).</p>
+      <pre><code>&lt;% echo rand() &gt; 0 %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>randint(min, max)</code></h3>
+      <p>Random integer in inclusive range.</p>
+      <pre><code>&lt;% echo randint(1, 3) &gt;= 1 %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
   </section>
-
   <section id="type">
-    <h2>Type Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>type(value)</code></h3>
-        <p>Returns the runtime type name (<code>null</code>, <code>bool</code>, <code>number</code>, <code>string</code>, <code>array</code>, <code>object</code>, <code>function</code>).</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">type</span>(user) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>tostring(value)</code> / <code>to_string(value)</code></h3>
-        <p>Serialize values exactly as the output buffer would (numbers keep precision, arrays print JSON-like).</p>
-        <pre><code>&lt;% <span class="var">raw</span> = <span class="fn">to_string</span>(_GET) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>to_number(value)</code></h3>
-        <p>Converts booleans/strings/null to numbers. Strings are trimmed and parsed via <code>std::stod</code>; invalid text triggers a runtime error.</p>
-        <pre><code>&lt;% <span class="var">age</span> = <span class="fn">to_number</span>(_POST[<span class="str">"age"</span>]) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>is_null</code>, <code>is_bool</code>, <code>is_number</code>, <code>is_string</code>, <code>is_array</code>, <code>is_object</code>, <code>is_function</code></h3>
-        <p>Return booleans for runtime type checks. <code>is_function</code> covers user and builtin functions.</p>
-        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">is_array</span>(input) %&gt;...<span class="kw">end</span></code></pre>
-      </div>
+    <h2>Type Helpers (11)</h2>
+    <p>Introspect and convert runtime values.</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>type(value)</code></td><td>Return the runtime type name.</td></tr>
+          <tr><td><code>tostring(value)</code></td><td>Serialize a value exactly as the output buffer would.</td></tr>
+          <tr><td><code>to_string(value)</code></td><td>Alias of <code>tostring</code>.</td></tr>
+          <tr><td><code>to_number(value)</code></td><td>Convert strings/bools/null to numbers.</td></tr>
+          <tr><td><code>is_null(value)</code></td><td>Return true if the value is null.</td></tr>
+          <tr><td><code>is_bool(value)</code></td><td>Return true for booleans.</td></tr>
+          <tr><td><code>is_number(value)</code></td><td>Return true for numeric values.</td></tr>
+          <tr><td><code>is_string(value)</code></td><td>Return true for strings.</td></tr>
+          <tr><td><code>is_array(value)</code></td><td>Return true for arrays.</td></tr>
+          <tr><td><code>is_object(value)</code></td><td>Return true for objects.</td></tr>
+          <tr><td><code>is_function(value)</code></td><td>Return true for user or builtin functions.</td></tr>
+        </tbody>
+      </table>
     </div>
+    <article>
+      <h3><code>type(value)</code></h3>
+      <p>Return the runtime type name.</p>
+      <pre><code>&lt;% echo type(123) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>number</code></div>
+    </article>
+    <article>
+      <h3><code>tostring(value)</code></h3>
+      <p>Serialize a value exactly as the output buffer would.</p>
+      <pre><code>&lt;% echo tostring([1,2]) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>[1, 2]</code></div>
+    </article>
+    <article>
+      <h3><code>to_string(value)</code></h3>
+      <p>Alias of <code>tostring</code>.</p>
+      <pre><code>&lt;% echo to_string(true) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>to_number(value)</code></h3>
+      <p>Convert strings/bools/null to numbers.</p>
+      <pre><code>&lt;% echo to_number(&quot; 42 &quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>42</code></div>
+    </article>
+    <article>
+      <h3><code>is_null(value)</code></h3>
+      <p>Return true if the value is null.</p>
+      <pre><code>&lt;% echo is_null(null) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>is_bool(value)</code></h3>
+      <p>Return true for booleans.</p>
+      <pre><code>&lt;% echo is_bool(false) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>is_number(value)</code></h3>
+      <p>Return true for numeric values.</p>
+      <pre><code>&lt;% echo is_number(3.14) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>is_string(value)</code></h3>
+      <p>Return true for strings.</p>
+      <pre><code>&lt;% echo is_string(&quot;hi&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>is_array(value)</code></h3>
+      <p>Return true for arrays.</p>
+      <pre><code>&lt;% echo is_array([1]) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>is_object(value)</code></h3>
+      <p>Return true for objects.</p>
+      <pre><code>&lt;% echo is_object({}) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>is_function(value)</code></h3>
+      <p>Return true for user or builtin functions.</p>
+      <pre><code>&lt;% echo is_function(type) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
   </section>
-
   <section id="date">
-    <h2>Date Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>now()</code></h3>
-        <p>Returns the current UNIX timestamp (seconds since epoch).</p>
-        <pre><code>&lt;% <span class="var">stamp</span> = <span class="fn">now</span>() %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>date_format(epoch, pattern)</code></h3>
-        <p>Formats seconds-since-epoch using tokens <code>YYYY</code>, <code>MM</code>, <code>DD</code>, <code>HH</code>, <code>mm</code>, <code>SS</code>.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">date_format</span>(<span class="fn">now</span>(), <span class="str">"YYYY-MM-DD"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>date_parts(epoch)</code></h3>
-        <p>Returns an object with <code>year</code>, <code>month</code>, <code>day</code>, <code>hour</code>, <code>minute</code>, <code>second</code> (UTC).</p>
-        <pre><code>&lt;% <span class="var">parts</span> = <span class="fn">date_parts</span>(<span class="fn">now</span>()) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>date_add_days(epoch, days)</code></h3>
-        <p>Adds <code>days</code> (can be fractional) to the timestamp by multiplying by 86400.</p>
-        <pre><code>&lt;% <span class="var">tomorrow</span> = <span class="fn">date_add_days</span>(<span class="fn">now</span>(), 1) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>date_parse(text)</code></h3>
-        <p>Parses <code>YYYY-MM-DD</code> or <code>YYYY-MM-DD HH:MM:SS</code> (space or <code>T</code> separator) and returns epoch seconds.</p>
-        <pre><code>&lt;% <span class="var">due</span> = <span class="fn">date_parse</span>(<span class="str">"2026-01-05"</span>) %&gt;</code></pre>
-      </div>
+    <h2>Date Helpers (5)</h2>
+    <p>Timestamps are seconds since UNIX epoch (UTC).</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>now()</code></td><td>Return current UNIX timestamp.</td></tr>
+          <tr><td><code>date_format(epoch, pattern)</code></td><td>Token-based formatter (YYYY, MM, DD, HH, mm, SS).</td></tr>
+          <tr><td><code>date_parts(epoch)</code></td><td>Return an object with year/month/day/hour/minute/second.</td></tr>
+          <tr><td><code>date_add_days(epoch, days)</code></td><td>Add days (can be fractional) via 86,400-second units.</td></tr>
+          <tr><td><code>date_parse(text)</code></td><td>Parse YYYY-MM-DD or YYYY-MM-DD HH:MM:SS/T.</td></tr>
+        </tbody>
+      </table>
     </div>
+    <article>
+      <h3><code>now()</code></h3>
+      <p>Return current UNIX timestamp.</p>
+      <pre><code>&lt;% echo now() &gt; 0 %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
+    </article>
+    <article>
+      <h3><code>date_format(epoch, pattern)</code></h3>
+      <p>Token-based formatter (YYYY, MM, DD, HH, mm, SS).</p>
+      <pre><code>&lt;% echo date_format(0, &quot;YYYY-MM-DD&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>1970-01-01</code></div>
+    </article>
+    <article>
+      <h3><code>date_parts(epoch)</code></h3>
+      <p>Return an object with year/month/day/hour/minute/second.</p>
+      <pre><code>&lt;% var p = date_parts(0); echo p[&quot;year&quot;] %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>1970</code></div>
+    </article>
+    <article>
+      <h3><code>date_add_days(epoch, days)</code></h3>
+      <p>Add days (can be fractional) via 86,400-second units.</p>
+      <pre><code>&lt;% echo date_add_days(0, 1) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>86400</code></div>
+    </article>
+    <article>
+      <h3><code>date_parse(text)</code></h3>
+      <p>Parse YYYY-MM-DD or YYYY-MM-DD HH:MM:SS/T.</p>
+      <pre><code>&lt;% echo date_parse(&quot;2026-01-05&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>1767225600</code></div>
+    </article>
   </section>
-
   <section id="output">
-    <h2>Output Helpers</h2>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>print(...values)</code> / <code>println(...values)</code></h3>
-        <p>Write values to the template output buffer (identical to <code>echo</code>); <code>println</code> appends a newline.</p>
-        <pre><code>&lt;% <span class="fn">println</span>(<span class="str">"Debug"</span>, version) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>nl2br(text)</code></h3>
-        <p>Converts <code>\r\n</code>, <code>\n</code>, and <code>\r</code> into HTML <code>&lt;br&gt;\n</code> pairs.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">nl2br</span>(_POST[<span class="str">"bio"</span>]) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>debug(value)</code></h3>
-        <p>Writes a single-line description of the value to <code>stderr</code> without affecting template output (handy inside CGI).</p>
-        <pre><code>&lt;% <span class="fn">debug</span>(_SERVER) %&gt;</code></pre>
-      </div>
+    <h2>Output Helpers (4)</h2>
+    <p>Control how text is emitted from templates.</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>print(...values)</code></td><td>Alias for <code>echo</code>.</td></tr>
+          <tr><td><code>println(...values)</code></td><td>Print followed by newline.</td></tr>
+          <tr><td><code>nl2br(text)</code></td><td>Convert newlines to <code>&lt;br&gt;</code>+
+ sequences.</td></tr>
+          <tr><td><code>debug(value)</code></td><td>Describe a value on stderr (does not affect HTML).</td></tr>
+        </tbody>
+      </table>
     </div>
+    <article>
+      <h3><code>print(...values)</code></h3>
+      <p>Alias for <code>echo</code>.</p>
+      <pre><code>&lt;% print(&quot;hi&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>hi</code></div>
+    </article>
+    <article>
+      <h3><code>println(...values)</code></h3>
+      <p>Print followed by newline.</p>
+      <pre><code>&lt;% println(&quot;hi&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>hi
+</code></div>
+    </article>
+    <article>
+      <h3><code>nl2br(text)</code></h3>
+      <p>Convert newlines to <code>&lt;br&gt;</code>+
+ sequences.</p>
+      <pre><code>&lt;% echo nl2br(&quot;a
+b&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>a<br>
+b</code></div>
+    </article>
+    <article>
+      <h3><code>debug(value)</code></h3>
+      <p>Describe a value on stderr (does not affect HTML).</p>
+      <pre><code>&lt;% debug(_SERVER) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>stderr</code></div>
+    </article>
   </section>
-
   <section id="http">
-    <h2>HTTP &amp; Response Helpers</h2>
-    <p>These functions require CGI mode (or any code path with an attached <code>ResponseContext</code>). Calling them without CGI will raise “CGI mode only”.</p>
-    <div class="grid-2">
-      <div class="card">
-        <h3><code>http_status(code)</code> / <code>status(code)</code></h3>
-        <p>Sets the HTTP status line. Accepts integers from 100–599.</p>
-        <pre><code>&lt;% <span class="fn">http_status</span>(302) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>http_header(name, value)</code> / <code>header(...)</code></h3>
-        <p>Adds or overwrites headers. Call with either <code>("Header: value")</code> or <code>(name, value)</code>. Content-Type headers replace previous ones.</p>
-        <pre><code>&lt;% <span class="fn">http_header</span>(<span class="str">"X-Powered-By"</span>, <span class="str">"Polonio"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>http_content_type(value)</code></h3>
-        <p>Convenience helper that sets <code>Content-Type</code> (and removes previous values).</p>
-        <pre><code>&lt;% <span class="fn">http_content_type</span>(<span class="str">"application/json"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>redirect(target[, status])</code></h3>
-        <p>Sets a 302 (or custom 3xx) status plus the <code>Location</code> header.</p>
-        <pre><code>&lt;% <span class="fn">redirect</span>(<span class="str">"/login"</span>) %&gt;</code></pre>
-      </div>
-      <div class="card">
-        <h3><code>urlencode(text)</code> / <code>urldecode(text)</code></h3>
-        <p>Percent-encodes or decodes URL/query-string fragments using the classic <code>application/x-www-form-urlencoded</code> rules.</p>
-        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">urlencode</span>(<span class="str">"hola mundo"</span>) %&gt;</code></pre>
-      </div>
+    <h2>HTTP &amp; Response Helpers (6)</h2>
+    <p>Available when a <code>ResponseContext</code> is active (CGI today, dev server soon).</p>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>http_status(code) / status(code)</code></td><td>Set the outgoing HTTP status line (100–599).</td></tr>
+          <tr><td><code>http_header(name, value) / header(...)</code></td><td>Add or overwrite headers.</td></tr>
+          <tr><td><code>http_content_type(value)</code></td><td>Set the <code>Content-Type</code> header.</td></tr>
+          <tr><td><code>redirect(target[, status])</code></td><td>Set Location header plus 3xx status (default 302).</td></tr>
+          <tr><td><code>urlencode(text)</code></td><td>Percent-encode query-string fragments.</td></tr>
+          <tr><td><code>urldecode(text)</code></td><td>Decode percent-encoded strings.</td></tr>
+        </tbody>
+      </table>
     </div>
-    <div class="note">These helpers tie directly into the CGI response buffer, so headers are emitted before the template body when <code>ResponseContext::emit</code> runs.</div>
+    <article>
+      <h3><code>http_status(code) / status(code)</code></h3>
+      <p>Set the outgoing HTTP status line (100–599).</p>
+      <pre><code>&lt;% http_status(302) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>Status: 302</code></div>
+    </article>
+    <article>
+      <h3><code>http_header(name, value) / header(...)</code></h3>
+      <p>Add or overwrite headers.</p>
+      <pre><code>&lt;% http_header(&quot;X-Test&quot;, &quot;ok&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>X-Test: ok</code></div>
+    </article>
+    <article>
+      <h3><code>http_content_type(value)</code></h3>
+      <p>Set the <code>Content-Type</code> header.</p>
+      <pre><code>&lt;% http_content_type(&quot;text/plain&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>Content-Type: text/plain</code></div>
+    </article>
+    <article>
+      <h3><code>redirect(target[, status])</code></h3>
+      <p>Set Location header plus 3xx status (default 302).</p>
+      <pre><code>&lt;% redirect(&quot;/login&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>Status: 302 / Location: /login</code></div>
+    </article>
+    <article>
+      <h3><code>urlencode(text)</code></h3>
+      <p>Percent-encode query-string fragments.</p>
+      <pre><code>&lt;% echo urlencode(&quot;hola mundo&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>hola+mundo</code></div>
+    </article>
+    <article>
+      <h3><code>urldecode(text)</code></h3>
+      <p>Decode percent-encoded strings.</p>
+      <pre><code>&lt;% echo urldecode(&quot;hola+mundo&quot;) %&gt;</code></pre>
+      <div class="example-output"><strong>Output:</strong> <code>hola mundo</code></div>
+    </article>
   </section>
 </main>
+<script src="highlight.js"></script>
 </body>
 </html>
