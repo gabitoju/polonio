@@ -13,20 +13,25 @@
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/template_scanner.h"
 
+#include <arpa/inet.h>
+#include <chrono>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
-#include <sstream>
-#include <vector>
+#include <cerrno>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <netinet/in.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
-
+#include <sys/socket.h>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
+#include <vector>
 
 namespace {
 
@@ -72,6 +77,15 @@ std::string create_temp_file_with_content(const std::string& prefix, const std::
     stream << content;
     stream.close();
     return path;
+}
+
+std::string create_temp_directory(const std::string& prefix) {
+    std::string pattern = "/tmp/" + prefix + "XXXXXX";
+    std::vector<char> buffer(pattern.begin(), pattern.end());
+    buffer.push_back('\0');
+    char* result = mkdtemp(buffer.data());
+    REQUIRE(result != nullptr);
+    return std::string(result);
 }
 
 CommandResult run_polonio_with_env(const std::vector<std::string>& args,
@@ -135,6 +149,94 @@ CommandResult run_polonio_with_env(const std::vector<std::string>& args,
         std::remove(stdin_path.c_str());
     }
     return result;
+}
+
+int reserve_tcp_port() {
+    int sock = ::socket(AF_INET, SOCK_STREAM, 0);
+    REQUIRE(sock >= 0);
+    int opt = 1;
+    ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = 0;
+    int rc = ::bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    if (rc != 0) {
+        INFO("reserve_tcp_port bind failed: " << std::strerror(errno));
+    }
+    REQUIRE(rc == 0);
+    socklen_t len = sizeof(addr);
+    rc = ::getsockname(sock, reinterpret_cast<sockaddr*>(&addr), &len);
+    REQUIRE(rc == 0);
+    int port = ntohs(addr.sin_port);
+    ::close(sock);
+    return port;
+}
+
+int connect_with_retry(int port) {
+    for (int attempt = 0; attempt < 200; ++attempt) {
+        int sock = ::socket(AF_INET, SOCK_STREAM, 0);
+        REQUIRE(sock >= 0);
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(static_cast<uint16_t>(port));
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        if (::connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
+            return sock;
+        }
+        ::close(sock);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    FAIL("unable to connect to test server");
+    return -1;
+}
+
+std::string perform_http_get(int port) {
+    int sock = connect_with_retry(port);
+    const std::string request = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    ssize_t sent = ::send(sock, request.data(), request.size(), 0);
+    REQUIRE(sent == static_cast<ssize_t>(request.size()));
+    std::string response;
+    char buffer[1024];
+    while (true) {
+        ssize_t n = ::recv(sock, buffer, sizeof(buffer), 0);
+        if (n <= 0) break;
+        response.append(buffer, static_cast<std::size_t>(n));
+    }
+    ::close(sock);
+    return response;
+}
+
+struct ChildProcessGuard {
+    pid_t pid = -1;
+    explicit ChildProcessGuard(pid_t p) : pid(p) {}
+    ~ChildProcessGuard() {
+        if (pid > 0) {
+            ::kill(pid, SIGTERM);
+            ::waitpid(pid, nullptr, 0);
+        }
+    }
+    void release() { pid = -1; }
+};
+
+std::string run_serve_request(const std::string& root, int port) {
+    auto binary = (std::filesystem::current_path() / "build/polonio").string();
+    REQUIRE(std::filesystem::exists(binary));
+    pid_t pid = ::fork();
+    REQUIRE(pid >= 0);
+    if (pid == 0) {
+        std::string port_str = std::to_string(port);
+        execl(binary.c_str(), binary.c_str(), "serve", "--port", port_str.c_str(), "--root", root.c_str(), (char*)nullptr);
+        _exit(127);
+    }
+    ChildProcessGuard guard(pid);
+    std::string response = perform_http_get(port);
+    int status = 0;
+    ::waitpid(pid, &status, 0);
+    guard.release();
+    REQUIRE(WIFEXITED(status));
+    CHECK(WEXITSTATUS(status) == 0);
+    return response;
 }
 
 } // namespace
@@ -600,6 +702,15 @@ TEST_CASE("CGI http helpers control status and headers") {
     CHECK(parsed.headers.find("Content-Type: text/plain") != std::string::npos);
     CHECK(parsed.body == "ready");
     std::filesystem::remove(path);
+}
+
+TEST_CASE("serve stub handles single request") {
+    auto root = create_temp_directory("polonio_serve_root");
+    int port = reserve_tcp_port();
+    auto response = run_serve_request(root, port);
+    CHECK(response.find("HTTP/1.1 200 OK") != std::string::npos);
+    CHECK(response.find("\r\n\r\nOK") != std::string::npos);
+    std::filesystem::remove_all(root);
 }
 
 TEST_CASE("CGI redirect builtin sets Location header") {
