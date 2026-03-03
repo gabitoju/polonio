@@ -102,6 +102,7 @@ Value builtin_urldecode(Interpreter& interp, const std::vector<Value>& args, con
 Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_parts(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_date_add_days(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -765,6 +766,17 @@ Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, c
     return Value(out);
 }
 
+Value builtin_date_add_days(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value epoch = ensure_arg("date_add_days", 0, args, interp, loc);
+    Value days = ensure_arg("date_add_days", 1, args, interp, loc);
+    if (!std::holds_alternative<double>(epoch.storage()) || !std::holds_alternative<double>(days.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "date_add_days: expected numbers", interp.path(), loc);
+    }
+    double seconds = std::get<double>(epoch.storage());
+    double day_count = std::get<double>(days.storage());
+    return Value(seconds + day_count * 86400.0);
+}
+
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("count", 0, args, interp, loc);
     if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
@@ -1086,6 +1098,7 @@ void install_builtins(Env& env) {
     env.set_local("urldecode", Value(BuiltinFunction{"urldecode", builtin_urldecode}));
     env.set_local("date_parts", Value(BuiltinFunction{"date_parts", builtin_date_parts}));
     env.set_local("date_format", Value(BuiltinFunction{"date_format", builtin_date_format}));
+    env.set_local("date_add_days", Value(BuiltinFunction{"date_add_days", builtin_date_add_days}));
 }
 
 } // namespace polonio
