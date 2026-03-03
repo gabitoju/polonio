@@ -9,39 +9,31 @@
 <body>
 <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
 <aside class="sidebar">
-  <div class="brand">
-    <div class="name">Polonio</div>
+  <div class="sidebar-brand">
+    <h2>Polonio</h2>
     <div class="tagline">v0.1.0</div>
   </div>
   <nav>
-    <div class="nav-section">
-      <div class="label">Getting Started</div>
-      <a href="index.html">Home</a>
-      <a class="sub" href="index.html#quickstart">Quick Start</a>
-      <a class="sub" href="index.html#cli">CLI Reference</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">Reference</div>
-      <a href="language.html">Language</a>
-      <a href="builtins.html">Built-in Functions</a>
-      <a href="runtime.html">HTTP &amp; Server</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">Learn</div>
-      <a href="examples.html">Examples</a>
-    </div>
-    <div class="nav-section">
-      <div class="label">This Page</div>
-      <a href="#template-structure">Template Structure</a>
-      <a href="#types">Types</a>
-      <a href="#variables">Variables</a>
-      <a href="#operators">Operators</a>
-      <a href="#control-flow">Control Flow</a>
-      <a href="#functions">Functions</a>
-      <a href="#includes">Includes</a>
-      <a href="#truthiness">Truthiness</a>
-      <a href="#scope">Scope</a>
-    </div>
+    <div class="nav-section">Getting Started</div>
+    <a href="index.html">Home</a>
+    <a class="sub" href="index.html#quickstart">Quick Start</a>
+    <a class="sub" href="index.html#cli">CLI Reference</a>
+    <div class="nav-section">Reference</div>
+    <a href="language.html" class="active">Language</a>
+    <a href="builtins.html">Built-in Functions</a>
+    <a href="runtime.html">HTTP &amp; Server</a>
+    <div class="nav-section">Learn</div>
+    <a href="examples.html">Examples</a>
+    <div class="nav-section">This Page</div>
+    <a href="#template-structure">Template Structure</a>
+    <a href="#types">Types</a>
+    <a href="#variables">Variables</a>
+    <a href="#operators">Operators</a>
+    <a href="#control-flow">Control Flow</a>
+    <a href="#functions">Functions</a>
+    <a href="#includes">Includes</a>
+    <a href="#truthiness">Truthiness</a>
+    <a href="#scope">Scope</a>
   </nav>
 </aside>
 <main class="content">
@@ -238,5 +230,6 @@ count ..= <span class="str">" total"</span>
     <div class="note">Use helper functions to hide state when needed. Large templates often wrap logic in <code>function render_item(item)</code> and call it immediately to avoid polluting globals.</div>
   </section>
 </main>
+<script src="highlight.js"></script>
 </body>
 </html>
