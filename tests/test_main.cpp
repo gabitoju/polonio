@@ -1828,9 +1828,17 @@ TEST_CASE("Date builtins: date_format/date_parts") {
     CHECK(value > 1000000000.0);
 }
 
+TEST_CASE("Date builtin date_add_days shifts epoch by days") {
+    CHECK(run_program_output("echo date_add_days(0, 1)") == "86400");
+    CHECK(run_program_output("echo date_add_days(86400, -1)") == "0");
+    CHECK(run_program_output("echo date_add_days(0, 0.5)") == "43200");
+}
+
 TEST_CASE("Date builtins validate arguments") {
     CHECK_THROWS_AS(run_program_output("echo date_format(\"x\", \"YYYY\")"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo date_parts()"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo date_add_days(0)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo date_add_days(\"0\", 1)"), polonio::PolonioError);
 }
 
 TEST_CASE("Interpreter executes while loops") {
