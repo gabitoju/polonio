@@ -6,6 +6,7 @@
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -58,6 +59,11 @@ std::string trim(std::string s) {
     return s.substr(first, last - first + 1);
 }
 
+std::mt19937_64& global_rng() {
+    static std::mt19937_64 rng(0xC0FFEE);
+    return rng;
+}
+
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_tostring(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_to_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -83,6 +89,8 @@ Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Lo
 Value builtin_round(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pow(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_sqrt(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_rand(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_randint(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_min(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_max(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_is_null(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -497,6 +505,30 @@ Value builtin_sqrt(Interpreter& interp, const std::vector<Value>& args, const Lo
         throw PolonioError(ErrorKind::Runtime, "sqrt: negative input", interp.path(), loc);
     }
     return Value(std::sqrt(number));
+}
+
+Value builtin_rand(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    (void)loc;
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "rand: expected 0 arguments", interp.path(), loc);
+    }
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    return Value(dist(global_rng()));
+}
+
+Value builtin_randint(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value min_value = ensure_arg("randint", 0, args, interp, loc);
+    Value max_value = ensure_arg("randint", 1, args, interp, loc);
+    if (!std::holds_alternative<double>(min_value.storage()) || !std::holds_alternative<double>(max_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "randint: expected numbers", interp.path(), loc);
+    }
+    int min_int = static_cast<int>(std::get<double>(min_value.storage()));
+    int max_int = static_cast<int>(std::get<double>(max_value.storage()));
+    if (max_int < min_int) {
+        throw PolonioError(ErrorKind::Runtime, "randint: invalid range", interp.path(), loc);
+    }
+    std::uniform_int_distribution<int> dist(min_int, max_int);
+    return Value(static_cast<double>(dist(global_rng())));
 }
 
 Value builtin_min(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -1178,6 +1210,8 @@ void install_builtins(Env& env) {
     env.set_local("round", Value(BuiltinFunction{"round", builtin_round}));
     env.set_local("pow", Value(BuiltinFunction{"pow", builtin_pow}));
     env.set_local("sqrt", Value(BuiltinFunction{"sqrt", builtin_sqrt}));
+    env.set_local("rand", Value(BuiltinFunction{"rand", builtin_rand}));
+    env.set_local("randint", Value(BuiltinFunction{"randint", builtin_randint}));
     env.set_local("min", Value(BuiltinFunction{"min", builtin_min}));
     env.set_local("max", Value(BuiltinFunction{"max", builtin_max}));
     env.set_local("is_null", Value(BuiltinFunction{"is_null", builtin_is_null}));

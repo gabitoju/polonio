@@ -15,6 +15,8 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <sstream>
+#include <vector>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -1796,6 +1798,30 @@ TEST_CASE("Math builtins: pow and sqrt basics") {
     CHECK(run_program_output("echo sqrt(0)") == "0");
 }
 
+TEST_CASE("Math builtins: rand and randint deterministic") {
+    auto out = run_program_output("var a = rand()\nvar b = rand()\necho a\necho \"\\n\"\necho b");
+    std::istringstream rand_stream(out);
+    std::string line;
+    std::vector<std::string> values;
+    while (std::getline(rand_stream, line)) {
+        if (!line.empty()) {
+            values.push_back(line);
+        }
+    }
+    REQUIRE(values.size() == 2);
+    double first = std::stod(values[0]);
+    double second = std::stod(values[1]);
+    CHECK(first >= 0.0);
+    CHECK(first < 1.0);
+    CHECK(second >= 0.0);
+    CHECK(second < 1.0);
+    CHECK(values[0] == "0.662496");
+    CHECK(values[1] == "0.802939");
+
+    auto ints = run_program_output("var i = randint(1, 10)\nvar j = randint(1, 10)\nvar k = randint(1, 10)\necho i\necho j\necho k");
+    CHECK(ints == "844");
+}
+
 TEST_CASE("Type predicates report correct categories") {
     CHECK(run_program_output("echo is_null(null)") == "true");
     CHECK(run_program_output("echo is_number(1)") == "true");
@@ -1817,6 +1843,9 @@ TEST_CASE("Math builtins error on invalid args") {
     CHECK_THROWS_AS(run_program_output("echo pow(2)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo pow(\"2\", 3)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo sqrt(-1)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo rand(1)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo randint(5, 4)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo randint(\"a\", 3)"), polonio::PolonioError);
 }
 
 TEST_CASE("Date builtins: date_format/date_parts") {
