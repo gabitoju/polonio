@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Built-in Functions &mdash; Polonio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="name">Polonio</div>
+    <div class="tagline">v0.1.0</div>
+  </div>
+  <nav>
+    <div class="nav-section">
+      <div class="label">Getting Started</div>
+      <a href="index.html">Home</a>
+      <a class="sub" href="index.html#quickstart">Quick Start</a>
+      <a class="sub" href="index.html#cli">CLI Reference</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Reference</div>
+      <a href="language.html">Language</a>
+      <a href="builtins.html">Built-in Functions</a>
+      <a href="runtime.html">HTTP &amp; Server</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Learn</div>
+      <a href="examples.html">Examples</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">This Page</div>
+      <a href="#string">String</a>
+      <a href="#array">Array</a>
+      <a href="#object">Object</a>
+      <a href="#math">Math</a>
+      <a href="#type">Type</a>
+      <a href="#date">Date</a>
+      <a href="#output">Output</a>
+      <a href="#http">HTTP</a>
+    </div>
+  </nav>
+</aside>
+<main class="content">
+  <h1>Built-in Functions</h1>
+  <p class="subtitle">Shipping functions registered in <code>src/polonio/runtime/builtins.cpp</code> (v0.1.0).</p>
+
+  <section id="string">
+    <h2>String Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>len(value)</code></h3>
+        <p>Converts the argument to a string (via the runtime output formatter) and returns its length in characters.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">len</span>(123) %&gt; <span class="cmt">&lt;!-- prints 3 --&gt;</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>substr(text, start[, length])</code></h3>
+        <p>Extracts a substring; <code>start</code> accepts negative values and <code>length</code> trims the slice.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">substr</span>(<span class="str">"polonio"</span>, -3) %&gt; <span class="cmt">&lt;!-- nio --&gt;</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>lower(text)</code> / <code>upper(text)</code></h3>
+        <p>ASCII-only case conversion.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">upper</span>(<span class="str">"hola"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>trim(text)</code></h3>
+        <p>Removes leading/trailing spaces, tabs, carriage returns, and newlines.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">trim</span>(<span class="str">"  hi \n"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>replace(text, from, to)</code></h3>
+        <p>Replaces all occurrences of <code>from</code> with <code>to</code>.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">replace</span>(<span class="str">"a-b-a"</span>, <span class="str">"-"</span>, <span class="str">"/"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>split(text, sep)</code></h3>
+        <p>Returns an array of strings split by <code>sep</code> (empty separators yield the whole string).</p>
+        <pre><code>&lt;% <span class="kw">var</span> <span class="var">parts</span> = <span class="fn">split</span>(<span class="str">"a,b,c"</span>, <span class="str">","</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>contains(haystack, needle)</code></h3>
+        <p>Boolean substring search.</p>
+        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">contains</span>(_SERVER[<span class="str">"HTTP_HOST"</span>], <span class="str">"beta"</span>) %&gt;...<span class="kw">end</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>starts_with(text, prefix)</code> / <code>ends_with(text, suffix)</code></h3>
+        <p>Return <code>true</code> if the string begins/ends with the pattern.</p>
+        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">starts_with</span>(slug, <span class="str">"docs/"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>htmlspecialchars(text)</code> / <code>html_escape(text)</code></h3>
+        <p>Both functions escape <code>&amp;</code>, <code>&lt;</code>, <code>&gt;</code>, <code>"</code>, and <code>'</code>. Two names exist for compatibility; they produce identical output.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">html_escape</span>(_POST[<span class="str">"message"</span>]) %&gt;</code></pre>
+      </div>
+    </div>
+    <div class="note">Use <code>html_escape</code> (or <code>htmlspecialchars</code>) before interpolating user input, because `$var` does not auto-escape.</div>
+  </section>
+
+  <section id="array">
+    <h2>Array Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>count(arrayOrObject)</code></h3>
+        <p>Returns the length of an array or number of keys in an object.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">count</span>(users) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>push(array, value)</code></h3>
+        <p>Appends in-place and returns the new length.</p>
+        <pre><code>&lt;% <span class="fn">push</span>(todos, {<span class="str">"title"</span>: <span class="str">"Docs"</span>}) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>pop(array)</code></h3>
+        <p>Removes and returns the last element (or <code>null</code> if empty).</p>
+        <pre><code>&lt;% <span class="var">last</span> = <span class="fn">pop</span>(todos) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>shift(array)</code> / <code>unshift(array, value)</code></h3>
+        <p><code>shift</code> removes the first element. <code>unshift</code> inserts at the beginning and returns the new length.</p>
+        <pre><code>&lt;% <span class="fn">unshift</span>(nav, <span class="str">"Home"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>concat(a, b)</code></h3>
+        <p>Creates and returns a new array containing all items from <code>a</code> followed by <code>b</code>.</p>
+        <pre><code>&lt;% <span class="var">all</span> = <span class="fn">concat</span>(drafts, published) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>join(array, sep)</code></h3>
+        <p>Concatenates array elements into a string with the supplied separator.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">join</span>(tags, <span class="str">", "</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>slice(array, start[, length])</code></h3>
+        <p>Returns a shallow slice. Negative starts count from the end; omitting <code>length</code> slices to the end.</p>
+        <pre><code>&lt;% <span class="var">recent</span> = <span class="fn">slice</span>(posts, -3) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>range(count)</code></h3>
+        <p>Produces <code>[0, 1, ..., count-1]</code>. Non-positive counts return an empty array.</p>
+        <pre><code>&lt;% <span class="kw">for</span> <span class="var">i</span> <span class="kw">in</span> <span class="fn">range</span>(3) %&gt;&lt;li&gt;$i&lt;/li&gt;&lt;% <span class="kw">end</span> %&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="object">
+    <h2>Object Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>keys(object)</code></h3>
+        <p>Returns a sorted array of keys.</p>
+        <pre><code>&lt;% <span class="kw">for</span> <span class="var">key</span> <span class="kw">in</span> <span class="fn">keys</span>(params) %&gt;...<span class="kw">end</span></code></pre>
+      </div>
+      <div class="card">
+        <h3><code>values(object)</code></h3>
+        <p>Returns the object’s values sorted by key order.</p>
+        <pre><code>&lt;% <span class="var">vals</span> = <span class="fn">values</span>(settings) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>has_key(object, name)</code></h3>
+        <p>Boolean membership check.</p>
+        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">has_key</span>(_SERVER, <span class="str">"HTTP_HOST"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>get(object, name[, default])</code></h3>
+        <p>Returns <code>object[name]</code> or <code>default</code> (null by default) when the key is missing.</p>
+        <pre><code>&lt;% <span class="var">theme</span> = <span class="fn">get</span>(_COOKIE, <span class="str">"theme"</span>, <span class="str">"dark"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>set(object, name, value)</code></h3>
+        <p>Mutates the object in place and returns the assigned value.</p>
+        <pre><code>&lt;% <span class="fn">set</span>(config, <span class="str">"locale"</span>, <span class="str">"es"</span>) %&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="math">
+    <h2>Math Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>abs(n)</code>, <code>floor(n)</code>, <code>ceil(n)</code>, <code>round(n)</code></h3>
+        <p>Standard numeric helpers (all arguments must be numbers).</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">floor</span>(price) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>pow(base, exp)</code> / <code>sqrt(n)</code></h3>
+        <p>Exponentiation and square root (negative inputs to <code>sqrt</code> raise runtime errors).</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">pow</span>(2, 8) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>min(a, b)</code> / <code>max(a, b)</code></h3>
+        <p>Return the smaller/larger of two numbers.</p>
+        <pre><code>&lt;% <span class="var">limit</span> = <span class="fn">min</span>(requested, 100) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>rand()</code> / <code>randint(min, max)</code></h3>
+        <p><code>rand</code> returns a floating-point value between 0 and 1. <code>randint</code> returns an integer in the inclusive range.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">randint</span>(1, 6) %&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="type">
+    <h2>Type Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>type(value)</code></h3>
+        <p>Returns the runtime type name (<code>null</code>, <code>bool</code>, <code>number</code>, <code>string</code>, <code>array</code>, <code>object</code>, <code>function</code>).</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">type</span>(user) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>tostring(value)</code> / <code>to_string(value)</code></h3>
+        <p>Serialize values exactly as the output buffer would (numbers keep precision, arrays print JSON-like).</p>
+        <pre><code>&lt;% <span class="var">raw</span> = <span class="fn">to_string</span>(_GET) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>to_number(value)</code></h3>
+        <p>Converts booleans/strings/null to numbers. Strings are trimmed and parsed via <code>std::stod</code>; invalid text triggers a runtime error.</p>
+        <pre><code>&lt;% <span class="var">age</span> = <span class="fn">to_number</span>(_POST[<span class="str">"age"</span>]) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>is_null</code>, <code>is_bool</code>, <code>is_number</code>, <code>is_string</code>, <code>is_array</code>, <code>is_object</code>, <code>is_function</code></h3>
+        <p>Return booleans for runtime type checks. <code>is_function</code> covers user and builtin functions.</p>
+        <pre><code>&lt;% <span class="kw">if</span> <span class="fn">is_array</span>(input) %&gt;...<span class="kw">end</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="date">
+    <h2>Date Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>now()</code></h3>
+        <p>Returns the current UNIX timestamp (seconds since epoch).</p>
+        <pre><code>&lt;% <span class="var">stamp</span> = <span class="fn">now</span>() %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>date_format(epoch, pattern)</code></h3>
+        <p>Formats seconds-since-epoch using tokens <code>YYYY</code>, <code>MM</code>, <code>DD</code>, <code>HH</code>, <code>mm</code>, <code>SS</code>.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">date_format</span>(<span class="fn">now</span>(), <span class="str">"YYYY-MM-DD"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>date_parts(epoch)</code></h3>
+        <p>Returns an object with <code>year</code>, <code>month</code>, <code>day</code>, <code>hour</code>, <code>minute</code>, <code>second</code> (UTC).</p>
+        <pre><code>&lt;% <span class="var">parts</span> = <span class="fn">date_parts</span>(<span class="fn">now</span>()) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>date_add_days(epoch, days)</code></h3>
+        <p>Adds <code>days</code> (can be fractional) to the timestamp by multiplying by 86400.</p>
+        <pre><code>&lt;% <span class="var">tomorrow</span> = <span class="fn">date_add_days</span>(<span class="fn">now</span>(), 1) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>date_parse(text)</code></h3>
+        <p>Parses <code>YYYY-MM-DD</code> or <code>YYYY-MM-DD HH:MM:SS</code> (space or <code>T</code> separator) and returns epoch seconds.</p>
+        <pre><code>&lt;% <span class="var">due</span> = <span class="fn">date_parse</span>(<span class="str">"2026-01-05"</span>) %&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="output">
+    <h2>Output Helpers</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>print(...values)</code> / <code>println(...values)</code></h3>
+        <p>Write values to the template output buffer (identical to <code>echo</code>); <code>println</code> appends a newline.</p>
+        <pre><code>&lt;% <span class="fn">println</span>(<span class="str">"Debug"</span>, version) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>nl2br(text)</code></h3>
+        <p>Converts <code>\r\n</code>, <code>\n</code>, and <code>\r</code> into HTML <code>&lt;br&gt;\n</code> pairs.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">nl2br</span>(_POST[<span class="str">"bio"</span>]) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>debug(value)</code></h3>
+        <p>Writes a single-line description of the value to <code>stderr</code> without affecting template output (handy inside CGI).</p>
+        <pre><code>&lt;% <span class="fn">debug</span>(_SERVER) %&gt;</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="http">
+    <h2>HTTP &amp; Response Helpers</h2>
+    <p>These functions require CGI mode (or any code path with an attached <code>ResponseContext</code>). Calling them without CGI will raise “CGI mode only”.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3><code>http_status(code)</code> / <code>status(code)</code></h3>
+        <p>Sets the HTTP status line. Accepts integers from 100–599.</p>
+        <pre><code>&lt;% <span class="fn">http_status</span>(302) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>http_header(name, value)</code> / <code>header(...)</code></h3>
+        <p>Adds or overwrites headers. Call with either <code>("Header: value")</code> or <code>(name, value)</code>. Content-Type headers replace previous ones.</p>
+        <pre><code>&lt;% <span class="fn">http_header</span>(<span class="str">"X-Powered-By"</span>, <span class="str">"Polonio"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>http_content_type(value)</code></h3>
+        <p>Convenience helper that sets <code>Content-Type</code> (and removes previous values).</p>
+        <pre><code>&lt;% <span class="fn">http_content_type</span>(<span class="str">"application/json"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>redirect(target[, status])</code></h3>
+        <p>Sets a 302 (or custom 3xx) status plus the <code>Location</code> header.</p>
+        <pre><code>&lt;% <span class="fn">redirect</span>(<span class="str">"/login"</span>) %&gt;</code></pre>
+      </div>
+      <div class="card">
+        <h3><code>urlencode(text)</code> / <code>urldecode(text)</code></h3>
+        <p>Percent-encodes or decodes URL/query-string fragments using the classic <code>application/x-www-form-urlencoded</code> rules.</p>
+        <pre><code>&lt;% <span class="kw">echo</span> <span class="fn">urlencode</span>(<span class="str">"hola mundo"</span>) %&gt;</code></pre>
+      </div>
+    </div>
+    <div class="note">These helpers tie directly into the CGI response buffer, so headers are emitted before the template body when <code>ResponseContext::emit</code> runs.</div>
+  </section>
+</main>
+</body>
+</html>

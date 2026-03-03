@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home &mdash; Polonio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<aside class="sidebar">
+  <div class="brand">
+    <div class="name">Polonio</div>
+    <div class="tagline">v0.1.0</div>
+  </div>
+  <nav>
+    <div class="nav-section">
+      <div class="label">Getting Started</div>
+      <a href="index.html">Home</a>
+      <a class="sub" href="index.html#quickstart">Quick Start</a>
+      <a class="sub" href="index.html#cli">CLI Reference</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Reference</div>
+      <a href="language.html">Language</a>
+      <a href="builtins.html">Built-in Functions</a>
+      <a href="runtime.html">HTTP &amp; Server</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">Learn</div>
+      <a href="examples.html">Examples</a>
+    </div>
+    <div class="nav-section">
+      <div class="label">This Page</div>
+      <a href="#what-is">What is Polonio?</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#cli">CLI Reference</a>
+      <a href="#docs">Documentation</a>
+    </div>
+  </nav>
+</aside>
+<main class="content">
+  <h1>Polonio v0.1.0</h1>
+  <p class="subtitle">Single-binary templating language for modern CGI-friendly HTML workflows.</p>
+
+  <section class="hero" id="hero">
+    <h2>Build HTML the 2005 way, with 2026 tooling.</h2>
+    <p>Polonio mixes straightforward HTML with `<% %>` code blocks, `$var` interpolation, a pragmatic interpreter, and a runtime that can jump between CLI rendering and CGI automatically. Everything ships as a self-contained C++17 executable.</p>
+    <p>The language spec is frozen for v0.1.0, so you can count on consistent syntax, a predictable runtime, and a growing library of built-in helpers.</p>
+  </section>
+
+  <section id="what-is">
+    <h2>What is Polonio?</h2>
+    <p>Polonio started as a CGI experiment and now delivers a modern lexer, Pratt parser, tree-walking interpreter, template renderer, and HTTP runtime in one binary. Templates stay readable because HTML and Polonio code coexist without ceremony, so designers can skim markup while developers wire in loops, includes, and functions.</p>
+    <p>Core pillars:</p>
+    <ul>
+      <li>HTML-first templates: literal HTML interleaved with `<% ... %>` and `<% echo expr %>` blocks.</li>
+      <li>7 fundamental types (`null`, `bool`, `number`, `string`, `array`, `object`, `function`) with lexical scoping and closures.</li>
+      <li>A rich standard library spanning string, array, object, math, date, output, and HTTP helpers.</li>
+      <li>CGI awareness: `_GET`, `_POST`, `_COOKIE`, and `_SERVER` superglobals plus response helpers like `http_status`.</li>
+    </ul>
+  </section>
+
+  <section id="quickstart">
+    <h2>Quick Start</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>1. Build the CLI</h3>
+        <p>Polonio uses a simple Makefile. Build and run tests from the project root:</p>
+        <pre><code>$ make
+$ make test</code></pre>
+        <p>The binary lands at <code>build/polonio</code>.</p>
+      </div>
+      <div class="card">
+        <h3>2. Hello World</h3>
+        <p>Create <code>hello.pol</code>:</p>
+        <pre><code>&lt;% <span class="kw">var</span> <span class="var">name</span> = <span class="str">"World"</span> %&gt;
+&lt;h1&gt;Hello $name!&lt;/h1&gt;</code></pre>
+        <p>Render it:</p>
+        <pre><code>$ ./build/polonio run hello.pol</code></pre>
+      </div>
+      <div class="card">
+        <h3>3. Start the Dev Server</h3>
+        <p>The <code>polonio serve</code> experience is tracked in Milestone 10. The CLI already parses the command, but the server is not implemented yet.</p>
+        <pre><code>$ ./build/polonio serve --port 8080
+serve: not implemented yet</code></pre>
+        <div class="note">`serve` remains planned work (<code>docs/FEATURE_QUEUE.md</code> still lists M10 items as TODO). Keep the command around for parity with the future workflow.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="cli">
+    <h2>CLI Reference</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>polonio help</code></td>
+            <td>Show usage, commands, and a reminder that the dev server is pending.</td>
+          </tr>
+          <tr>
+            <td><code>polonio version</code></td>
+            <td>Print the frozen version string (<code>0.1.0</code>).</td>
+          </tr>
+          <tr>
+            <td><code>polonio run &lt;file.pol&gt;</code></td>
+            <td>Render a template. If the file contains `<%`, the template engine runs; otherwise Polonio executes pure code.</td>
+          </tr>
+          <tr>
+            <td><code>polonio &lt;file.pol&gt;</code></td>
+            <td>Shorthand for <code>run</code>.</td>
+          </tr>
+          <tr>
+            <td><code>polonio --dump-ast &lt;expr&gt;</code></td>
+            <td>Developer helper that prints the Pratt parser AST for the inline expression.</td>
+          </tr>
+          <tr>
+            <td><code>polonio serve [--port N] [--root DIR]</code></td>
+            <td>Reserved for the dev server milestone. Today it prints “not implemented yet” and exits with failure.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="docs">
+    <h2>Documentation</h2>
+    <div class="grid-2">
+      <a class="card" href="language.html">
+        <h3>Language Reference</h3>
+        <p>Syntax, expressions, operators, scope, and includes straight from the v0.1.0 spec.</p>
+      </a>
+      <a class="card" href="builtins.html">
+        <h3>Built-in Functions</h3>
+        <p>String, array, object, math, date, type, HTTP, and output helpers with signatures and examples.</p>
+      </a>
+      <a class="card" href="runtime.html">
+        <h3>HTTP &amp; Runtime</h3>
+        <p>CGI detection, superglobals, response helpers, URL utilities, and dev-server roadmap.</p>
+      </a>
+      <a class="card" href="examples.html">
+        <h3>Examples &amp; Cookbook</h3>
+        <p>End-to-end samples (hello world, guestbook, todo) plus the original <code>prueba.html</code> lore.</p>
+      </a>
+    </div>
+  </section>
+</main>
+</body>
+</html>
