@@ -1665,6 +1665,14 @@ echo count(a)
     CHECK(run_program_output("for i in range(5) echo i end") == "01234");
 }
 
+TEST_CASE("Array builtins: shift and unshift mutate arrays") {
+    CHECK(run_program_output("var a = [1,2,3]\necho shift(a)\necho join(a, \",\")") == "12,3");
+    CHECK(run_program_output("var a = []\necho shift(a)") == "");
+    CHECK(run_program_output("var a = []\npush(a, 1)\npush(a, 2)\npush(a, 3)\nshift(a)\nshift(a)\nshift(a)\necho shift(a)") == "");
+    CHECK(run_program_output("var a = [2,3]\necho unshift(a, 1)\necho join(a, \",\")") == "31,2,3");
+    CHECK(run_program_output("var a = [2,3]\nvar b = a\nunshift(b, 1)\necho join(a, \",\")") == "1,2,3");
+}
+
 TEST_CASE("Array builtin slice copies segments") {
     CHECK(run_program_output("var s = slice([1,2,3,4], 1)\nfor x in s echo x end") == "234");
     CHECK(run_program_output("var s = slice([1,2,3,4], 1, 2)\nfor x in s echo x end") == "23");
@@ -1710,6 +1718,9 @@ TEST_CASE("Array/Object builtin errors") {
     CHECK_THROWS_AS(run_program_output("echo keys(1)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo slice(1, 0)"), polonio::PolonioError);
     CHECK_THROWS_AS(run_program_output("echo values([1,2])"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo shift(123)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo unshift([1,2,3])"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo unshift(\"x\", 1)"), polonio::PolonioError);
 }
 
 TEST_CASE("Math builtins work for typical inputs") {

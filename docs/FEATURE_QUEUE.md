@@ -46,6 +46,7 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M6-6) html_escape builtin
 - [DONE] (M6-7) substr/slice/values builtins
 - [DONE] (M6-8) pow/sqrt builtins
+- [DONE] (M6-9) shift/unshift builtins
 
 ## Milestone 7 — Template engine
 - [DONE] (M7-1) Template scanning and execution of `<% %>` blocks
