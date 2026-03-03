@@ -106,6 +106,7 @@ Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Lo
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_shift(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_unshift(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_concat(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_slice(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -797,6 +798,28 @@ Value builtin_unshift(Interpreter& interp, const std::vector<Value>& args, const
     return Value(static_cast<double>(arr->size()));
 }
 
+Value builtin_concat(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value first = ensure_arg("concat", 0, args, interp, loc);
+    Value second = ensure_arg("concat", 1, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(first.storage()) || !std::holds_alternative<Value::ArrayPtr>(second.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "concat: expected arrays", interp.path(), loc);
+    }
+    auto a = std::get<Value::ArrayPtr>(first.storage());
+    auto b = std::get<Value::ArrayPtr>(second.storage());
+    Value::Array result;
+    if (a) {
+        for (const auto& item : *a) {
+            result.emplace_back(item);
+        }
+    }
+    if (b) {
+        for (const auto& item : *b) {
+            result.emplace_back(item);
+        }
+    }
+    return Value(std::move(result));
+}
+
 Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value array_value = ensure_arg("join", 0, args, interp, loc);
     Value sep_value = ensure_arg("join", 1, args, interp, loc);
@@ -989,6 +1012,7 @@ void install_builtins(Env& env) {
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
     env.set_local("shift", Value(BuiltinFunction{"shift", builtin_shift}));
     env.set_local("unshift", Value(BuiltinFunction{"unshift", builtin_unshift}));
+    env.set_local("concat", Value(BuiltinFunction{"concat", builtin_concat}));
     env.set_local("join", Value(BuiltinFunction{"join", builtin_join}));
     env.set_local("slice", Value(BuiltinFunction{"slice", builtin_slice}));
     env.set_local("range", Value(BuiltinFunction{"range", builtin_range}));
