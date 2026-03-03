@@ -104,6 +104,8 @@ Value builtin_date_format(Interpreter& interp, const std::vector<Value>& args, c
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_shift(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_unshift(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_slice(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -766,6 +768,35 @@ Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Loc
     return result;
 }
 
+Value builtin_shift(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value array_value = ensure_arg("shift", 0, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(array_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "shift: expected array", interp.path(), loc);
+    }
+    auto arr = std::get<Value::ArrayPtr>(array_value.storage());
+    if (!arr || arr->empty()) {
+        return Value();
+    }
+    Value result = (*arr)[0];
+    arr->erase(arr->begin());
+    return result;
+}
+
+Value builtin_unshift(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value array_value = ensure_arg("unshift", 0, args, interp, loc);
+    Value element = ensure_arg("unshift", 1, args, interp, loc);
+    if (!std::holds_alternative<Value::ArrayPtr>(array_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "unshift: expected array", interp.path(), loc);
+    }
+    auto arr = std::get<Value::ArrayPtr>(array_value.storage());
+    if (!arr) {
+        arr = std::make_shared<Value::Array>();
+        array_value = Value(Value::Array(*arr));
+    }
+    arr->insert(arr->begin(), element);
+    return Value(static_cast<double>(arr->size()));
+}
+
 Value builtin_join(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value array_value = ensure_arg("join", 0, args, interp, loc);
     Value sep_value = ensure_arg("join", 1, args, interp, loc);
@@ -956,6 +987,8 @@ void install_builtins(Env& env) {
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
+    env.set_local("shift", Value(BuiltinFunction{"shift", builtin_shift}));
+    env.set_local("unshift", Value(BuiltinFunction{"unshift", builtin_unshift}));
     env.set_local("join", Value(BuiltinFunction{"join", builtin_join}));
     env.set_local("slice", Value(BuiltinFunction{"slice", builtin_slice}));
     env.set_local("range", Value(BuiltinFunction{"range", builtin_range}));
