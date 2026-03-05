@@ -4,7 +4,16 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <string>
+
+#if defined(__APPLE__)
+#include <stdlib.h>
+#elif defined(__linux__)
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/random.h>
+#endif
 
 namespace polonio {
 
@@ -235,6 +244,36 @@ std::string hmac_sha256(const std::string& key, const std::string& data) {
     }
     std::string inner = sha256(i_key_pad + data);
     return sha256(o_key_pad + inner);
+}
+
+bool secure_random_bytes(std::string& output, std::size_t size) {
+    output.resize(size);
+#if defined(__APPLE__)
+    arc4random_buf(output.data(), size);
+    return true;
+#elif defined(__linux__)
+    ssize_t ret = getrandom(output.data(), size, 0);
+    if (ret == static_cast<ssize_t>(size)) {
+        return true;
+    }
+    int fd = ::open("/dev/urandom", O_RDONLY);
+    if (fd < 0) {
+        return false;
+    }
+    std::size_t total = 0;
+    while (total < size) {
+        ssize_t chunk = ::read(fd, output.data() + total, size - total);
+        if (chunk <= 0) {
+            ::close(fd);
+            return false;
+        }
+        total += static_cast<std::size_t>(chunk);
+    }
+    ::close(fd);
+    return true;
+#else
+#error "secure random not supported on this platform"
+#endif
 }
 
 } // namespace polonio

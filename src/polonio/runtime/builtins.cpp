@@ -19,6 +19,7 @@
 #include "polonio/runtime/cgi.h"
 #include "polonio/runtime/json_utils.h"
 #include "polonio/runtime/session.h"
+#include "polonio/runtime/crypto.h"
 #include "polonio/common/location.h"
 
 namespace polonio {
@@ -114,6 +115,14 @@ void ensure_session_serializable(const Value& value,
     });
 }
 
+std::string generate_random_token(Interpreter& interp, const Location& loc, int nbytes) {
+    std::string bytes;
+    if (!secure_random_bytes(bytes, static_cast<std::size_t>(nbytes))) {
+        throw PolonioError(ErrorKind::Runtime, "random_token: secure RNG failure", interp.path(), loc);
+    }
+    return base64url_encode(bytes);
+}
+
 Value builtin_type(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_tostring(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_to_string(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -171,6 +180,9 @@ Value builtin_session_get(Interpreter& interp, const std::vector<Value>& args, c
 Value builtin_session_set(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_session_unset(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_session_clear(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_random_token(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_csrf_token(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_csrf_verify(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1075,6 +1087,62 @@ Value builtin_session_clear(Interpreter& interp, const std::vector<Value>& args,
     return Value();
 }
 
+Value builtin_random_token(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    int nbytes = coerce_int("random_token", "nbytes", ensure_arg("random_token", 0, args, interp, loc), interp, loc);
+    if (nbytes < 1 || nbytes > 1024) {
+        throw PolonioError(ErrorKind::Runtime, "random_token: nbytes must be between 1 and 1024", interp.path(), loc);
+    }
+    std::string token = generate_random_token(interp, loc, nbytes);
+    return Value(token);
+}
+
+Value builtin_csrf_token(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (!args.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "csrf_token: expected 0 arguments", interp.path(), loc);
+    }
+    auto* session = require_session_context("csrf_token", interp, loc);
+    auto it = session->data.find("_csrf");
+    if (it != session->data.end() && std::holds_alternative<std::string>(it->second.storage())) {
+        const std::string& existing = std::get<std::string>(it->second.storage());
+        if (!existing.empty()) {
+            return Value(existing);
+        }
+    }
+    std::string token = generate_random_token(interp, loc, 32);
+    session->data["_csrf"] = Value(token);
+    session->dirty = true;
+    return Value(token);
+}
+
+Value builtin_csrf_verify(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value token_value = ensure_arg("csrf_verify", 0, args, interp, loc);
+    std::string provided;
+    if (std::holds_alternative<std::string>(token_value.storage())) {
+        provided = std::get<std::string>(token_value.storage());
+    } else {
+        return Value(false);
+    }
+    if (provided.empty()) {
+        return Value(false);
+    }
+    auto* session = interp.session_context();
+    if (!session) {
+        return Value(false);
+    }
+    if (session->is_cgi && session->secret_missing) {
+        return Value(false);
+    }
+    auto it = session->data.find("_csrf");
+    if (it == session->data.end() || !std::holds_alternative<std::string>(it->second.storage())) {
+        return Value(false);
+    }
+    const std::string& expected = std::get<std::string>(it->second.storage());
+    if (expected.empty()) {
+        return Value(false);
+    }
+    return Value(provided == expected);
+}
+
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("count", 0, args, interp, loc);
     if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
@@ -1409,6 +1477,9 @@ void install_builtins(Env& env) {
     env.set_local("session_set", Value(BuiltinFunction{"session_set", builtin_session_set}));
     env.set_local("session_unset", Value(BuiltinFunction{"session_unset", builtin_session_unset}));
     env.set_local("session_clear", Value(BuiltinFunction{"session_clear", builtin_session_clear}));
+    env.set_local("random_token", Value(BuiltinFunction{"random_token", builtin_random_token}));
+    env.set_local("csrf_token", Value(BuiltinFunction{"csrf_token", builtin_csrf_token}));
+    env.set_local("csrf_verify", Value(BuiltinFunction{"csrf_verify", builtin_csrf_verify}));
 }
 
 } // namespace polonio

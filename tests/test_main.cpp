@@ -585,6 +585,17 @@ std::string extract_session_cookie_value(const std::string& headers) {
     return value;
 }
 
+bool is_url_safe(const std::string& token) {
+    for (char ch : token) {
+        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ||
+            ch == '-' || ch == '_') {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 TEST_CASE("CLI: template blocks share interpreter state") {
@@ -990,6 +1001,118 @@ TEST_CASE("session_set rejects non-serializable values") {
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("session value not serializable") != std::string::npos);
     std::filesystem::remove(path);
+}
+
+TEST_CASE("random_token produces url-safe unique strings") {
+    auto path = create_temp_file_with_content("polonio_random_token",
+                                              "<% var a = random_token(16) %>"
+                                              "<% var b = random_token(16) %>"
+                                              "<% echo a %>\n<% echo b %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    auto pos = result.stdout_output.find('\n');
+    REQUIRE(pos != std::string::npos);
+    std::string first = result.stdout_output.substr(0, pos);
+    std::string second = result.stdout_output.substr(pos + 1);
+    CHECK_FALSE(first.empty());
+    CHECK_FALSE(second.empty());
+    CHECK(first != second);
+    CHECK(is_url_safe(first));
+    CHECK(is_url_safe(second));
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("random_token enforces bounds and types") {
+    auto path = create_temp_file_with_content("polonio_random_token_bounds",
+                                              "<% random_token(0) %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("random_token") != std::string::npos);
+    std::filesystem::remove(path);
+
+    auto path2 = create_temp_file_with_content("polonio_random_token_bounds2",
+                                               "<% random_token(2000) %>");
+    auto result2 = run_polonio({"run", path2});
+    CHECK(result2.exit_code != 0);
+    CHECK(result2.stderr_output.find("random_token") != std::string::npos);
+    std::filesystem::remove(path2);
+
+    auto path3 = create_temp_file_with_content("polonio_random_token_bounds3",
+                                               "<% random_token(\"oops\") %>");
+    auto result3 = run_polonio({"run", path3});
+    CHECK(result3.exit_code != 0);
+    CHECK(result3.stderr_output.find("random_token") != std::string::npos);
+    std::filesystem::remove(path3);
+}
+
+TEST_CASE("csrf_token returns stable value within session") {
+    auto path = create_temp_file_with_content("polonio_csrf_token",
+                                              "<% var a = csrf_token() %>"
+                                              "<% var b = csrf_token() %>"
+                                              "<% if a == b %>true<% else %>false<% end %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("csrf_verify validates tokens") {
+    auto path = create_temp_file_with_content("polonio_csrf_verify",
+                                              "<% var t = csrf_token() %>"
+                                              "<% if csrf_verify(t) %>T<% else %>F<% end %>"
+                                              "<% if csrf_verify(\"wrong\") %>T<% else %>F<% end %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "TF");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("csrf_token persists across CGI requests via session cookie") {
+    auto path = create_temp_file_with_content("polonio_csrf_cgi",
+                                              "<% echo csrf_token() %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"POLONIO_SESSION_SECRET", "csrf-secret"},
+    };
+    auto first = run_polonio_cgi(env);
+    auto parsed = parse_cgi_output(first.stdout_output);
+    std::string token = parsed.body;
+    std::string cookie_value = extract_session_cookie_value(parsed.headers);
+    REQUIRE(!cookie_value.empty());
+
+    std::vector<std::pair<std::string, std::string>> env2 = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+        {"POLONIO_SESSION_SECRET", "csrf-secret"},
+        {"HTTP_COOKIE", "polonio_session=" + cookie_value},
+    };
+    auto second = run_polonio_cgi(env2);
+    CHECK(extract_cgi_body(second.stdout_output) == token);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("csrf builtins handle missing secret in CGI mode") {
+    auto path = create_temp_file_with_content("polonio_csrf_missing_secret",
+                                              "<% csrf_token() %>");
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    auto result = run_polonio_cgi(env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("missing session secret") != std::string::npos);
+    std::filesystem::remove(path);
+
+    auto path_verify = create_temp_file_with_content("polonio_csrf_missing_secret_verify",
+                                                     "<% if csrf_verify(\"x\") %>yes<% else %>no<% end %>");
+    std::vector<std::pair<std::string, std::string>> env_verify = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path_verify},
+    };
+    auto verify_result = run_polonio_cgi(env_verify);
+    CHECK(extract_cgi_body(verify_result.stdout_output) == "no");
+    std::filesystem::remove(path_verify);
 }
 
 TEST_CASE("CGI header builtin validates syntax") {
