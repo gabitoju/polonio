@@ -11,15 +11,6 @@ namespace polonio {
 
 namespace {
 
-bool constant_time_equals(const std::string& a, const std::string& b) {
-    if (a.size() != b.size()) return false;
-    unsigned char result = 0;
-    for (std::size_t i = 0; i < a.size(); ++i) {
-        result |= static_cast<unsigned char>(a[i] ^ b[i]);
-    }
-    return result == 0;
-}
-
 std::string hex_encode(const std::string& data) {
     static const char* hex_digits = "0123456789abcdef";
     std::string out(data.size() * 2, '\0');

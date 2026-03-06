@@ -64,6 +64,11 @@ std::string trim(std::string s) {
     return s.substr(first, last - first + 1);
 }
 
+constexpr int kPasswordHashIterations = 200000;
+constexpr int kPasswordHashSaltLen = 16;
+constexpr int kPasswordHashKeyLen = 32;
+constexpr int kPasswordHashMaxIterations = 10000000;
+
 std::mt19937_64& global_rng() {
     static std::mt19937_64 rng(0xC0FFEE);
     return rng;
@@ -183,6 +188,8 @@ Value builtin_session_clear(Interpreter& interp, const std::vector<Value>& args,
 Value builtin_random_token(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_csrf_token(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_csrf_verify(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_hash_password(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_verify_password(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_push(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_pop(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1143,6 +1150,78 @@ Value builtin_csrf_verify(Interpreter& interp, const std::vector<Value>& args, c
     return Value(provided == expected);
 }
 
+Value builtin_hash_password(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value password_value = ensure_arg("hash_password", 0, args, interp, loc);
+    if (!std::holds_alternative<std::string>(password_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "hash_password: expected string", interp.path(), loc);
+    }
+    const std::string& password = std::get<std::string>(password_value.storage());
+    std::string salt;
+    if (!secure_random_bytes(salt, kPasswordHashSaltLen)) {
+        throw PolonioError(ErrorKind::Runtime, "hash_password: secure RNG failure", interp.path(), loc);
+    }
+    std::string dk = pbkdf2_hmac_sha256(password, salt, kPasswordHashIterations, kPasswordHashKeyLen);
+    std::string salt_b64 = base64url_encode(salt);
+    std::string dk_b64 = base64url_encode(dk);
+    std::string hash = "pbkdf2_sha256$" + std::to_string(kPasswordHashIterations) + "$" + salt_b64 + "$" + dk_b64;
+    return Value(hash);
+}
+
+Value builtin_verify_password(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    Value password_value = ensure_arg("verify_password", 0, args, interp, loc);
+    Value hash_value = ensure_arg("verify_password", 1, args, interp, loc);
+    if (!std::holds_alternative<std::string>(password_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "verify_password: password must be string", interp.path(), loc);
+    }
+    if (!std::holds_alternative<std::string>(hash_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "verify_password: hash must be string", interp.path(), loc);
+    }
+    const std::string& password = std::get<std::string>(password_value.storage());
+    const std::string& hash = std::get<std::string>(hash_value.storage());
+
+    std::vector<std::string> parts;
+    parts.reserve(4);
+    std::size_t start = 0;
+    for (int i = 0; i < 3; ++i) {
+        std::size_t pos = hash.find('$', start);
+        if (pos == std::string::npos) {
+            break;
+        }
+        parts.emplace_back(hash.substr(start, pos - start));
+        start = pos + 1;
+    }
+    parts.emplace_back(hash.substr(start));
+    if (parts.size() != 4) {
+        return Value(false);
+    }
+    if (parts[0] != "pbkdf2_sha256") {
+        return Value(false);
+    }
+    long long iterations = 0;
+    try {
+        iterations = std::stoll(parts[1]);
+    } catch (...) {
+        return Value(false);
+    }
+    if (iterations <= 0 || iterations > kPasswordHashMaxIterations) {
+        return Value(false);
+    }
+    std::string salt_bytes;
+    std::string dk_bytes;
+    if (!base64url_decode(parts[2], salt_bytes) || !base64url_decode(parts[3], dk_bytes)) {
+        return Value(false);
+    }
+    if (salt_bytes.size() != static_cast<std::size_t>(kPasswordHashSaltLen) ||
+        dk_bytes.size() != static_cast<std::size_t>(kPasswordHashKeyLen)) {
+        return Value(false);
+    }
+    std::string computed = pbkdf2_hmac_sha256(password, salt_bytes, static_cast<int>(iterations), dk_bytes.size());
+    if (computed.size() != dk_bytes.size()) {
+        return Value(false);
+    }
+    return Value(constant_time_equals(computed, dk_bytes));
+}
+
 Value builtin_count(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("count", 0, args, interp, loc);
     if (std::holds_alternative<Value::ArrayPtr>(value.storage())) {
@@ -1480,6 +1559,8 @@ void install_builtins(Env& env) {
     env.set_local("random_token", Value(BuiltinFunction{"random_token", builtin_random_token}));
     env.set_local("csrf_token", Value(BuiltinFunction{"csrf_token", builtin_csrf_token}));
     env.set_local("csrf_verify", Value(BuiltinFunction{"csrf_verify", builtin_csrf_verify}));
+    env.set_local("hash_password", Value(BuiltinFunction{"hash_password", builtin_hash_password}));
+    env.set_local("verify_password", Value(BuiltinFunction{"verify_password", builtin_verify_password}));
 }
 
 } // namespace polonio
