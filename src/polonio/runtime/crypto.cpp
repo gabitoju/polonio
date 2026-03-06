@@ -276,4 +276,47 @@ bool secure_random_bytes(std::string& output, std::size_t size) {
 #endif
 }
 
+std::string pbkdf2_hmac_sha256(const std::string& password,
+                               const std::string& salt,
+                               int iterations,
+                               std::size_t dk_len) {
+    if (iterations <= 0 || dk_len == 0) {
+        return std::string();
+    }
+    std::size_t hash_len = 32;
+    std::size_t blocks = (dk_len + hash_len - 1) / hash_len;
+    std::string derived;
+    derived.resize(blocks * hash_len);
+    for (std::size_t block_index = 1; block_index <= blocks; ++block_index) {
+        std::string block_input = salt;
+        uint32_t be_block = static_cast<uint32_t>(block_index);
+        block_input.push_back(static_cast<char>((be_block >> 24) & 0xFF));
+        block_input.push_back(static_cast<char>((be_block >> 16) & 0xFF));
+        block_input.push_back(static_cast<char>((be_block >> 8) & 0xFF));
+        block_input.push_back(static_cast<char>(be_block & 0xFF));
+
+        std::string u = hmac_sha256(password, block_input);
+        std::string t = u;
+        for (int i = 1; i < iterations; ++i) {
+            u = hmac_sha256(password, u);
+            for (std::size_t j = 0; j < hash_len; ++j) {
+                t[j] = static_cast<char>(static_cast<unsigned char>(t[j]) ^
+                                         static_cast<unsigned char>(u[j]));
+            }
+        }
+        std::memcpy(&derived[(block_index - 1) * hash_len], t.data(), hash_len);
+    }
+    derived.resize(dk_len);
+    return derived;
+}
+
+bool constant_time_equals(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) return false;
+    unsigned char result = 0;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        result |= static_cast<unsigned char>(a[i] ^ b[i]);
+    }
+    return result == 0;
+}
+
 } // namespace polonio

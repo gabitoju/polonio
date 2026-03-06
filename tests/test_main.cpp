@@ -1115,6 +1115,72 @@ TEST_CASE("csrf builtins handle missing secret in CGI mode") {
     std::filesystem::remove(path_verify);
 }
 
+TEST_CASE("hash_password + verify_password roundtrip") {
+    auto path = create_temp_file_with_content("polonio_hash_password",
+                                              "<% var h = hash_password(\"secret\") %>"
+                                              "<% echo h %>\n"
+                                              "<% if verify_password(\"secret\", h) %>true<% else %>false<% end %>"
+                                              "<% if verify_password(\"wrong\", h) %>true<% else %>false<% end %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    auto lines = result.stdout_output;
+    auto newline = lines.find('\n');
+    REQUIRE(newline != std::string::npos);
+    std::string hash = lines.substr(0, newline);
+    std::string rest = lines.substr(newline + 1);
+    CHECK(hash.find("pbkdf2_sha256$") != std::string::npos);
+    CHECK(rest == "truefalse");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("hash_password generates different hashes for same input") {
+    auto path = create_temp_file_with_content("polonio_hash_password_uniqueness",
+                                              "<% var a = hash_password(\"same\") %>"
+                                              "<% var b = hash_password(\"same\") %>"
+                                              "<% if a == b %>same<% else %>diff<% end %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "diff");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("password hashing type checks and malformed hashes") {
+    auto path = create_temp_file_with_content("polonio_hash_password_type", "<% hash_password(123) %>");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("hash_password") != std::string::npos);
+    std::filesystem::remove(path);
+
+    auto path2 = create_temp_file_with_content("polonio_verify_password_type1",
+                                               "<% verify_password(123, \"x\") %>");
+    auto result2 = run_polonio({"run", path2});
+    CHECK(result2.exit_code != 0);
+    CHECK(result2.stderr_output.find("verify_password") != std::string::npos);
+    std::filesystem::remove(path2);
+
+    auto path3 = create_temp_file_with_content("polonio_verify_password_type2",
+                                               "<% verify_password(\"x\", 123) %>");
+    auto result3 = run_polonio({"run", path3});
+    CHECK(result3.exit_code != 0);
+    CHECK(result3.stderr_output.find("verify_password") != std::string::npos);
+    std::filesystem::remove(path3);
+
+    auto path4 = create_temp_file_with_content("polonio_verify_password_malformed",
+                                               "<% if verify_password(\"x\", \"nope\") %>t<% else %>f<% end %>");
+    auto result4 = run_polonio({"run", path4});
+    CHECK(result4.exit_code == 0);
+    CHECK(result4.stdout_output == "f");
+    std::filesystem::remove(path4);
+
+    auto path5 = create_temp_file_with_content("polonio_verify_password_iteration_bounds",
+                                               "<% echo verify_password(\"x\", \"pbkdf2_sha256$0$a$b\") %>"
+                                               "<% echo verify_password(\"x\", \"pbkdf2_sha256$1000000000$a$b\") %>");
+    auto result5 = run_polonio({"run", path5});
+    CHECK(result5.exit_code == 0);
+    CHECK(result5.stdout_output == "falsefalse");
+    std::filesystem::remove(path5);
+}
+
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
                                               "<% header(\"bad header\") %>");
