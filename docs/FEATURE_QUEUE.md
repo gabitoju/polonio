@@ -88,3 +88,4 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 11 — Request helpers
 - [DONE] (M11-1) request helper builtins (body/headers/cookies/json)
 - [DONE] (M11-2) Sessions (signed cookie)
+- [DONE] (M11-3) Security primitives: random_token + CSRF
