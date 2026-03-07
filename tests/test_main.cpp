@@ -1281,6 +1281,141 @@ TEST_CASE("file_exists for directory returns false") {
     std::filesystem::remove_all(dir);
 }
 
+TEST_CASE("file_append appends to existing file") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_append_existing";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_append_existing_program",
+        "<% dir_create(\"logs\") %>"
+        "<% file_write(\"logs/app.log\", \"hello\") %>"
+        "<% file_append(\"logs/app.log\", \" world\") %>"
+        "<% echo file_read(\"logs/app.log\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "hello world");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("file_append creates file if missing") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_append_new";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_append_new_program",
+        "<% dir_create(\"logs\") %>"
+        "<% file_append(\"logs/new.log\", \"first\") %>"
+        "<% echo file_read(\"logs/new.log\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "first");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("file_delete removes existing file") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_delete_existing";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_delete_existing_program",
+        "<% dir_create(\"tmp\") %>"
+        "<% file_write(\"tmp/a.txt\", \"x\") %>"
+        "<% echo file_delete(\"tmp/a.txt\") %>"
+        "<% echo file_exists(\"tmp/a.txt\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "truefalse");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("file_delete missing returns false") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_delete_missing";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_delete_missing_program",
+        "<% echo file_delete(\"missing.txt\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "false");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("file_size returns byte count") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_file_size";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_file_size_program",
+        "<% dir_create(\"tmp\") %>"
+        "<% file_write(\"tmp/a.txt\", \"hello\") %>"
+        "<% echo file_size(\"tmp/a.txt\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "5");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("file_modified returns epoch seconds") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_file_modified";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_file_modified_program",
+        "<% dir_create(\"tmp\") %>"
+        "<% file_write(\"tmp/a.txt\", \"x\") %>"
+        "<% if file_modified(\"tmp/a.txt\") > 0 %>true<% else %>false<% end %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("dir_exists checks directories") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_dir_exists_builtin";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_dir_exists_builtin_program",
+        "<% dir_create(\"notes\") %>"
+        "<% echo dir_exists(\"notes\") %>"
+        "<% echo dir_exists(\"missing\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "truefalse");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("file_size rejects directory inputs") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_file_size_dir";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_file_size_dir_program",
+        "<% dir_create(\"notes\") %>"
+        "<% file_size(\"notes\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("not a file") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
                                               "<% header(\"bad header\") %>");
