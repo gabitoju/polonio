@@ -326,6 +326,40 @@
 <span class="tag">&lt;/tr&gt;</span>
 <span class="kw">&lt;%</span> <span class="kw">end</span> <span class="kw">%&gt;</span></code></pre>
 
+  <!-- ════════════════════════ Storage ════════════════════════ -->
+  <h2 id="storage">Working with Storage</h2>
+  <p>Use the sandboxed storage helpers to keep application data under <code>POLONIO_STORAGE_PATH</code>.</p>
+
+  <h3>Example 1 — Saving a blog post</h3>
+  <pre><code>&lt;%
+dir_create("posts")
+file_write("posts/hello.txt", "Hello from Polonio!")
+%&gt;</code></pre>
+
+  <h3>Example 2 — Reading posts</h3>
+  <pre><code>&lt;%
+var posts = dir_list("posts")
+%&gt;
+
+&lt;ul&gt;
+&lt;% for p in posts %&gt;
+  &lt;li&gt;$p&lt;/li&gt;
+&lt;% end %&gt;
+&lt;/ul&gt;
+</code></pre>
+
+  <h3>Example 3 — Append logs</h3>
+  <pre><code>&lt;%
+dir_create("logs")
+file_append("logs/app.log", "started\n")
+%&gt;</code></pre>
+
+  <h3>Example 4 — File metadata</h3>
+  <pre><code>&lt;%
+var size = file_size("posts/hello.txt")
+echo size
+%&gt;</code></pre>
+
   <h2 id="prueba">The Original <code>prueba.html</code></h2>
   <p>The name Polonio comes from <a href="https://en.wikipedia.org/wiki/Cabo_Polonio">Cabo Polonio</a>, a remote off-grid hamlet on the eastern coast of Uruguay. Sitting on a peninsula that juts into the Atlantic, reachable only by 4x4 across sand dunes, with no electricity grid and a lighthouse as its only artificial light &mdash; it's a place apart from the rest of the world. A fitting namesake for a scrappy little language built from scratch.</p>
   <p>In 2005, a developer in Uruguay created a CGI program called <code>hola.exe</code> &mdash; a C++ executable that read HTML template files and processed embedded Polonio directives. The very first test template was <code>prueba.html</code>:</p>
