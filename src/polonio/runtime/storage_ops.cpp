@@ -1,6 +1,7 @@
 #include "polonio/runtime/storage_ops.h"
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <random>
@@ -108,6 +109,30 @@ void storage_file_write(const std::string& relative,
     }
 }
 
+void storage_file_append(const std::string& relative,
+                         const std::string& content,
+                         Interpreter& interp,
+                         const std::string& builtin_name,
+                         const Location& loc) {
+    auto resolved = resolve_storage_path(relative, interp, builtin_name, loc);
+    std::filesystem::path path(resolved);
+    ensure_parent_exists(path, builtin_name, interp, loc);
+    if (std::filesystem::exists(path) && std::filesystem::is_directory(path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": target is a directory",
+                           interp.path(),
+                           loc);
+    }
+    std::ofstream file(path, std::ios::binary | std::ios::app);
+    if (!file) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": unable to append to file",
+                           interp.path(),
+                           loc);
+    }
+    file << content;
+}
+
 bool storage_file_exists(const std::string& relative,
                          Interpreter& interp,
                          const std::string& builtin_name,
@@ -118,6 +143,94 @@ bool storage_file_exists(const std::string& relative,
         return false;
     }
     return std::filesystem::is_regular_file(path);
+}
+
+bool storage_file_delete(const std::string& relative,
+                         Interpreter& interp,
+                         const std::string& builtin_name,
+                         const Location& loc) {
+    auto resolved = resolve_storage_path(relative, interp, builtin_name, loc);
+    std::filesystem::path path(resolved);
+    if (!std::filesystem::exists(path)) {
+        return false;
+    }
+    if (std::filesystem::is_directory(path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": path is a directory",
+                           interp.path(),
+                           loc);
+    }
+    std::error_code ec;
+    bool removed = std::filesystem::remove(path, ec);
+    if (ec) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": unable to delete file",
+                           interp.path(),
+                           loc);
+    }
+    return removed;
+}
+
+std::uintmax_t storage_file_size(const std::string& relative,
+                                 Interpreter& interp,
+                                 const std::string& builtin_name,
+                                 const Location& loc) {
+    auto resolved = resolve_storage_path(relative, interp, builtin_name, loc);
+    std::filesystem::path path(resolved);
+    if (!std::filesystem::exists(path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": file not found",
+                           interp.path(),
+                           loc);
+    }
+    if (!std::filesystem::is_regular_file(path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": not a file",
+                           interp.path(),
+                           loc);
+    }
+    std::error_code ec;
+    auto size = std::filesystem::file_size(path, ec);
+    if (ec) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": unable to read file size",
+                           interp.path(),
+                           loc);
+    }
+    return size;
+}
+
+std::int64_t storage_file_modified(const std::string& relative,
+                                   Interpreter& interp,
+                                   const std::string& builtin_name,
+                                   const Location& loc) {
+    auto resolved = resolve_storage_path(relative, interp, builtin_name, loc);
+    std::filesystem::path path(resolved);
+    if (!std::filesystem::exists(path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": file not found",
+                           interp.path(),
+                           loc);
+    }
+    if (!std::filesystem::is_regular_file(path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": not a file",
+                           interp.path(),
+                           loc);
+    }
+    std::error_code ec;
+    auto ftime = std::filesystem::last_write_time(path, ec);
+    if (ec) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": unable to read file time",
+                           interp.path(),
+                           loc);
+    }
+    auto diff = ftime - std::filesystem::file_time_type::clock::now();
+    auto system_time = std::chrono::system_clock::now() +
+                       std::chrono::duration_cast<std::chrono::system_clock::duration>(diff);
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(system_time.time_since_epoch()).count();
+    return seconds;
 }
 
 bool storage_dir_create(const std::string& relative,
@@ -144,6 +257,15 @@ bool storage_dir_create(const std::string& relative,
                            loc);
     }
     return true;
+}
+
+bool storage_dir_exists(const std::string& relative,
+                        Interpreter& interp,
+                        const std::string& builtin_name,
+                        const Location& loc) {
+    auto resolved = resolve_storage_path(relative, interp, builtin_name, loc);
+    std::filesystem::path path(resolved);
+    return std::filesystem::exists(path) && std::filesystem::is_directory(path);
 }
 
 std::vector<std::string> storage_dir_list(const std::string& relative,

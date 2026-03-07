@@ -163,9 +163,14 @@ Value builtin_starts_with(Interpreter& interp, const std::vector<Value>& args, c
 Value builtin_ends_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_file_read(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_file_write(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_append(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_file_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_delete(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_size(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_modified(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_dir_create(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_dir_list(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_dir_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1521,6 +1526,18 @@ Value builtin_file_write(Interpreter& interp, const std::vector<Value>& args, co
     return Value();
 }
 
+Value builtin_file_append(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 2) {
+        throw PolonioError(ErrorKind::Runtime, "file_append: expected 2 arguments", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_append", 0, args, interp, loc);
+    const Value& content_value = ensure_arg("file_append", 1, args, interp, loc);
+    std::string path = require_storage_path_arg("file_append", path_value, interp, loc);
+    std::string content = OutputBuffer::value_to_string(content_value);
+    storage_file_append(path, content, interp, "file_append", loc);
+    return Value();
+}
+
 Value builtin_file_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     if (args.size() != 1) {
         throw PolonioError(ErrorKind::Runtime, "file_exists: expected 1 argument", interp.path(), loc);
@@ -1529,6 +1546,36 @@ Value builtin_file_exists(Interpreter& interp, const std::vector<Value>& args, c
     std::string path = require_storage_path_arg("file_exists", path_value, interp, loc);
     bool exists = storage_file_exists(path, interp, "file_exists", loc);
     return Value(exists);
+}
+
+Value builtin_file_delete(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "file_delete: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_delete", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("file_delete", path_value, interp, loc);
+    bool deleted = storage_file_delete(path, interp, "file_delete", loc);
+    return Value(deleted);
+}
+
+Value builtin_file_size(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "file_size: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_size", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("file_size", path_value, interp, loc);
+    auto size = storage_file_size(path, interp, "file_size", loc);
+    return Value(static_cast<double>(size));
+}
+
+Value builtin_file_modified(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "file_modified: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_modified", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("file_modified", path_value, interp, loc);
+    auto seconds = storage_file_modified(path, interp, "file_modified", loc);
+    return Value(static_cast<double>(seconds));
 }
 
 Value builtin_dir_create(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -1556,6 +1603,16 @@ Value builtin_dir_list(Interpreter& interp, const std::vector<Value>& args, cons
     return Value(std::move(result));
 }
 
+Value builtin_dir_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "dir_exists: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("dir_exists", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("dir_exists", path_value, interp, loc);
+    bool exists = storage_dir_exists(path, interp, "dir_exists", loc);
+    return Value(exists);
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -1581,9 +1638,14 @@ void install_builtins(Env& env) {
     env.set_local("ends_with", Value(BuiltinFunction{"ends_with", builtin_ends_with}));
     env.set_local("file_read", Value(BuiltinFunction{"file_read", builtin_file_read}));
     env.set_local("file_write", Value(BuiltinFunction{"file_write", builtin_file_write}));
+    env.set_local("file_append", Value(BuiltinFunction{"file_append", builtin_file_append}));
     env.set_local("file_exists", Value(BuiltinFunction{"file_exists", builtin_file_exists}));
+    env.set_local("file_delete", Value(BuiltinFunction{"file_delete", builtin_file_delete}));
+    env.set_local("file_size", Value(BuiltinFunction{"file_size", builtin_file_size}));
+    env.set_local("file_modified", Value(BuiltinFunction{"file_modified", builtin_file_modified}));
     env.set_local("dir_create", Value(BuiltinFunction{"dir_create", builtin_dir_create}));
     env.set_local("dir_list", Value(BuiltinFunction{"dir_list", builtin_dir_list}));
+    env.set_local("dir_exists", Value(BuiltinFunction{"dir_exists", builtin_dir_exists}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
