@@ -47,6 +47,22 @@ expressive, readable dynamic web pages.
 Grouped by: - String - Array - Object - Math - Type - Date - Output -
 HTTP
 
+## Storage Builtins
+
+Polonio templates can access the filesystem only through sandboxed
+storage helpers. Every storage operation resolves the requested relative
+path against the `POLONIO_STORAGE_PATH` environment variable, rejects
+absolute paths, rejects traversal (`..`) after normalization, and raises
+a runtime error if the resolved target would escape the storage root or
+if the storage root is not configured.
+
+Available functions:
+
+-   `file_read(path)` / `file_write(path, content)` / `file_append(path, content)`
+-   `file_exists(path)` / `file_delete(path)`
+-   `file_size(path)` / `file_modified(path)`
+-   `dir_create(path)` / `dir_exists(path)` / `dir_list(path)`
+
 ## Control Flow
 
 -   `if / elseif / else / end`

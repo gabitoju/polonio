@@ -33,6 +33,7 @@
     <a href="#date">Date</a>
     <a href="#output">Output</a>
     <a href="#http">HTTP</a>
+    <a href="#storage">Storage</a>
   </nav>
 </aside>
 <main class="content">
@@ -558,6 +559,237 @@ b</code></div>
       <p>Decode percent-encoded strings.</p>
       <pre><code>&lt;% echo urldecode(&quot;hola+mundo&quot;) %&gt;</code></pre>
       <div class="example-output"><strong>Output:</strong> <code>hola mundo</code></div>
+    </article>
+  </section>
+  <section id="storage">
+    <h2>Storage Functions (10)</h2>
+    <p>Polonio provides a sandboxed storage API for reading and writing files. All filesystem access occurs inside the directory referenced by the <code>POLONIO_STORAGE_PATH</code> environment variable, keeping templates away from arbitrary host files.</p>
+    <p>Rules enforced by every storage builtin:</p>
+    <ul>
+      <li>All paths must be relative (absolute paths are rejected).</li>
+      <li>Path traversal components such as <code>..</code> are rejected after normalization.</li>
+      <li>Resolved paths may not escape the configured storage root.</li>
+      <li>Runtime errors are raised when the storage root is missing.</li>
+    </ul>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>file_read(path)</code></td><td>Read a file as a string.</td></tr>
+          <tr><td><code>file_write(path, content)</code></td><td>Write (replace) the contents of a file.</td></tr>
+          <tr><td><code>file_append(path, content)</code></td><td>Append text to a file, creating it if missing.</td></tr>
+          <tr><td><code>file_exists(path)</code></td><td>Return true if a regular file exists.</td></tr>
+          <tr><td><code>file_delete(path)</code></td><td>Delete a regular file if it exists.</td></tr>
+          <tr><td><code>file_size(path)</code></td><td>Return file size in bytes.</td></tr>
+          <tr><td><code>file_modified(path)</code></td><td>Return last modification time in epoch seconds.</td></tr>
+          <tr><td><code>dir_create(path)</code></td><td>Create a directory tree relative to the storage root.</td></tr>
+          <tr><td><code>dir_exists(path)</code></td><td>Return true if a directory exists.</td></tr>
+          <tr><td><code>dir_list(path)</code></td><td>List directory entries (names only) sorted ascending.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <article>
+      <h3 id="file_read"><code>file_read(path)</code></h3>
+      <p>Read the contents of a file inside the storage root and return it as a string.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative path to a regular file</li>
+      </ul>
+      <p><strong>Returns:</strong> string containing the file contents.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>file missing</li>
+        <li>path refers to a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+var text = file_read("notes/welcome.txt")
+echo text
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="file_write"><code>file_write(path, content)</code></h3>
+      <p>Write the provided content to a file. The file is created or replaced atomically; parent directories must already exist.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative file path (parent directory must exist)</li>
+        <li><code>content</code> — value converted to a string before writing</li>
+      </ul>
+      <p><strong>Returns:</strong> <code>null</code>.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>missing parent directory</li>
+        <li>target is a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+dir_create("drafts")
+file_write("drafts/post.txt", "Hello from Polonio!")
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="file_append"><code>file_append(path, content)</code></h3>
+      <p>Append content to a file, creating the file when it does not exist. Parent directories must exist and the target cannot be a directory.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative file path</li>
+        <li><code>content</code> — value converted to a string before appending</li>
+      </ul>
+      <p><strong>Returns:</strong> <code>null</code>.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>missing parent directory</li>
+        <li>target is a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+dir_create("logs")
+file_append("logs/app.log", "started\n")
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="file_exists"><code>file_exists(path)</code></h3>
+      <p>Test whether a regular file exists at the given relative path.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative file path</li>
+      </ul>
+      <p><strong>Returns:</strong> <code>true</code> if a regular file exists, otherwise <code>false</code>.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;% echo file_exists("drafts/post.txt") %&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="file_delete"><code>file_delete(path)</code></h3>
+      <p>Delete a regular file if it exists under the storage root.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative file path</li>
+      </ul>
+      <p><strong>Returns:</strong> <code>true</code> if a file was deleted, <code>false</code> if nothing existed.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>path refers to a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+if file_delete("drafts/post.txt")
+  echo "Removed draft"
+end
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="file_size"><code>file_size(path)</code></h3>
+      <p>Return the size of a regular file in bytes.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative file path</li>
+      </ul>
+      <p><strong>Returns:</strong> number representing the byte length.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>file missing</li>
+        <li>path refers to a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+var size = file_size("drafts/post.txt")
+echo "Size: " .. size .. " bytes"
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="file_modified"><code>file_modified(path)</code></h3>
+      <p>Return the last modification timestamp of a file as Unix epoch seconds.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative file path</li>
+      </ul>
+      <p><strong>Returns:</strong> number representing seconds since the Unix epoch.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>file missing</li>
+        <li>path refers to a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+var updated_at = file_modified("drafts/post.txt")
+echo "Last updated: " .. updated_at
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="dir_create"><code>dir_create(path)</code></h3>
+      <p>Create the requested directory (and any intermediate directories) under the storage root.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative directory path</li>
+      </ul>
+      <p><strong>Returns:</strong> <code>true</code> whether the directory already existed or was just created.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>path already exists as a file</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;% dir_create("uploads/images") %&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="dir_exists"><code>dir_exists(path)</code></h3>
+      <p>Check whether a directory exists.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative directory path</li>
+      </ul>
+      <p><strong>Returns:</strong> <code>true</code> if the path exists and is a directory; otherwise <code>false</code>.</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+if dir_exists("uploads")
+  echo "Uploads ready"
+end
+%&gt;</code></pre>
+    </article>
+    <article>
+      <h3 id="dir_list"><code>dir_list(path)</code></h3>
+      <p>Return an array of entry names (files and directories) sorted ascending for the requested directory.</p>
+      <p><strong>Arguments:</strong></p>
+      <ul>
+        <li><code>path</code> — relative directory path</li>
+      </ul>
+      <p><strong>Returns:</strong> array of strings (entry names).</p>
+      <p><strong>Errors:</strong></p>
+      <ul>
+        <li>storage root not configured</li>
+        <li>absolute or escaping path</li>
+        <li>path missing or not a directory</li>
+      </ul>
+      <p><strong>Example:</strong></p>
+      <pre><code>&lt;%
+var entries = dir_list("posts")
+for name in entries
+  echo "&lt;li&gt;" .. name .. "&lt;/li&gt;"
+end
+%&gt;</code></pre>
     </article>
   </section>
 </main>
