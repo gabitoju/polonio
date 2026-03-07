@@ -73,10 +73,11 @@ $ make test</code></pre>
       </div>
       <div class="card">
         <h3>3. Start the Dev Server</h3>
-        <p>The <code>polonio serve</code> experience is tracked in Milestone 10. The CLI already parses the command, but the server is not implemented yet.</p>
-        <pre><code>$ ./build/polonio serve --port 8080
-serve: not implemented yet</code></pre>
-        <div class="note">`serve` remains planned work (<code>docs/FEATURE_QUEUE.md</code> still lists M10 items as TODO). Keep the command around for parity with the future workflow.</div>
+        <p>Milestone 10 kicked off with a stub server: <code>polonio serve</code> validates <code>--port</code>/<code>--root</code>, listens on localhost, and replies with a fixed <code>200 OK</code> body.</p>
+        <pre><code>$ ./build/polonio serve --port 8080 --root ./examples
+Serving ./examples on http://localhost:8080
+# first request receives plain-text "OK"</code></pre>
+        <div class="note">Static files, templates, and POST handling are coming in follow-up M10 sub-milestones; for now the stub is a scaffolding target.</div>
       </div>
     </div>
   </section>
@@ -94,7 +95,7 @@ serve: not implemented yet</code></pre>
         <tbody>
           <tr>
             <td><code>polonio help</code></td>
-            <td>Show usage, commands, and a reminder that the dev server is pending.</td>
+            <td>Show usage, commands, and current dev server status.</td>
           </tr>
           <tr>
             <td><code>polonio version</code></td>
@@ -114,7 +115,7 @@ serve: not implemented yet</code></pre>
           </tr>
           <tr>
             <td><code>polonio serve [--port N] [--root DIR]</code></td>
-            <td>Reserved for the dev server milestone. Today it prints “not implemented yet” and exits with failure.</td>
+            <td>Experimental dev server stub: validates options, listens on localhost, serves a single <code>200 OK</code> response.</td>
           </tr>
         </tbody>
       </table>

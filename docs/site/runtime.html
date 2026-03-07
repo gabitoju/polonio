@@ -103,14 +103,14 @@
   </section>
 
   <section id="dev-server">
-    <h2>Dev Server (Planned)</h2>
-    <p>The CLI already accepts <code>polonio serve [--port N] [--root DIR]</code>, but <code>src/main.cpp</code> currently prints “serve: not implemented yet” and exits. Milestone 10 in <code>docs/FEATURE_QUEUE.md</code> tracks the work:</p>
+    <h2>Dev Server (Stub)</h2>
+    <p><code>polonio serve [--port N] [--root DIR]</code> now binds to localhost, validates the requested root directory, logs the URL, and responds to the first HTTP connection with a fixed <code>200 OK</code> text body. This scaffolding powers upcoming work listed in <code>docs/FEATURE_QUEUE.md</code>:</p>
     <ul>
-      <li>Basic HTTP listener with routing and static file support.</li>
-      <li>Template rendering that mirrors CGI behavior, including `_GET`/`_POST`/`_COOKIE`/`_SERVER` population.</li>
-      <li>Flags for port/root configuration matching the help text.</li>
+      <li>Static file routing rooted at the provided directory.</li>
+      <li>Template rendering with CGI-parity superglobals and POST handling.</li>
+      <li>Response helper support (<code>http_status</code>, <code>redirect</code>, etc.).</li>
     </ul>
-    <div class="warn">Until Milestone 10 ships, rely on CGI or ad-hoc scripting to serve templates. Keep the docs and CLI usage accurate so contributors know the feature is pending.</div>
+    <div class="note">Use the stub mainly to verify CLI plumbing or watch for port conflicts; real static/template serving will land in later sub-milestones.</div>
   </section>
 </main>
 <script src="highlight.js"></script>
