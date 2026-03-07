@@ -90,3 +90,6 @@ Legend: TODO | DOING | DONE | BLOCKED
 - [DONE] (M11-2) Sessions (signed cookie)
 - [DONE] (M11-3) Security primitives: random_token + CSRF
 - [DONE] (M11-4) Password hashing builtins
+
+## Milestone 12 — Storage
+- [DONE] (M12-1) Storage core

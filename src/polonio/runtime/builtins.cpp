@@ -19,6 +19,7 @@
 #include "polonio/runtime/cgi.h"
 #include "polonio/runtime/json_utils.h"
 #include "polonio/runtime/session.h"
+#include "polonio/runtime/storage_ops.h"
 #include "polonio/runtime/crypto.h"
 #include "polonio/common/location.h"
 
@@ -38,6 +39,19 @@ const Value& ensure_arg(const std::string& name,
                            loc);
     }
     return args[index];
+}
+
+std::string require_storage_path_arg(const std::string& builtin_name,
+                                     const Value& value,
+                                     Interpreter& interp,
+                                     const Location& loc) {
+    if (!std::holds_alternative<std::string>(value.storage())) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": path must be string",
+                           interp.path(),
+                           loc);
+    }
+    return std::get<std::string>(value.storage());
 }
 
 void write_output_values(Interpreter& interp, const std::vector<Value>& args) {
@@ -147,6 +161,11 @@ Value builtin_split(Interpreter& interp, const std::vector<Value>& args, const L
 Value builtin_contains(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_starts_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ends_with(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_read(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_write(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_file_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_dir_create(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_dir_list(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1480,6 +1499,63 @@ Value builtin_values(Interpreter& interp, const std::vector<Value>& args, const 
     return Value(std::move(result));
 }
 
+Value builtin_file_read(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "file_read: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_read", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("file_read", path_value, interp, loc);
+    auto content = storage_file_read(path, interp, "file_read", loc);
+    return Value(content);
+}
+
+Value builtin_file_write(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 2) {
+        throw PolonioError(ErrorKind::Runtime, "file_write: expected 2 arguments", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_write", 0, args, interp, loc);
+    const Value& content_value = ensure_arg("file_write", 1, args, interp, loc);
+    std::string path = require_storage_path_arg("file_write", path_value, interp, loc);
+    std::string content = OutputBuffer::value_to_string(content_value);
+    storage_file_write(path, content, interp, "file_write", loc);
+    return Value();
+}
+
+Value builtin_file_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "file_exists: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("file_exists", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("file_exists", path_value, interp, loc);
+    bool exists = storage_file_exists(path, interp, "file_exists", loc);
+    return Value(exists);
+}
+
+Value builtin_dir_create(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "dir_create: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("dir_create", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("dir_create", path_value, interp, loc);
+    bool created = storage_dir_create(path, interp, "dir_create", loc);
+    return Value(created);
+}
+
+Value builtin_dir_list(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "dir_list: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("dir_list", 0, args, interp, loc);
+    std::string path = require_storage_path_arg("dir_list", path_value, interp, loc);
+    auto entries = storage_dir_list(path, interp, "dir_list", loc);
+    Value::Array result;
+    result.reserve(entries.size());
+    for (const auto& entry : entries) {
+        result.emplace_back(entry);
+    }
+    return Value(std::move(result));
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -1503,6 +1579,11 @@ void install_builtins(Env& env) {
     env.set_local("contains", Value(BuiltinFunction{"contains", builtin_contains}));
     env.set_local("starts_with", Value(BuiltinFunction{"starts_with", builtin_starts_with}));
     env.set_local("ends_with", Value(BuiltinFunction{"ends_with", builtin_ends_with}));
+    env.set_local("file_read", Value(BuiltinFunction{"file_read", builtin_file_read}));
+    env.set_local("file_write", Value(BuiltinFunction{"file_write", builtin_file_write}));
+    env.set_local("file_exists", Value(BuiltinFunction{"file_exists", builtin_file_exists}));
+    env.set_local("dir_create", Value(BuiltinFunction{"dir_create", builtin_dir_create}));
+    env.set_local("dir_list", Value(BuiltinFunction{"dir_list", builtin_dir_list}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));

@@ -92,8 +92,10 @@ CommandResult run_polonio_with_env(const std::vector<std::string>& args,
                                    const std::vector<std::pair<std::string, std::string>>& env,
                                    const std::string& stdin_content);
 
-CommandResult run_polonio(const std::vector<std::string>& args) {
-    return run_polonio_with_env(args, {}, "");
+CommandResult run_polonio(const std::vector<std::string>& args,
+                          const std::vector<std::pair<std::string, std::string>>& env = {},
+                          const std::string& stdin_content = "") {
+    return run_polonio_with_env(args, env, stdin_content);
 }
 
 CommandResult run_polonio_with_env(const std::vector<std::string>& args,
@@ -1179,6 +1181,104 @@ TEST_CASE("password hashing type checks and malformed hashes") {
     CHECK(result5.exit_code == 0);
     CHECK(result5.stdout_output == "falsefalse");
     std::filesystem::remove(path5);
+}
+
+std::vector<std::pair<std::string, std::string>> storage_env(const std::string& path) {
+    return {{"POLONIO_STORAGE_PATH", path}};
+}
+
+TEST_CASE("storage file write/read and listing") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_program",
+        "<% dir_create(\"notes\") %>"
+        "<% file_write(\"notes/a.txt\", \"hello\") %>"
+        "<% echo file_read(\"notes/a.txt\") %>"
+        "<% echo file_exists(\"notes/a.txt\") %>"
+        "<% echo file_exists(\"notes/missing.txt\") %>"
+        "<% file_write(\"notes/b.txt\", \"B\") %>"
+        "<% var entries = dir_list(\"notes\") %>"
+        "<% echo join(entries, \",\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "hellotruefalsea.txt,b.txt");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("storage write requires parent dir") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_missing_parent";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_missing_program",
+        "<% file_write(\"missing/a.txt\", \"x\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("missing directory") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("storage path traversal and absolute paths rejected") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_traversal";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto traversal_program = create_temp_file_with_content(
+        "polonio_storage_traversal_program",
+        "<% file_read(\"../secret.txt\") %>");
+    auto result = run_polonio({"run", traversal_program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("path traversal") != std::string::npos);
+    std::filesystem::remove(traversal_program);
+
+    auto absolute_program = create_temp_file_with_content(
+        "polonio_storage_absolute_program",
+        "<% file_read(\"/tmp/x\") %>");
+    auto result_abs = run_polonio({"run", absolute_program}, env);
+    CHECK(result_abs.exit_code != 0);
+    CHECK(result_abs.stderr_output.find("absolute path") != std::string::npos);
+    std::filesystem::remove(absolute_program);
+
+    auto dir_create_program = create_temp_file_with_content(
+        "polonio_storage_dir_traversal",
+        "<% dir_create(\"../oops\") %>");
+    auto dir_create_result = run_polonio({"run", dir_create_program}, env);
+    CHECK(dir_create_result.exit_code != 0);
+    CHECK(dir_create_result.stderr_output.find("path traversal") != std::string::npos);
+    std::filesystem::remove(dir_create_program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("storage builtins require storage root") {
+    auto program = create_temp_file_with_content(
+        "polonio_storage_missing_root",
+        "<% file_exists(\"x\") %>");
+    auto result = run_polonio({"run", program});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("missing storage root") != std::string::npos);
+    std::filesystem::remove(program);
+}
+
+TEST_CASE("file_exists for directory returns false") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_storage_dir_exists";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_storage_dir_program",
+        "<% dir_create(\"notes\") %>"
+        "<% if file_exists(\"notes\") %>true<% else %>false<% end %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "false");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
 }
 
 TEST_CASE("CGI header builtin validates syntax") {
