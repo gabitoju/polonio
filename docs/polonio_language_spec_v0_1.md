@@ -63,6 +63,22 @@ Available functions:
 -   `file_size(path)` / `file_modified(path)`
 -   `dir_create(path)` / `dir_exists(path)` / `dir_list(path)`
 
+## Database Builtins
+
+Polonio embeds SQLite for lightweight persistence. Database files are
+resolved relative to `POLONIO_STORAGE_PATH` using the same sandbox rules
+as storage: only relative paths are allowed, traversal is rejected, and
+paths cannot leave the configured root. SQL parameters are bound
+positionally (arrays) and query results return arrays of objects keyed
+by column name.
+
+Available functions:
+
+-   `db_connect(path)` / `db_close()`
+-   `db_query(sql[, params])` / `db_exec(sql[, params])`
+-   `db_last_insert_id()`
+-   `db_begin()` / `db_commit()` / `db_rollback()`
+
 ## Control Flow
 
 -   `if / elseif / else / end`
