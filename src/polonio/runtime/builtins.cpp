@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <ctime>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -22,6 +23,7 @@
 #include "polonio/runtime/json_utils.h"
 #include "polonio/runtime/session.h"
 #include "polonio/runtime/storage_ops.h"
+#include "polonio/runtime/storage.h"
 #include "polonio/runtime/db.h"
 #include "polonio/runtime/crypto.h"
 #include "polonio/common/location.h"
@@ -102,6 +104,33 @@ std::string infer_mime_type(const std::string& path) {
     if (ext == ".gif") return "image/gif";
     if (ext == ".pdf") return "application/pdf";
     return "application/octet-stream";
+}
+
+std::string require_upload_tmp_path(const std::string& builtin_name,
+                                    const Value& value,
+                                    Interpreter& interp,
+                                    const Location& loc) {
+    if (!std::holds_alternative<Value::ObjectPtr>(value.storage())) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": expected file object",
+                           interp.path(),
+                           loc);
+    }
+    auto obj = std::get<Value::ObjectPtr>(value.storage());
+    if (!obj) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": invalid file object",
+                           interp.path(),
+                           loc);
+    }
+    auto it = obj->find("tmp_path");
+    if (it == obj->end() || !std::holds_alternative<std::string>(it->second.storage())) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": missing tmp_path",
+                           interp.path(),
+                           loc);
+    }
+    return std::get<std::string>(it->second.storage());
 }
 
 struct SQLiteStatementDeleter {
@@ -353,6 +382,7 @@ Value builtin_db_begin(Interpreter& interp, const std::vector<Value>& args, cons
 Value builtin_db_commit(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_db_rollback(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_send_file(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_upload_save(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -2002,6 +2032,43 @@ Value builtin_send_file(Interpreter& interp, const std::vector<Value>& args, con
     return Value();
 }
 
+Value builtin_upload_save(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 2) {
+        throw PolonioError(ErrorKind::Runtime, "upload_save: expected 2 arguments", interp.path(), loc);
+    }
+    const Value& file_value = ensure_arg("upload_save", 0, args, interp, loc);
+    std::string destination = require_storage_path_arg("upload_save", ensure_arg("upload_save", 1, args, interp, loc), interp, loc);
+    std::string tmp_relative = require_upload_tmp_path("upload_save", file_value, interp, loc);
+    std::string src_path = resolve_storage_path(tmp_relative, interp, "upload_save", loc);
+    std::filesystem::path dest_path(resolve_storage_path(destination, interp, "upload_save", loc));
+    auto parent = dest_path.parent_path();
+    if (!parent.empty() && !std::filesystem::exists(parent)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "upload_save: missing directory",
+                           interp.path(),
+                           loc);
+    }
+    if (!std::filesystem::exists(src_path) || !std::filesystem::is_regular_file(src_path)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "upload_save: temporary file missing",
+                           interp.path(),
+                           loc);
+    }
+    std::error_code ec;
+    std::filesystem::rename(src_path, dest_path, ec);
+    if (ec) {
+        std::filesystem::copy_file(src_path, dest_path, std::filesystem::copy_options::overwrite_existing, ec);
+        if (ec) {
+            throw PolonioError(ErrorKind::Runtime,
+                               "upload_save: unable to write destination",
+                               interp.path(),
+                               loc);
+        }
+        std::filesystem::remove(src_path);
+    }
+    return Value();
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -2045,6 +2112,7 @@ void install_builtins(Env& env) {
     env.set_local("db_commit", Value(BuiltinFunction{"db_commit", builtin_db_commit}));
     env.set_local("db_rollback", Value(BuiltinFunction{"db_rollback", builtin_db_rollback}));
     env.set_local("send_file", Value(BuiltinFunction{"send_file", builtin_send_file}));
+    env.set_local("upload_save", Value(BuiltinFunction{"upload_save", builtin_upload_save}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));

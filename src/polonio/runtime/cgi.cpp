@@ -1,13 +1,19 @@
 #include "polonio/runtime/cgi.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 
 #include "polonio/common/error.h"
+#include "polonio/runtime/crypto.h"
+#include "polonio/runtime/interpreter.h"
+#include "polonio/runtime/storage.h"
 
 extern char** environ;
 
@@ -137,6 +143,64 @@ Value::Object parse_post_body(const std::string& body) {
     return entries_to_object(parse_urlencoded_entries(body));
 }
 
+void append_form_value(Value::Object& target, const std::string& name, const Value& value) {
+    auto it = target.find(name);
+    if (it == target.end()) {
+        target[name] = value;
+        return;
+    }
+    auto& existing = it->second;
+    auto& storage = existing.storage();
+    if (std::holds_alternative<Value::ArrayPtr>(storage)) {
+        auto arr = std::get<Value::ArrayPtr>(storage);
+        if (!arr) {
+            arr = std::make_shared<Value::Array>();
+            storage = arr;
+        }
+        arr->push_back(value);
+    } else {
+        Value::Array arr;
+        arr.push_back(existing);
+        arr.push_back(value);
+        existing = Value(std::move(arr));
+    }
+}
+
+std::string trim(const std::string& input) {
+    std::size_t start = 0;
+    while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start]))) {
+        ++start;
+    }
+    std::size_t end = input.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+        --end;
+    }
+    return input.substr(start, end - start);
+}
+
+std::string to_lower_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value;
+}
+
+std::string random_hex_string(std::size_t nbytes, Interpreter& interpreter) {
+    std::string bytes;
+    if (!secure_random_bytes(bytes, nbytes)) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "multipart upload: secure RNG failure",
+                           interpreter.path(),
+                           Location::start());
+    }
+    static const char* hex = "0123456789abcdef";
+    std::string out;
+    out.reserve(nbytes * 2);
+    for (unsigned char ch : bytes) {
+        out.push_back(hex[ch >> 4]);
+        out.push_back(hex[ch & 0x0F]);
+    }
+    return out;
+}
+
 std::string normalize_header_key(const std::string& name) {
     std::string normalized;
     normalized.reserve(name.size());
@@ -205,20 +269,198 @@ CGIContext build_cgi_context() {
     ctx.get = parse_query_string(get_env("QUERY_STRING"));
     ctx.cookie = parse_cookie_header(get_env("HTTP_COOKIE"));
     ctx.post = Value::Object();
+    ctx.files = Value::Object();
     ctx.body.clear();
 
-    std::string method = get_env("REQUEST_METHOD");
-    std::string content_type = get_env("CONTENT_TYPE");
-    std::string content_length = get_env("CONTENT_LENGTH");
-    if (!content_length.empty()) {
-        ctx.body = read_request_body(content_length);
-    }
-
-    if (!method.empty() && content_type.find("application/x-www-form-urlencoded") == 0 && !content_length.empty()) {
-        ctx.post = parse_post_body(ctx.body);
+    ctx.request_method = get_env("REQUEST_METHOD");
+    ctx.content_type = get_env("CONTENT_TYPE");
+    ctx.content_length = get_env("CONTENT_LENGTH");
+    if (!ctx.content_length.empty()) {
+        ctx.body = read_request_body(ctx.content_length);
     }
 
     return ctx;
+}
+
+void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
+    if (ctx.post.empty()) {
+        ctx.post = Value::Object();
+    }
+    ctx.files = Value::Object();
+    if (ctx.request_method.empty()) {
+        return;
+    }
+    std::string method = to_lower_copy(ctx.request_method);
+    if (method != "post") {
+        return;
+    }
+    std::string content_type = ctx.content_type;
+    if (content_type.empty()) {
+        return;
+    }
+    std::string lowered = to_lower_copy(content_type);
+    if (lowered.rfind("application/x-www-form-urlencoded", 0) == 0) {
+        ctx.post = parse_post_body(ctx.body);
+        return;
+    }
+    if (lowered.rfind("multipart/form-data", 0) != 0) {
+        return;
+    }
+    auto runtime_error = [&](const std::string& message) {
+        throw PolonioError(ErrorKind::Runtime, message, interpreter.path(), Location::start());
+    };
+    auto boundary_pos = content_type.find("boundary=");
+    if (boundary_pos == std::string::npos) {
+        runtime_error("invalid multipart body");
+    }
+    std::string boundary = content_type.substr(boundary_pos + 9);
+    auto semi = boundary.find(';');
+    if (semi != std::string::npos) {
+        boundary = boundary.substr(0, semi);
+    }
+    boundary = trim(boundary);
+    if (!boundary.empty() && boundary.front() == '"' && boundary.back() == '"') {
+        boundary = boundary.substr(1, boundary.size() - 2);
+    }
+    if (boundary.empty()) {
+        runtime_error("invalid multipart body");
+    }
+    if (ctx.body.empty()) {
+        return;
+    }
+    std::string marker = "--" + boundary;
+    const std::string& body = ctx.body;
+    if (body.compare(0, marker.size(), marker) != 0) {
+        runtime_error("invalid multipart body");
+    }
+    std::string root = storage_root(interpreter, "multipart upload", Location::start());
+    std::filesystem::path root_path(root);
+    std::filesystem::path uploads_rel = std::filesystem::path("tmp") / "uploads";
+    std::filesystem::path uploads_dir = root_path / uploads_rel;
+    std::error_code ec;
+    std::filesystem::create_directories(uploads_dir, ec);
+    if (ec) {
+        runtime_error("unable to create upload directory");
+    }
+    std::size_t pos = marker.size();
+    if (body.compare(pos, 2, "--") == 0) {
+        return;
+    }
+    if (body.compare(pos, 2, "\r\n") != 0) {
+        runtime_error("invalid multipart body");
+    }
+    pos += 2;
+    while (true) {
+        std::size_t headers_end = body.find("\r\n\r\n", pos);
+        if (headers_end == std::string::npos) {
+            runtime_error("invalid multipart body");
+        }
+        std::string header_block = body.substr(pos, headers_end - pos);
+        pos = headers_end + 4;
+        std::size_t delim = body.find("\r\n" + marker, pos);
+        if (delim == std::string::npos) {
+            runtime_error("invalid multipart body");
+        }
+        std::string data = body.substr(pos, delim - pos);
+        pos = delim + 2 + marker.size();
+        bool final = false;
+        if (pos <= body.size() && body.compare(pos, 2, "--") == 0) {
+            pos += 2;
+            final = true;
+            if (pos <= body.size() && body.compare(pos, 2, "\r\n") == 0) {
+                pos += 2;
+            }
+        } else if (pos <= body.size() && body.compare(pos, 2, "\r\n") == 0) {
+            pos += 2;
+        } else if (pos == body.size()) {
+            final = true;
+        } else {
+            runtime_error("invalid multipart body");
+        }
+
+        std::string field_name;
+        std::string filename;
+        std::string part_type;
+
+        std::size_t line_start = 0;
+        while (line_start < header_block.size()) {
+            std::size_t line_end = header_block.find("\r\n", line_start);
+            std::string line = header_block.substr(
+                line_start,
+                (line_end == std::string::npos ? header_block.size() : line_end) - line_start);
+            if (line_end == std::string::npos) {
+                line_start = header_block.size();
+            } else {
+                line_start = line_end + 2;
+            }
+            if (line.empty()) continue;
+            auto colon = line.find(':');
+            if (colon == std::string::npos) {
+                runtime_error("invalid multipart body");
+            }
+            std::string key = to_lower_copy(trim(line.substr(0, colon)));
+            std::string value = trim(line.substr(colon + 1));
+            if (key == "content-disposition") {
+                std::stringstream ss(value);
+                std::string token;
+                bool first_token = true;
+                while (std::getline(ss, token, ';')) {
+                    token = trim(token);
+                    if (token.empty()) continue;
+                    if (first_token) {
+                        first_token = false;
+                        continue;
+                    }
+                    auto eq = token.find('=');
+                    if (eq == std::string::npos) continue;
+                    std::string param_key = to_lower_copy(trim(token.substr(0, eq)));
+                    std::string param_value = trim(token.substr(eq + 1));
+                    if (!param_value.empty() && param_value.front() == '"' && param_value.back() == '"') {
+                        param_value = param_value.substr(1, param_value.size() - 2);
+                    }
+                    if (param_key == "name") {
+                        field_name = param_value;
+                    } else if (param_key == "filename") {
+                        filename = param_value;
+                    }
+                }
+            } else if (key == "content-type") {
+                part_type = value;
+            }
+        }
+
+        if (field_name.empty()) {
+            runtime_error("invalid multipart body");
+        }
+
+        if (filename.empty()) {
+            append_form_value(ctx.post, field_name, Value(data));
+        } else {
+            std::string extension;
+            auto dot = filename.find_last_of('.');
+            if (dot != std::string::npos) {
+                extension = filename.substr(dot);
+            }
+            std::string random_name = random_hex_string(16, interpreter);
+            std::filesystem::path relative_file = uploads_rel / (random_name + extension);
+            std::filesystem::path absolute_file = root_path / relative_file;
+            std::ofstream out(absolute_file, std::ios::binary);
+            out.write(data.data(), static_cast<std::streamsize>(data.size()));
+            if (!out) {
+                runtime_error("unable to write upload");
+            }
+            Value::Object file_entry;
+            file_entry["name"] = Value(filename);
+            file_entry["type"] = Value(part_type.empty() ? std::string("application/octet-stream") : part_type);
+            file_entry["size"] = Value(static_cast<double>(data.size()));
+            file_entry["tmp_path"] = Value(relative_file.generic_string());
+            append_form_value(ctx.files, field_name, Value(std::move(file_entry)));
+        }
+
+        if (final) {
+            break;
+        }
+    }
 }
 
 } // namespace polonio
