@@ -360,6 +360,59 @@ var size = file_size("posts/hello.txt")
 echo size
 %&gt;</code></pre>
 
+  <!-- ════════════════════════ Database ════════════════════════ -->
+  <h2 id="database">Using SQLite</h2>
+  <p>SQLite builtins share the same sandbox as storage. Database files must live beneath <code>POLONIO_STORAGE_PATH</code>.</p>
+
+  <h3>Example 1 — Create table</h3>
+  <pre><code>&lt;%
+dir_create("data")
+db_connect("data/app.db")
+
+db_exec("
+  create table if not exists users (
+    id integer primary key autoincrement,
+    name text
+  )
+")
+%&gt;</code></pre>
+
+  <h3>Example 2 — Insert and query</h3>
+  <pre><code>&lt;%
+db_exec("insert into users(name) values(?)", ["Ada"])
+
+var users = db_query("select id, name from users")
+%&gt;
+
+&lt;ul&gt;
+&lt;% for u in users %&gt;
+  &lt;li&gt;$u["name"]&lt;/li&gt;
+&lt;% end %&gt;
+&lt;/ul&gt;
+</code></pre>
+
+  <h3>Example 3 — Transactions</h3>
+  <pre><code>&lt;%
+db_begin()
+
+db_exec("insert into users(name) values(?)", ["Alice"])
+db_exec("insert into users(name) values(?)", ["Bob"])
+
+db_commit()
+%&gt;</code></pre>
+
+  <h3>Example 4 — Login check</h3>
+  <pre><code>&lt;%
+var rows = db_query(
+  "select id, password_hash from users where email = ?",
+  [email]
+)
+
+if count(rows) > 0
+  var user = rows[0]
+end
+%&gt;</code></pre>
+
   <h2 id="prueba">The Original <code>prueba.html</code></h2>
   <p>The name Polonio comes from <a href="https://en.wikipedia.org/wiki/Cabo_Polonio">Cabo Polonio</a>, a remote off-grid hamlet on the eastern coast of Uruguay. Sitting on a peninsula that juts into the Atlantic, reachable only by 4x4 across sand dunes, with no electricity grid and a lighthouse as its only artificial light &mdash; it's a place apart from the rest of the world. A fitting namesake for a scrappy little language built from scratch.</p>
   <p>In 2005, a developer in Uruguay created a CGI program called <code>hola.exe</code> &mdash; a C++ executable that read HTML template files and processed embedded Polonio directives. The very first test template was <code>prueba.html</code>:</p>
