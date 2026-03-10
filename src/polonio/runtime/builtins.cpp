@@ -6,6 +6,7 @@
 #include <cmath>
 #include <ctime>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -14,6 +15,7 @@
 #include <string>
 #include <vector>
 #include <cstring>
+#include <sstream>
 
 #include "polonio/common/error.h"
 #include "polonio/runtime/env.h"
@@ -131,6 +133,24 @@ std::string require_upload_tmp_path(const std::string& builtin_name,
                            loc);
     }
     return std::get<std::string>(it->second.storage());
+}
+
+bool contains_crlf(const std::string& value) {
+    return value.find('\r') != std::string::npos || value.find('\n') != std::string::npos;
+}
+
+std::string to_lower_ascii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+bool is_reserved_mail_header(const std::string& name) {
+    static const std::vector<std::string> reserved = {
+        "to", "from", "subject", "reply-to", "content-type", "date", "x-polonio-mailer"};
+    std::string lower = to_lower_ascii(name);
+    return std::find(reserved.begin(), reserved.end(), lower) != reserved.end();
 }
 
 struct SQLiteStatementDeleter {
@@ -383,6 +403,7 @@ Value builtin_db_commit(Interpreter& interp, const std::vector<Value>& args, con
 Value builtin_db_rollback(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_send_file(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_upload_save(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_send_mail(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -2069,6 +2090,126 @@ Value builtin_upload_save(Interpreter& interp, const std::vector<Value>& args, c
     return Value();
 }
 
+Value builtin_send_mail(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() < 3 || args.size() > 4) {
+        throw PolonioError(ErrorKind::Runtime, "send_mail: expected 3 or 4 arguments", interp.path(), loc);
+    }
+    const Value& to_value = ensure_arg("send_mail", 0, args, interp, loc);
+    const Value& subject_value = ensure_arg("send_mail", 1, args, interp, loc);
+    const Value& body_value = ensure_arg("send_mail", 2, args, interp, loc);
+    if (!std::holds_alternative<std::string>(to_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "send_mail: to must be string", interp.path(), loc);
+    }
+    if (!std::holds_alternative<std::string>(subject_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "send_mail: subject must be string", interp.path(), loc);
+    }
+    std::string to = std::get<std::string>(to_value.storage());
+    if (to.empty()) {
+        throw PolonioError(ErrorKind::Runtime, "send_mail: to required", interp.path(), loc);
+    }
+    std::string subject = std::get<std::string>(subject_value.storage());
+    std::string body = OutputBuffer::value_to_string(body_value);
+    std::string from = "noreply@polonio.local";
+    std::string reply_to;
+    std::string content_type = "text/plain; charset=utf-8";
+    std::vector<std::pair<std::string, std::string>> extra_headers;
+    if (args.size() == 4) {
+        const Value& opts_value = ensure_arg("send_mail", 3, args, interp, loc);
+        if (!std::holds_alternative<Value::ObjectPtr>(opts_value.storage())) {
+            throw PolonioError(ErrorKind::Runtime, "send_mail: opts must be object", interp.path(), loc);
+        }
+        auto opts = std::get<Value::ObjectPtr>(opts_value.storage());
+        if (opts) {
+            auto get_string_opt = [&](const char* key, std::string& target) {
+                auto it = opts->find(key);
+                if (it != opts->end()) {
+                    if (!std::holds_alternative<std::string>(it->second.storage())) {
+                        throw PolonioError(ErrorKind::Runtime,
+                                           std::string("send_mail: ") + key + " must be string",
+                                           interp.path(),
+                                           loc);
+                    }
+                    target = std::get<std::string>(it->second.storage());
+                }
+            };
+            get_string_opt("from", from);
+            get_string_opt("reply_to", reply_to);
+            get_string_opt("content_type", content_type);
+            auto headers_it = opts->find("headers");
+            if (headers_it != opts->end()) {
+                if (!std::holds_alternative<Value::ObjectPtr>(headers_it->second.storage())) {
+                    throw PolonioError(ErrorKind::Runtime,
+                                       "send_mail: headers must be object",
+                                       interp.path(),
+                                       loc);
+                }
+                auto headers_obj = std::get<Value::ObjectPtr>(headers_it->second.storage());
+                if (headers_obj) {
+                    for (const auto& entry : *headers_obj) {
+                        const std::string& header_name = entry.first;
+                        if (!std::holds_alternative<std::string>(entry.second.storage())) {
+                            throw PolonioError(ErrorKind::Runtime,
+                                               "send_mail: header values must be string",
+                                               interp.path(),
+                                               loc);
+                        }
+                        if (contains_crlf(header_name) ||
+                            contains_crlf(std::get<std::string>(entry.second.storage()))) {
+                            throw PolonioError(ErrorKind::Runtime,
+                                               "send_mail: invalid header",
+                                               interp.path(),
+                                               loc);
+                        }
+                        if (is_reserved_mail_header(header_name)) {
+                            throw PolonioError(ErrorKind::Runtime,
+                                               "send_mail: reserved header",
+                                               interp.path(),
+                                               loc);
+                        }
+                        extra_headers.emplace_back(header_name, std::get<std::string>(entry.second.storage()));
+                    }
+                }
+            }
+        }
+    }
+    auto now = std::chrono::system_clock::now();
+    auto epoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+    std::time_t tt = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+#if defined(_WIN32)
+    gmtime_s(&tm, &tt);
+#else
+    tm = *std::gmtime(&tt);
+#endif
+    std::ostringstream date_stream;
+    date_stream << std::put_time(&tm, "%Y-%m-%d %H:%M:%S +0000");
+    std::ostringstream message;
+    message << "To: " << to << "\n";
+    message << "From: " << from << "\n";
+    message << "Subject: " << subject << "\n";
+    if (!reply_to.empty()) {
+        message << "Reply-To: " << reply_to << "\n";
+    }
+    message << "Content-Type: " << content_type << "\n";
+    message << "Date: " << date_stream.str() << "\n";
+    message << "X-Polonio-Mailer: file-mode\n";
+    for (const auto& header : extra_headers) {
+        message << header.first << ": " << header.second << "\n";
+    }
+    message << "\n" << body;
+
+    std::string root = storage_root(interp, "send_mail", loc);
+    std::filesystem::path outbox_rel = std::filesystem::path("mail") / "outbox";
+    std::filesystem::path outbox_abs = std::filesystem::path(root) / outbox_rel;
+    std::error_code ec;
+    std::filesystem::create_directories(outbox_abs, ec);
+    std::string random = generate_random_token(interp, loc, 8);
+    std::string filename = std::to_string(epoch) + "-" + random + ".eml";
+    std::filesystem::path relative_file = outbox_rel / filename;
+    storage_file_write(relative_file.generic_string(), message.str(), interp, "send_mail", loc);
+    return Value(true);
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -2113,6 +2254,7 @@ void install_builtins(Env& env) {
     env.set_local("db_rollback", Value(BuiltinFunction{"db_rollback", builtin_db_rollback}));
     env.set_local("send_file", Value(BuiltinFunction{"send_file", builtin_send_file}));
     env.set_local("upload_save", Value(BuiltinFunction{"upload_save", builtin_upload_save}));
+    env.set_local("send_mail", Value(BuiltinFunction{"send_mail", builtin_send_mail}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));

@@ -611,6 +611,26 @@ std::vector<std::string> split_lines(const std::string& text) {
     return lines;
 }
 
+std::vector<std::filesystem::path> list_files(const std::filesystem::path& dir) {
+    std::vector<std::filesystem::path> paths;
+    if (std::filesystem::exists(dir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+            if (entry.is_regular_file()) {
+                paths.push_back(entry.path());
+            }
+        }
+    }
+    std::sort(paths.begin(), paths.end());
+    return paths;
+}
+
+std::string read_text_file(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    return ss.str();
+}
+
 } // namespace
 
 TEST_CASE("CLI: template blocks share interpreter state") {
@@ -1964,6 +1984,156 @@ TEST_CASE("send_file handles binary data") {
     CHECK(result.exit_code == 0);
     CHECK(result.stdout_output.find("Content-Type: image/png") != std::string::npos);
     CHECK(response_body(result.stdout_output) == data);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail writes file in outbox") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_basic";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_basic_program",
+        "<% echo send_mail(\"ada@example.com\", \"Hello\", \"Body\") %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    auto outbox = dir / "mail" / "outbox";
+    auto files = list_files(outbox);
+    REQUIRE(files.size() == 1);
+    auto contents = read_text_file(files[0]);
+    CHECK(contents.find("To: ada@example.com") != std::string::npos);
+    CHECK(contents.find("From: noreply@polonio.local") != std::string::npos);
+    CHECK(contents.find("Subject: Hello") != std::string::npos);
+    CHECK(contents.find("Content-Type: text/plain; charset=utf-8") != std::string::npos);
+    CHECK(contents.find("X-Polonio-Mailer: file-mode") != std::string::npos);
+    CHECK(contents.find("\n\nBody") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail supports custom from and content type") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_custom";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_custom_program",
+        "<% echo send_mail(\"ada@example.com\", \"Hello\", \"<b>Body</b>\", {"
+        "\"from\": \"app@example.com\","
+        "\"reply_to\": \"support@example.com\","
+        "\"content_type\": \"text/html; charset=utf-8\""
+        "}) %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    auto files = list_files(dir / "mail" / "outbox");
+    REQUIRE(files.size() == 1);
+    auto contents = read_text_file(files[0]);
+    CHECK(contents.find("From: app@example.com") != std::string::npos);
+    CHECK(contents.find("Reply-To: support@example.com") != std::string::npos);
+    CHECK(contents.find("Content-Type: text/html; charset=utf-8") != std::string::npos);
+    CHECK(contents.find("<b>Body</b>") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail writes custom headers") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_headers";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_headers_program",
+        "<% echo send_mail(\"ada@example.com\", \"Hi\", \"Body\", {"
+        "\"headers\": {\"X-App\": \"Scraps\", \"X-Env\": \"test\"}"
+        "}) %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    auto files = list_files(dir / "mail" / "outbox");
+    REQUIRE(files.size() == 1);
+    auto contents = read_text_file(files[0]);
+    CHECK(contents.find("X-App: Scraps") != std::string::npos);
+    CHECK(contents.find("X-Env: test") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail rejects reserved headers") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_reserved";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_reserved_program",
+        "<% send_mail(\"ada@example.com\", \"Hi\", \"Body\", {"
+        "\"headers\": {\"Subject\": \"Nope\"}"
+        "}) %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("reserved header") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail rejects invalid header values") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_invalid_header";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_invalid_header_program",
+        "<% send_mail(\"ada@example.com\", \"Hi\", \"Body\", {"
+        "\"headers\": {\"X-Test\": \"bad\\nvalue\"}"
+        "}) %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("invalid header") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail requires storage root") {
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_no_root",
+        "<% send_mail(\"ada@example.com\", \"Hi\", \"Body\") %>");
+    auto result = run_polonio({"run", program});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("missing storage root") != std::string::npos);
+    std::filesystem::remove(program);
+}
+
+TEST_CASE("send_mail validates arguments") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_args";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_args_program",
+        "<% send_mail(\"\", \"Hi\", \"Body\") %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("send_mail") != std::string::npos);
+    std::filesystem::remove(program);
+
+    auto program2 = create_temp_file_with_content(
+        "polonio_send_mail_args_program2",
+        "<% send_mail(\"ada@example.com\", \"Hi\") %>");
+    auto result2 = run_polonio({"run", program2}, storage_env(dir.string()));
+    CHECK(result2.exit_code != 0);
+    CHECK(result2.stderr_output.find("expected") != std::string::npos);
+    std::filesystem::remove(program2);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_mail creates multiple files") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_mail_multi";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto program = create_temp_file_with_content(
+        "polonio_send_mail_multi_program",
+        "<% send_mail(\"ada@example.com\", \"Hi\", \"One\") %>"
+        "<% send_mail(\"bob@example.com\", \"Hi\", \"Two\") %>");
+    auto result = run_polonio({"run", program}, storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    auto files = list_files(dir / "mail" / "outbox");
+    CHECK(files.size() == 2);
+    std::filesystem::remove(program);
     std::filesystem::remove_all(dir);
 }
 
