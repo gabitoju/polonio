@@ -1575,6 +1575,149 @@ TEST_CASE("db_connect requires parent directory") {
     std::filesystem::remove_all(dir);
 }
 
+TEST_CASE("db_begin commit persists changes") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_tx_commit";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_tx_commit_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_exec(\"create table if not exists t (id integer primary key autoincrement, name text)\") %>"
+        "<% db_begin() %>"
+        "<% db_exec(\"insert into t(name) values(?)\", [\"A\"]) %>"
+        "<% db_commit() %>"
+        "<% var rows = db_query(\"select name from t\") %>"
+        "<% echo count(rows) %>"
+        "<% echo rows[0][\"name\"] %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "1A");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_rollback discards transaction") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_tx_rollback";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_tx_rollback_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_exec(\"create table if not exists t (id integer primary key autoincrement, name text)\") %>"
+        "<% db_begin() %>"
+        "<% db_exec(\"insert into t(name) values(?)\", [\"A\"]) %>"
+        "<% db_rollback() %>"
+        "<% var rows = db_query(\"select name from t\") %>"
+        "<% echo count(rows) %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "0");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_begin rejects nested transactions") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_tx_nested";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_tx_nested_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_begin() %>"
+        "<% db_begin() %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("transaction already active") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_commit requires active transaction") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_tx_commit_error";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_tx_commit_error_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_commit() %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("no active transaction") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_rollback requires active transaction") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_tx_rollback_error";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_tx_rollback_error_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_rollback() %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("no active transaction") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_close resets transaction state") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_tx_close";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_tx_close_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_begin() %>"
+        "<% db_close() %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_begin() %>"
+        "<% db_rollback() %>"
+        "<% echo true %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db transaction builtins require connection") {
+    auto prog_begin = create_temp_file_with_content(
+        "polonio_sqlite_tx_no_conn_begin",
+        "<% db_begin() %>");
+    auto prog_commit = create_temp_file_with_content(
+        "polonio_sqlite_tx_no_conn_commit",
+        "<% db_commit() %>");
+    auto prog_rollback = create_temp_file_with_content(
+        "polonio_sqlite_tx_no_conn_rollback",
+        "<% db_rollback() %>");
+    auto result_begin = run_polonio({"run", prog_begin});
+    auto result_commit = run_polonio({"run", prog_commit});
+    auto result_rollback = run_polonio({"run", prog_rollback});
+    CHECK(result_begin.exit_code != 0);
+    CHECK(result_begin.stderr_output.find("database not connected") != std::string::npos);
+    CHECK(result_commit.exit_code != 0);
+    CHECK(result_commit.stderr_output.find("database not connected") != std::string::npos);
+    CHECK(result_rollback.exit_code != 0);
+    CHECK(result_rollback.stderr_output.find("database not connected") != std::string::npos);
+    std::filesystem::remove(prog_begin);
+    std::filesystem::remove(prog_commit);
+    std::filesystem::remove(prog_rollback);
+}
+
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
                                               "<% header(\"bad header\") %>");

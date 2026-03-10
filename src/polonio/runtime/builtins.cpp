@@ -330,6 +330,9 @@ Value builtin_db_close(Interpreter& interp, const std::vector<Value>& args, cons
 Value builtin_db_query(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_db_exec(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_db_last_insert_id(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_begin(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_commit(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_rollback(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1879,6 +1882,42 @@ Value builtin_db_last_insert_id(Interpreter& interp, const std::vector<Value>& a
     return Value(static_cast<double>(sqlite3_last_insert_rowid(db)));
 }
 
+Value builtin_db_begin(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 0) {
+        throw PolonioError(ErrorKind::Runtime, "db_begin: expected 0 arguments", interp.path(), loc);
+    }
+    auto* conn = interp.db_connection();
+    if (!conn || !conn->is_open()) {
+        throw PolonioError(ErrorKind::Runtime, "database not connected", interp.path(), loc);
+    }
+    conn->begin_transaction("db_begin", interp, loc);
+    return Value();
+}
+
+Value builtin_db_commit(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 0) {
+        throw PolonioError(ErrorKind::Runtime, "db_commit: expected 0 arguments", interp.path(), loc);
+    }
+    auto* conn = interp.db_connection();
+    if (!conn || !conn->is_open()) {
+        throw PolonioError(ErrorKind::Runtime, "database not connected", interp.path(), loc);
+    }
+    conn->commit_transaction("db_commit", interp, loc);
+    return Value();
+}
+
+Value builtin_db_rollback(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 0) {
+        throw PolonioError(ErrorKind::Runtime, "db_rollback: expected 0 arguments", interp.path(), loc);
+    }
+    auto* conn = interp.db_connection();
+    if (!conn || !conn->is_open()) {
+        throw PolonioError(ErrorKind::Runtime, "database not connected", interp.path(), loc);
+    }
+    conn->rollback_transaction("db_rollback", interp, loc);
+    return Value();
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -1918,6 +1957,9 @@ void install_builtins(Env& env) {
     env.set_local("db_exec", Value(BuiltinFunction{"db_exec", builtin_db_exec}));
     env.set_local("db_last_insert_id",
                   Value(BuiltinFunction{"db_last_insert_id", builtin_db_last_insert_id}));
+    env.set_local("db_begin", Value(BuiltinFunction{"db_begin", builtin_db_begin}));
+    env.set_local("db_commit", Value(BuiltinFunction{"db_commit", builtin_db_commit}));
+    env.set_local("db_rollback", Value(BuiltinFunction{"db_rollback", builtin_db_rollback}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
