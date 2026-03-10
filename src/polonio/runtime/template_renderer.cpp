@@ -209,6 +209,9 @@ std::string render_template_with_interpreter(const Source& source, Interpreter& 
         render_source(state, normalized, canonical_child);
     });
     render_source(state, source, root_path);
+    if (interpreter.response_finalized()) {
+        return interpreter.finalized_body();
+    }
     return interpreter.output();
 }
 

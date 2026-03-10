@@ -85,6 +85,25 @@ Value::ArrayPtr require_array_value(const std::string& builtin_name,
     return std::get<Value::ArrayPtr>(value.storage());
 }
 
+std::string infer_mime_type(const std::string& path) {
+    std::string ext;
+    auto dot = path.find_last_of('.');
+    if (dot != std::string::npos) {
+        ext = path.substr(dot);
+        for (auto& ch : ext) {
+            ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        }
+    }
+    if (ext == ".txt") return "text/plain; charset=utf-8";
+    if (ext == ".html" || ext == ".htm") return "text/html; charset=utf-8";
+    if (ext == ".json") return "application/json";
+    if (ext == ".png") return "image/png";
+    if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+    if (ext == ".gif") return "image/gif";
+    if (ext == ".pdf") return "application/pdf";
+    return "application/octet-stream";
+}
+
 struct SQLiteStatementDeleter {
     void operator()(sqlite3_stmt* stmt) const {
         if (stmt) {
@@ -333,6 +352,7 @@ Value builtin_db_last_insert_id(Interpreter& interp, const std::vector<Value>& a
 Value builtin_db_begin(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_db_commit(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_db_rollback(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_send_file(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1918,6 +1938,70 @@ Value builtin_db_rollback(Interpreter& interp, const std::vector<Value>& args, c
     return Value();
 }
 
+Value builtin_send_file(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() < 1 || args.size() > 2) {
+        throw PolonioError(ErrorKind::Runtime, "send_file: expected 1 or 2 arguments", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("send_file", 0, args, interp, loc);
+    std::string relative = require_storage_path_arg("send_file", path_value, interp, loc);
+    std::string content_type_override;
+    std::string download_name;
+    bool inline_requested = false;
+    if (args.size() == 2) {
+        const Value& opts_value = ensure_arg("send_file", 1, args, interp, loc);
+        if (!std::holds_alternative<Value::ObjectPtr>(opts_value.storage())) {
+            throw PolonioError(ErrorKind::Runtime,
+                               "send_file: opts must be object",
+                               interp.path(),
+                               loc);
+        }
+        auto opts_obj = std::get<Value::ObjectPtr>(opts_value.storage());
+        if (opts_obj) {
+            auto it = opts_obj->find("content_type");
+            if (it != opts_obj->end()) {
+                if (!std::holds_alternative<std::string>(it->second.storage())) {
+                    throw PolonioError(ErrorKind::Runtime,
+                                       "send_file: content_type must be string",
+                                       interp.path(),
+                                       loc);
+                }
+                content_type_override = std::get<std::string>(it->second.storage());
+            }
+            it = opts_obj->find("download_name");
+            if (it != opts_obj->end()) {
+                if (!std::holds_alternative<std::string>(it->second.storage())) {
+                    throw PolonioError(ErrorKind::Runtime,
+                                       "send_file: download_name must be string",
+                                       interp.path(),
+                                       loc);
+                }
+                download_name = std::get<std::string>(it->second.storage());
+            }
+            it = opts_obj->find("inline");
+            if (it != opts_obj->end()) {
+                if (!std::holds_alternative<bool>(it->second.storage())) {
+                    throw PolonioError(ErrorKind::Runtime,
+                                       "send_file: inline must be bool",
+                                       interp.path(),
+                                       loc);
+                }
+                inline_requested = std::get<bool>(it->second.storage());
+            }
+        }
+    }
+    auto* ctx = require_cgi_context("send_file", interp, loc);
+    std::string body = storage_file_read(relative, interp, "send_file", loc);
+    std::string content_type = content_type_override.empty() ? infer_mime_type(relative) : content_type_override;
+    ctx->add_header("Content-Type", content_type);
+    if (!download_name.empty()) {
+        std::string disposition = inline_requested ? "inline" : "attachment";
+        disposition += "; filename=\"" + download_name + "\"";
+        ctx->add_header("Content-Disposition", disposition);
+    }
+    interp.finalize_response(body);
+    return Value();
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -1960,6 +2044,7 @@ void install_builtins(Env& env) {
     env.set_local("db_begin", Value(BuiltinFunction{"db_begin", builtin_db_begin}));
     env.set_local("db_commit", Value(BuiltinFunction{"db_commit", builtin_db_commit}));
     env.set_local("db_rollback", Value(BuiltinFunction{"db_rollback", builtin_db_rollback}));
+    env.set_local("send_file", Value(BuiltinFunction{"send_file", builtin_send_file}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
