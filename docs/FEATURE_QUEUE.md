@@ -94,3 +94,6 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 12 — Storage
 - [DONE] (M12-1) Storage core
 - [DONE] (M12-2) Storage extras
+
+## Milestone 13 — SQLite
+- [DONE] (M13-1) SQLite core

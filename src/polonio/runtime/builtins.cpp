@@ -6,6 +6,8 @@
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <limits>
+#include <memory>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -20,6 +22,7 @@
 #include "polonio/runtime/json_utils.h"
 #include "polonio/runtime/session.h"
 #include "polonio/runtime/storage_ops.h"
+#include "polonio/runtime/db.h"
 #include "polonio/runtime/crypto.h"
 #include "polonio/common/location.h"
 
@@ -53,6 +56,157 @@ std::string require_storage_path_arg(const std::string& builtin_name,
     }
     return std::get<std::string>(value.storage());
 }
+
+std::string require_string_value(const std::string& builtin_name,
+                                 const Value& value,
+                                 Interpreter& interp,
+                                 const Location& loc,
+                                 const std::string& message) {
+    if (!std::holds_alternative<std::string>(value.storage())) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": " + message,
+                           interp.path(),
+                           loc);
+    }
+    return std::get<std::string>(value.storage());
+}
+
+Value::ArrayPtr require_array_value(const std::string& builtin_name,
+                                    const Value& value,
+                                    Interpreter& interp,
+                                    const Location& loc,
+                                    const std::string& message) {
+    if (!std::holds_alternative<Value::ArrayPtr>(value.storage())) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": " + message,
+                           interp.path(),
+                           loc);
+    }
+    return std::get<Value::ArrayPtr>(value.storage());
+}
+
+struct SQLiteStatementDeleter {
+    void operator()(sqlite3_stmt* stmt) const {
+        if (stmt) {
+            sqlite3_finalize(stmt);
+        }
+    }
+};
+
+using SQLiteStatementPtr = std::unique_ptr<sqlite3_stmt, SQLiteStatementDeleter>;
+
+bool is_integral_double(double value) { return std::floor(value) == value; }
+
+bool fits_int64(double value) {
+    return value >= static_cast<double>(std::numeric_limits<sqlite3_int64>::min()) &&
+           value <= static_cast<double>(std::numeric_limits<sqlite3_int64>::max());
+}
+
+void bind_sqlite_value(sqlite3_stmt* stmt,
+                       int index,
+                       const Value& value,
+                       const std::string& builtin_name,
+                       Interpreter& interp,
+                       const Location& loc) {
+    const auto& storage = value.storage();
+    if (std::holds_alternative<std::monostate>(storage)) {
+        sqlite3_bind_null(stmt, index);
+        return;
+    }
+    if (std::holds_alternative<bool>(storage)) {
+        sqlite3_bind_int64(stmt, index, std::get<bool>(storage) ? 1 : 0);
+        return;
+    }
+    if (std::holds_alternative<double>(storage)) {
+        double number = std::get<double>(storage);
+        if (is_integral_double(number) && fits_int64(number)) {
+            sqlite3_bind_int64(stmt, index, static_cast<sqlite3_int64>(number));
+        } else {
+            sqlite3_bind_double(stmt, index, number);
+        }
+        return;
+    }
+    if (std::holds_alternative<std::string>(storage)) {
+        const std::string& text = std::get<std::string>(storage);
+        sqlite3_bind_text(stmt,
+                          index,
+                          text.c_str(),
+                          static_cast<int>(text.size()),
+                          SQLITE_TRANSIENT);
+        return;
+    }
+    throw PolonioError(ErrorKind::Runtime,
+                       builtin_name + ": unsupported parameter type",
+                       interp.path(),
+                       loc);
+}
+
+void bind_sqlite_parameters(sqlite3_stmt* stmt,
+                            const Value::ArrayPtr& params,
+                            const std::string& builtin_name,
+                            Interpreter& interp,
+                            const Location& loc) {
+    int expected = sqlite3_bind_parameter_count(stmt);
+    int provided = 0;
+    const Value::Array* array = params ? params.get() : nullptr;
+    if (array) {
+        provided = static_cast<int>(array->size());
+    }
+    if (provided != expected) {
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": expected " + std::to_string(expected) + " parameter(s), got " +
+                               std::to_string(provided),
+                           interp.path(),
+                           loc);
+    }
+    if (!array) {
+        return;
+    }
+    for (int i = 0; i < provided; ++i) {
+        bind_sqlite_value(stmt, i + 1, (*array)[static_cast<std::size_t>(i)], builtin_name, interp, loc);
+    }
+}
+
+Value sqlite_value_from_column(sqlite3_stmt* stmt, int index) {
+    int column_type = sqlite3_column_type(stmt, index);
+    switch (column_type) {
+        case SQLITE_INTEGER:
+            return Value(static_cast<double>(sqlite3_column_int64(stmt, index)));
+        case SQLITE_FLOAT:
+            return Value(sqlite3_column_double(stmt, index));
+        case SQLITE_TEXT: {
+            const unsigned char* text = sqlite3_column_text(stmt, index);
+            int len = sqlite3_column_bytes(stmt, index);
+            if (!text) {
+                return Value(std::string());
+            }
+            return Value(std::string(reinterpret_cast<const char*>(text), static_cast<std::size_t>(len)));
+        }
+        case SQLITE_BLOB: {
+            const void* blob = sqlite3_column_blob(stmt, index);
+            int len = sqlite3_column_bytes(stmt, index);
+            if (!blob) {
+                return Value(std::string());
+            }
+            return Value(std::string(reinterpret_cast<const char*>(blob), static_cast<std::size_t>(len)));
+        }
+        case SQLITE_NULL:
+        default:
+            return Value();
+    }
+}
+
+Value make_row_value(sqlite3_stmt* stmt) {
+    Value::Object object;
+    int column_count = sqlite3_column_count(stmt);
+    for (int i = 0; i < column_count; ++i) {
+        const char* name = sqlite3_column_name(stmt, i);
+        std::string key = name ? std::string(name) : ("column" + std::to_string(i));
+        object[key] = sqlite_value_from_column(stmt, i);
+    }
+    return Value(std::move(object));
+}
+
 
 void write_output_values(Interpreter& interp, const std::vector<Value>& args) {
     for (const auto& value : args) {
@@ -171,6 +325,11 @@ Value builtin_file_modified(Interpreter& interp, const std::vector<Value>& args,
 Value builtin_dir_create(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_dir_list(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_dir_exists(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_connect(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_close(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_query(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_exec(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
+Value builtin_db_last_insert_id(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_abs(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_floor(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
 Value builtin_ceil(Interpreter& interp, const std::vector<Value>& args, const Location& loc);
@@ -1613,6 +1772,113 @@ Value builtin_dir_exists(Interpreter& interp, const std::vector<Value>& args, co
     return Value(exists);
 }
 
+Value builtin_db_connect(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 1) {
+        throw PolonioError(ErrorKind::Runtime, "db_connect: expected 1 argument", interp.path(), loc);
+    }
+    const Value& path_value = ensure_arg("db_connect", 0, args, interp, loc);
+    std::string relative = require_storage_path_arg("db_connect", path_value, interp, loc);
+    auto* conn = interp.db_connection();
+    if (!conn) {
+        throw PolonioError(ErrorKind::Runtime, "db_connect: database unavailable", interp.path(), loc);
+    }
+    conn->connect_relative(relative, interp, "db_connect", loc);
+    return Value();
+}
+
+Value builtin_db_close(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 0) {
+        throw PolonioError(ErrorKind::Runtime, "db_close: expected 0 arguments", interp.path(), loc);
+    }
+    auto* conn = interp.db_connection();
+    if (!conn || !conn->is_open()) {
+        throw PolonioError(ErrorKind::Runtime, "database not connected", interp.path(), loc);
+    }
+    conn->close();
+    return Value();
+}
+
+Value builtin_db_query(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() < 1 || args.size() > 2) {
+        throw PolonioError(ErrorKind::Runtime, "db_query: expected 1 or 2 arguments", interp.path(), loc);
+    }
+    const Value& sql_value = ensure_arg("db_query", 0, args, interp, loc);
+    std::string sql = require_string_value("db_query", sql_value, interp, loc, "sql must be string");
+    Value::ArrayPtr params;
+    if (args.size() == 2) {
+        const Value& params_value = ensure_arg("db_query", 1, args, interp, loc);
+        params = require_array_value("db_query", params_value, interp, loc, "params must be array");
+    }
+    sqlite3* db = require_db_handle(interp, "db_query", loc);
+    sqlite3_stmt* raw_stmt = nullptr;
+    int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &raw_stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::string message = sqlite3_errmsg(db);
+        throw PolonioError(ErrorKind::Runtime,
+                           "db_query: sqlite prepare failed: " + message,
+                           interp.path(),
+                           loc);
+    }
+    SQLiteStatementPtr stmt(raw_stmt);
+    bind_sqlite_parameters(stmt.get(), params, "db_query", interp, loc);
+    Value::Array rows;
+    while ((rc = sqlite3_step(stmt.get())) == SQLITE_ROW) {
+        rows.emplace_back(make_row_value(stmt.get()));
+    }
+    if (rc != SQLITE_DONE) {
+        std::string message = sqlite3_errmsg(db);
+        throw PolonioError(ErrorKind::Runtime,
+                           "db_query: sqlite step failed: " + message,
+                           interp.path(),
+                           loc);
+    }
+    return Value(std::move(rows));
+}
+
+Value builtin_db_exec(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() < 1 || args.size() > 2) {
+        throw PolonioError(ErrorKind::Runtime, "db_exec: expected 1 or 2 arguments", interp.path(), loc);
+    }
+    const Value& sql_value = ensure_arg("db_exec", 0, args, interp, loc);
+    std::string sql = require_string_value("db_exec", sql_value, interp, loc, "sql must be string");
+    Value::ArrayPtr params;
+    if (args.size() == 2) {
+        const Value& params_value = ensure_arg("db_exec", 1, args, interp, loc);
+        params = require_array_value("db_exec", params_value, interp, loc, "params must be array");
+    }
+    sqlite3* db = require_db_handle(interp, "db_exec", loc);
+    sqlite3_stmt* raw_stmt = nullptr;
+    int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &raw_stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        std::string message = sqlite3_errmsg(db);
+        throw PolonioError(ErrorKind::Runtime,
+                           "db_exec: sqlite prepare failed: " + message,
+                           interp.path(),
+                           loc);
+    }
+    SQLiteStatementPtr stmt(raw_stmt);
+    bind_sqlite_parameters(stmt.get(), params, "db_exec", interp, loc);
+    while ((rc = sqlite3_step(stmt.get())) == SQLITE_ROW) {
+        // ignore rows for exec
+    }
+    if (rc != SQLITE_DONE) {
+        std::string message = sqlite3_errmsg(db);
+        throw PolonioError(ErrorKind::Runtime,
+                           "db_exec: sqlite step failed: " + message,
+                           interp.path(),
+                           loc);
+    }
+    return Value(static_cast<double>(sqlite3_changes(db)));
+}
+
+Value builtin_db_last_insert_id(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
+    if (args.size() != 0) {
+        throw PolonioError(ErrorKind::Runtime, "db_last_insert_id: expected 0 arguments", interp.path(), loc);
+    }
+    sqlite3* db = require_db_handle(interp, "db_last_insert_id", loc);
+    return Value(static_cast<double>(sqlite3_last_insert_rowid(db)));
+}
+
 } // namespace
 
 void install_builtins(Env& env) {
@@ -1646,6 +1912,12 @@ void install_builtins(Env& env) {
     env.set_local("dir_create", Value(BuiltinFunction{"dir_create", builtin_dir_create}));
     env.set_local("dir_list", Value(BuiltinFunction{"dir_list", builtin_dir_list}));
     env.set_local("dir_exists", Value(BuiltinFunction{"dir_exists", builtin_dir_exists}));
+    env.set_local("db_connect", Value(BuiltinFunction{"db_connect", builtin_db_connect}));
+    env.set_local("db_close", Value(BuiltinFunction{"db_close", builtin_db_close}));
+    env.set_local("db_query", Value(BuiltinFunction{"db_query", builtin_db_query}));
+    env.set_local("db_exec", Value(BuiltinFunction{"db_exec", builtin_db_exec}));
+    env.set_local("db_last_insert_id",
+                  Value(BuiltinFunction{"db_last_insert_id", builtin_db_last_insert_id}));
     env.set_local("count", Value(BuiltinFunction{"count", builtin_count}));
     env.set_local("push", Value(BuiltinFunction{"push", builtin_push}));
     env.set_local("pop", Value(BuiltinFunction{"pop", builtin_pop}));
