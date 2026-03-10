@@ -97,3 +97,4 @@ Legend: TODO | DOING | DONE | BLOCKED
 
 ## Milestone 13 — SQLite
 - [DONE] (M13-1) SQLite core
+- [DONE] (M13-2) SQLite transactions

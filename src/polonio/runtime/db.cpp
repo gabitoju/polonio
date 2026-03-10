@@ -17,6 +17,7 @@ void DatabaseConnection::close() {
         sqlite3_close(handle_);
         handle_ = nullptr;
     }
+    transaction_active_ = false;
 }
 
 void DatabaseConnection::connect_relative(const std::string& relative_path,
@@ -54,6 +55,90 @@ void DatabaseConnection::connect_relative(const std::string& relative_path,
                            loc);
     }
     handle_ = new_handle;
+    transaction_active_ = false;
+}
+
+namespace {
+
+void sqlite_exec_or_throw(sqlite3* handle,
+                          const std::string& sql,
+                          const std::string& builtin_name,
+                          Interpreter& interp,
+                          const Location& loc) {
+    char* errmsg = nullptr;
+    int rc = sqlite3_exec(handle, sql.c_str(), nullptr, nullptr, &errmsg);
+    if (rc != SQLITE_OK) {
+        std::string message;
+        if (errmsg) {
+            message = errmsg;
+            sqlite3_free(errmsg);
+        } else {
+            message = sqlite3_errmsg(handle);
+        }
+        throw PolonioError(ErrorKind::Runtime,
+                           builtin_name + ": sqlite error: " + message,
+                           interp.path(),
+                           loc);
+    }
+}
+
+} // namespace
+
+void DatabaseConnection::begin_transaction(const std::string& builtin_name,
+                                           Interpreter& interp,
+                                           const Location& loc) {
+    if (!handle_) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "database not connected",
+                           interp.path(),
+                           loc);
+    }
+    if (transaction_active_) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "transaction already active",
+                           interp.path(),
+                           loc);
+    }
+    sqlite_exec_or_throw(handle_, "BEGIN", builtin_name, interp, loc);
+    transaction_active_ = true;
+}
+
+void DatabaseConnection::commit_transaction(const std::string& builtin_name,
+                                            Interpreter& interp,
+                                            const Location& loc) {
+    if (!handle_) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "database not connected",
+                           interp.path(),
+                           loc);
+    }
+    if (!transaction_active_) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "no active transaction",
+                           interp.path(),
+                           loc);
+    }
+    sqlite_exec_or_throw(handle_, "COMMIT", builtin_name, interp, loc);
+    transaction_active_ = false;
+}
+
+void DatabaseConnection::rollback_transaction(const std::string& builtin_name,
+                                              Interpreter& interp,
+                                              const Location& loc) {
+    if (!handle_) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "database not connected",
+                           interp.path(),
+                           loc);
+    }
+    if (!transaction_active_) {
+        throw PolonioError(ErrorKind::Runtime,
+                           "no active transaction",
+                           interp.path(),
+                           loc);
+    }
+    sqlite_exec_or_throw(handle_, "ROLLBACK", builtin_name, interp, loc);
+    transaction_active_ = false;
 }
 
 sqlite3* require_db_handle(Interpreter& interp,
