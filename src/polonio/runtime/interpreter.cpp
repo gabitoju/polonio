@@ -140,9 +140,16 @@ void Interpreter::exec_program(const Program& program) {
     }
 }
 
-void Interpreter::write_text(const std::string& text) { output_.write_text(text); }
+void Interpreter::write_text(const std::string& text) {
+    ensure_response_writable();
+    output_.write_text(text);
+}
 
-void Interpreter::clear_output() { output_.clear(); }
+void Interpreter::clear_output() {
+    output_.clear();
+    response_finalized_ = false;
+    finalized_body_.clear();
+}
 
 Value Interpreter::eval_expr_internal(const ExprPtr& expr) {
     if (auto literal = std::dynamic_pointer_cast<LiteralExpr>(expr)) {
@@ -466,6 +473,7 @@ void Interpreter::exec_var(const VarDeclStmt& stmt) {
 
 void Interpreter::exec_echo(const EchoStmt& stmt) {
     Value value = eval_expr_internal(stmt.expr());
+    ensure_response_writable();
     output_.write(value);
 }
 
@@ -609,6 +617,21 @@ double Interpreter::require_number(const Value& value, const std::string& contex
         runtime_error(context + " expects numbers");
     }
     return std::get<double>(value.storage());
+}
+
+void Interpreter::finalize_response(const std::string& body) {
+    if (response_finalized_) {
+        runtime_error("response already finalized");
+    }
+    response_finalized_ = true;
+    finalized_body_ = body;
+    output_.clear();
+}
+
+void Interpreter::ensure_response_writable() {
+    if (response_finalized_) {
+        runtime_error("response already finalized");
+    }
 }
 
 std::string Interpreter::decode_string(const std::string& literal) {

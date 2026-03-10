@@ -49,6 +49,8 @@ public:
     void exec_program(const Program& program);
 
     const std::string& output() const { return output_.str(); }
+    const std::string& finalized_body() const { return finalized_body_; }
+    bool response_finalized() const { return response_finalized_; }
     std::shared_ptr<Env> env() const { return env_; }
     const std::string& path() const { return path_; }
     void write_text(const std::string& text);
@@ -63,6 +65,7 @@ public:
     SessionContext* session_context() const { return session_context_; }
     DatabaseConnection* db_connection() { return db_connection_.get(); }
     const DatabaseConnection* db_connection() const { return db_connection_.get(); }
+    void finalize_response(const std::string& body);
 
 private:
     Value eval_expr_internal(const ExprPtr& expr);
@@ -89,6 +92,7 @@ private:
     [[noreturn]] void runtime_error(const std::string& message);
     Value lookup_identifier(const std::string& name);
     double require_number(const Value& value, const std::string& context);
+    void ensure_response_writable();
 
     static std::string decode_string(const std::string& literal);
     std::string stringify_for_concat(const Value& value) const;
@@ -102,6 +106,8 @@ private:
     CGIContext* cgi_context_ = nullptr;
     SessionContext* session_context_ = nullptr;
     std::unique_ptr<DatabaseConnection> db_connection_;
+    bool response_finalized_ = false;
+    std::string finalized_body_;
 };
 
 } // namespace polonio

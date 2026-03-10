@@ -98,3 +98,6 @@ Legend: TODO | DOING | DONE | BLOCKED
 ## Milestone 13 — SQLite
 - [DONE] (M13-1) SQLite core
 - [DONE] (M13-2) SQLite transactions
+
+## Milestone 14 — Response helpers
+- [DONE] (M14-1) send_file builtin

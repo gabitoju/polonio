@@ -1187,6 +1187,28 @@ std::vector<std::pair<std::string, std::string>> storage_env(const std::string& 
     return {{"POLONIO_STORAGE_PATH", path}};
 }
 
+CommandResult run_cgi_template(const std::string& name,
+                               const std::string& contents,
+                               const std::vector<std::pair<std::string, std::string>>& extra_env = {}) {
+    auto path = create_temp_file_with_content(name, contents);
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"GATEWAY_INTERFACE", "CGI/1.1"},
+        {"SCRIPT_FILENAME", path},
+    };
+    env.insert(env.end(), extra_env.begin(), extra_env.end());
+    auto result = run_polonio_cgi(env);
+    std::filesystem::remove(path);
+    return result;
+}
+
+std::string response_body(const std::string& response) {
+    auto pos = response.find("\r\n\r\n");
+    if (pos == std::string::npos) {
+        return {};
+    }
+    return response.substr(pos + 4);
+}
+
 TEST_CASE("storage file write/read and listing") {
     auto dir = std::filesystem::temp_directory_path() / "polonio_storage";
     std::filesystem::remove_all(dir);
@@ -1716,6 +1738,170 @@ TEST_CASE("db transaction builtins require connection") {
     std::filesystem::remove(prog_begin);
     std::filesystem::remove(prog_commit);
     std::filesystem::remove(prog_rollback);
+}
+
+TEST_CASE("send_file serves basic text file via CGI") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_text";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    {
+        std::ofstream file(dir / "files/hello.txt", std::ios::binary);
+        file << "hello";
+    }
+    auto result = run_cgi_template(
+        "polonio_send_file_basic",
+        "<% send_file(\"files/hello.txt\") %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Content-Type: text/plain; charset=utf-8") != std::string::npos);
+    CHECK(response_body(result.stdout_output) == "hello");
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file supports custom content type") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_ct";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    {
+        std::ofstream file(dir / "files/hello.txt", std::ios::binary);
+        file << "hello";
+    }
+    auto result = run_cgi_template(
+        "polonio_send_file_ct_program",
+        "<% send_file(\"files/hello.txt\", {\"content_type\": \"application/x-test\"}) %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Content-Type: application/x-test") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file supports download name attachment") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_download";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    {
+        std::ofstream file(dir / "files/data.txt", std::ios::binary);
+        file << "data";
+    }
+    auto result = run_cgi_template(
+        "polonio_send_file_download_program",
+        "<% send_file(\"files/data.txt\", {\"download_name\": \"download.txt\"}) %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Content-Disposition: attachment; filename=\"download.txt\"") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file supports inline download disposition") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_inline";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    {
+        std::ofstream file(dir / "files/page.html", std::ios::binary);
+        file << "<p>hi</p>";
+    }
+    auto result = run_cgi_template(
+        "polonio_send_file_inline_program",
+        "<% send_file(\"files/page.html\", {\"download_name\": \"view.html\", \"inline\": true}) %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Content-Disposition: inline; filename=\"view.html\"") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file finalizes response") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_final";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    {
+        std::ofstream file(dir / "files/hello.txt", std::ios::binary);
+        file << "hello";
+    }
+    auto result = run_cgi_template(
+        "polonio_send_file_final_program",
+        "<% send_file(\"files/hello.txt\") %>after",
+        storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("response already finalized") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file missing file errors") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_missing";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    auto result = run_cgi_template(
+        "polonio_send_file_missing_program",
+        "<% send_file(\"files/missing.txt\") %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("file not found") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file rejects directories") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_dir";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files" / "dir");
+    auto result = run_cgi_template(
+        "polonio_send_file_dir_program",
+        "<% send_file(\"files/dir\") %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("not a file") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file enforces sandbox paths") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_sandbox";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    auto traversal = run_cgi_template(
+        "polonio_send_file_traversal_program",
+        "<% send_file(\"../escape.txt\") %>",
+        storage_env(dir.string()));
+    CHECK(traversal.exit_code != 0);
+    CHECK(traversal.stdout_output.find("path traversal") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file rejects absolute paths") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_abs";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto result = run_cgi_template(
+        "polonio_send_file_abs_program",
+        "<% send_file(\"/tmp/secret.txt\") %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("absolute path") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("send_file requires storage root") {
+    auto program = "<% send_file(\"files/hello.txt\") %>";
+    auto result = run_cgi_template("polonio_send_file_no_root", program);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("missing storage root") != std::string::npos);
+}
+
+TEST_CASE("send_file handles binary data") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_send_file_binary";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir / "files");
+    std::string data("\x89PNG\r\n\x1a\n\x00\x00\x00\x00", 12);
+    {
+        std::ofstream file(dir / "files/pixel.png", std::ios::binary);
+        file.write(data.data(), static_cast<std::streamsize>(data.size()));
+    }
+    auto result = run_cgi_template(
+        "polonio_send_file_binary_program",
+        "<% send_file(\"files/pixel.png\") %>",
+        storage_env(dir.string()));
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Content-Type: image/png") != std::string::npos);
+    CHECK(response_body(result.stdout_output) == data);
+    std::filesystem::remove_all(dir);
 }
 
 TEST_CASE("CGI header builtin validates syntax") {
