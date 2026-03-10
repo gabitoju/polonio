@@ -187,9 +187,11 @@ int handle_cgi_request() {
             }
         }
         interpreter.set_session_context(&session);
+        polonio::process_request_body(ctx, interpreter);
         auto env = interpreter.env();
         env->set_local("_GET", polonio::Value(ctx.get));
         env->set_local("_POST", polonio::Value(ctx.post));
+        env->set_local("_FILES", polonio::Value(ctx.files));
         env->set_local("_COOKIE", polonio::Value(ctx.cookie));
         env->set_local("_SERVER", polonio::Value(ctx.server));
         interpreter.set_cgi_context(&ctx);

@@ -598,6 +598,19 @@ bool is_url_safe(const std::string& token) {
     return true;
 }
 
+std::vector<std::string> split_lines(const std::string& text) {
+    std::vector<std::string> lines;
+    std::stringstream ss(text);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        lines.push_back(line);
+    }
+    return lines;
+}
+
 } // namespace
 
 TEST_CASE("CLI: template blocks share interpreter state") {
@@ -1189,16 +1202,66 @@ std::vector<std::pair<std::string, std::string>> storage_env(const std::string& 
 
 CommandResult run_cgi_template(const std::string& name,
                                const std::string& contents,
-                               const std::vector<std::pair<std::string, std::string>>& extra_env = {}) {
+                               const std::vector<std::pair<std::string, std::string>>& extra_env = {},
+                               const std::string& stdin_body = std::string()) {
     auto path = create_temp_file_with_content(name, contents);
     std::vector<std::pair<std::string, std::string>> env = {
         {"GATEWAY_INTERFACE", "CGI/1.1"},
         {"SCRIPT_FILENAME", path},
     };
     env.insert(env.end(), extra_env.begin(), extra_env.end());
-    auto result = run_polonio_cgi(env);
+    auto result = run_polonio_cgi(env, stdin_body);
     std::filesystem::remove(path);
     return result;
+}
+
+struct MultipartPart {
+    std::string name;
+    bool is_file = false;
+    std::string filename;
+    std::string content_type;
+    std::string data;
+};
+
+std::string build_multipart_body(const std::string& boundary, const std::vector<MultipartPart>& parts) {
+    std::string body;
+    for (const auto& part : parts) {
+        body += "--" + boundary + "\r\n";
+        body += "Content-Disposition: form-data; name=\"" + part.name + "\"";
+        if (part.is_file) {
+            body += "; filename=\"" + part.filename + "\"";
+        }
+        body += "\r\n";
+        if (part.is_file) {
+            if (!part.content_type.empty()) {
+                body += "Content-Type: " + part.content_type + "\r\n";
+            } else {
+                body += "Content-Type: application/octet-stream\r\n";
+            }
+        }
+        body += "\r\n";
+        body += part.data;
+        body += "\r\n";
+    }
+    body += "--" + boundary + "--\r\n";
+    return body;
+}
+
+CommandResult run_multipart_template(const std::string& name,
+                                     const std::string& contents,
+                                     const std::vector<MultipartPart>& parts,
+                                     const std::filesystem::path& storage_root,
+                                     const std::vector<std::pair<std::string, std::string>>& extra_env = {}) {
+    std::string boundary = "----PolonioBoundaryTest";
+    auto body = build_multipart_body(boundary, parts);
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"REQUEST_METHOD", "POST"},
+        {"CONTENT_TYPE", std::string("multipart/form-data; boundary=") + boundary},
+        {"CONTENT_LENGTH", std::to_string(body.size())},
+        {"POLONIO_STORAGE_PATH", storage_root.string()},
+    };
+    env.insert(env.end(), extra_env.begin(), extra_env.end());
+    return run_cgi_template(name, contents, env, body);
 }
 
 std::string response_body(const std::string& response) {
@@ -1901,6 +1964,168 @@ TEST_CASE("send_file handles binary data") {
     CHECK(result.exit_code == 0);
     CHECK(result.stdout_output.find("Content-Type: image/png") != std::string::npos);
     CHECK(response_body(result.stdout_output) == data);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("multipart upload exposes file metadata") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_multipart_basic";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"upload", true, "a.txt", "text/plain", "hello"},
+    };
+    auto tpl = R"(<%
+var f = _FILES["upload"]
+echo f["name"]
+echo "\n"
+echo f["type"]
+echo "\n"
+echo f["size"] > 0
+echo "\n"
+echo file_read(f["tmp_path"])
+%>)";
+    auto result = run_multipart_template("polonio_multipart_basic_program", tpl, parts, dir);
+    CHECK(result.exit_code == 0);
+    auto lines = split_lines(parse_cgi_output(result.stdout_output).body);
+    REQUIRE(lines.size() >= 4);
+    CHECK(lines[0] == "a.txt");
+    CHECK(lines[1] == "text/plain");
+    CHECK(lines[2] == "true");
+    CHECK(lines[3] == "hello");
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("multipart text field populates _POST") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_multipart_text";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"title", false, "", "", "Hello"},
+    };
+    auto result = run_multipart_template("polonio_multipart_text_program", "<% echo _POST[\"title\"] %>", parts, dir);
+    CHECK(result.exit_code == 0);
+    CHECK(parse_cgi_output(result.stdout_output).body == "Hello");
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("multipart mixed fields populate _POST and _FILES") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_multipart_mixed";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"title", false, "", "", "Hello"},
+        {"upload", true, "a.txt", "text/plain", "world"},
+    };
+    auto tpl = R"(<%
+echo _POST["title"]
+echo _FILES["upload"]["name"]
+%>)";
+    auto result = run_multipart_template("polonio_multipart_mixed_program", tpl, parts, dir);
+    CHECK(result.exit_code == 0);
+    CHECK(parse_cgi_output(result.stdout_output).body == "Helloa.txt");
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("multipart repeated file fields become array") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_multipart_repeat";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"upload", true, "a.txt", "text/plain", "A"},
+        {"upload", true, "b.txt", "text/plain", "B"},
+    };
+    auto tpl = R"(<%
+var files = _FILES["upload"]
+echo count(files)
+echo "\n"
+echo files[0]["name"]
+echo "\n"
+echo files[1]["name"]
+%>)";
+    auto result = run_multipart_template("polonio_multipart_repeat_program", tpl, parts, dir);
+    CHECK(result.exit_code == 0);
+    auto lines = split_lines(parse_cgi_output(result.stdout_output).body);
+    REQUIRE(lines.size() >= 3);
+    CHECK(lines[0] == "2");
+    CHECK(lines[1] == "a.txt");
+    CHECK(lines[2] == "b.txt");
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("upload_save moves uploaded file") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_upload_save";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"upload", true, "a.txt", "text/plain", "hello"},
+    };
+    auto tpl = R"(<%
+var f = _FILES["upload"]
+dir_create("uploads")
+upload_save(f, "uploads/final.txt")
+echo file_exists("uploads/final.txt")
+echo "\n"
+echo file_read("uploads/final.txt")
+%>)";
+    auto result = run_multipart_template("polonio_upload_save_program", tpl, parts, dir);
+    CHECK(result.exit_code == 0);
+    auto lines = split_lines(parse_cgi_output(result.stdout_output).body);
+    REQUIRE(lines.size() >= 2);
+    CHECK(lines[0] == "true");
+    CHECK(lines[1] == "hello");
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("multipart upload requires storage root") {
+    auto part = MultipartPart{"upload", true, "a.txt", "text/plain", "hello"};
+    auto boundary = "----PolonioBoundaryTest";
+    auto body = build_multipart_body(boundary, {part});
+    std::vector<std::pair<std::string, std::string>> env = {
+        {"REQUEST_METHOD", "POST"},
+        {"CONTENT_TYPE", std::string("multipart/form-data; boundary=") + boundary},
+        {"CONTENT_LENGTH", std::to_string(body.size())},
+    };
+    auto result = run_cgi_template("polonio_multipart_no_root", "<% echo \"noop\" %>", env, body);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("missing storage root") != std::string::npos);
+}
+
+TEST_CASE("upload_save rejects invalid destination path") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_upload_save_escape";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"upload", true, "a.txt", "text/plain", "hello"},
+    };
+    auto tpl = R"(<%
+var f = _FILES["upload"]
+upload_save(f, "../escape.txt")
+%>)";
+    auto result = run_multipart_template("polonio_upload_save_escape_program", tpl, parts, dir);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output.find("path traversal") != std::string::npos);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("multipart empty file upload recorded") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_multipart_empty";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    std::vector<MultipartPart> parts = {
+        {"upload", true, "empty.bin", "application/octet-stream", ""},
+    };
+    auto tpl = R"(<%
+var f = _FILES["upload"]
+echo f["size"] == 0
+echo "\n"
+echo file_exists(f["tmp_path"])
+%>)";
+    auto result = run_multipart_template("polonio_multipart_empty_program", tpl, parts, dir);
+    CHECK(result.exit_code == 0);
+    auto lines = split_lines(parse_cgi_output(result.stdout_output).body);
+    REQUIRE(lines.size() >= 2);
+    CHECK(lines[0] == "true");
+    CHECK(lines[1] == "true");
     std::filesystem::remove_all(dir);
 }
 
