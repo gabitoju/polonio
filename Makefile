@@ -22,6 +22,7 @@ COMMON_SRC := $(SRC_DIR)/polonio/common/source.cpp \
               $(SRC_DIR)/polonio/runtime/session.cpp \
               $(SRC_DIR)/polonio/runtime/storage.cpp \
               $(SRC_DIR)/polonio/runtime/storage_ops.cpp \
+              $(SRC_DIR)/polonio/runtime/db.cpp \
               $(SRC_DIR)/polonio/runtime/json_utils.cpp \
               $(SRC_DIR)/polonio/runtime/crypto.cpp \
               $(SRC_DIR)/polonio/runtime/template_scanner.cpp \
@@ -29,6 +30,7 @@ COMMON_SRC := $(SRC_DIR)/polonio/common/source.cpp \
               $(SRC_DIR)/polonio/runtime/interpreter.cpp \
               $(SRC_DIR)/polonio/server/http_server.cpp
 TEST_FILES := $(TESTS_DIR)/test_main.cpp
+LIBS := -lsqlite3
 
 all: $(POLONIO_BIN)
 
@@ -36,10 +38,10 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(POLONIO_BIN): $(BUILD_DIR) $(SRC_FILES) $(COMMON_SRC)
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SRC_FILES) $(COMMON_SRC) -o $@
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SRC_FILES) $(COMMON_SRC) -o $@ $(LIBS)
 
 $(POLONIO_TEST_BIN): $(BUILD_DIR) $(TEST_FILES) $(COMMON_SRC) third_party/doctest/doctest.h
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TEST_FILES) $(COMMON_SRC) -o $@
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TEST_FILES) $(COMMON_SRC) -o $@ $(LIBS)
 
 test: $(POLONIO_BIN) $(POLONIO_TEST_BIN)
 	$(POLONIO_TEST_BIN)

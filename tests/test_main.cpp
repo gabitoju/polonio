@@ -1416,6 +1416,165 @@ TEST_CASE("file_size rejects directory inputs") {
     std::filesystem::remove_all(dir);
 }
 
+TEST_CASE("db_connect insert and query") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_basic";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_basic_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_exec(\"create table if not exists users (id integer primary key autoincrement, name text, active integer)\") %>"
+        "<% db_exec(\"insert into users(name, active) values(?, ?)\", [\"Juan\", true]) %>"
+        "<% var rows = db_query(\"select id, name, active from users\") %>"
+        "<% echo count(rows) %>"
+        "<% echo rows[0][\"name\"] %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "1Juan");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_last_insert_id returns value") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_last_id";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_last_id_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_exec(\"create table if not exists t (id integer primary key autoincrement, name text)\") %>"
+        "<% db_exec(\"insert into t(name) values(?)\", [\"A\"]) %>"
+        "<% echo db_last_insert_id() > 0 %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_close requires connection and allows reconnect") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_close";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_close_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/a.db\") %>"
+        "<% db_close() %>"
+        "<% db_connect(\"data/b.db\") %>"
+        "<% db_exec(\"create table if not exists t (id integer)\") %>"
+        "<% echo true %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "true");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_close without connect errors") {
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_close_error",
+        "<% db_close() %>");
+    auto result = run_polonio({"run", program});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("database not connected") != std::string::npos);
+    std::filesystem::remove(program);
+}
+
+TEST_CASE("db parameter binding types roundtrip") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_params";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_params_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_exec(\"create table if not exists t (a text, b integer, c real, d text)\") %>"
+        "<% db_exec(\"insert into t(a,b,c,d) values(?,?,?,?)\", [\"x\", true, 3.5, null]) %>"
+        "<% var rows = db_query(\"select a,b,c,d from t\") %>"
+        "<% echo rows[0][\"a\"] %>"
+        "<% echo rows[0][\"b\"] == 1 %>"
+        "<% echo rows[0][\"c\"] == 3.5 %>"
+        "<% echo rows[0][\"d\"] == null %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "xtruetruetrue");
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_exec rejects unsupported parameter type") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_param_error";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_param_error_program",
+        "<% dir_create(\"data\") %>"
+        "<% db_connect(\"data/app.db\") %>"
+        "<% db_exec(\"create table if not exists t (a text)\") %>"
+        "<% db_exec(\"insert into t(a) values(?)\", [[1,2,3]]) %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("unsupported parameter type") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_connect enforces path sandbox and storage root") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_paths";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+
+    auto traversal_prog = create_temp_file_with_content(
+        "polonio_sqlite_traversal",
+        "<% db_connect(\"../escape.db\") %>");
+    auto traversal = run_polonio({"run", traversal_prog}, env);
+    CHECK(traversal.exit_code != 0);
+    CHECK(traversal.stderr_output.find("path traversal") != std::string::npos);
+    std::filesystem::remove(traversal_prog);
+
+    auto absolute_prog = create_temp_file_with_content(
+        "polonio_sqlite_absolute",
+        "<% db_connect(\"/tmp/x.db\") %>");
+    auto absolute = run_polonio({"run", absolute_prog}, env);
+    CHECK(absolute.exit_code != 0);
+    CHECK(absolute.stderr_output.find("absolute path") != std::string::npos);
+    std::filesystem::remove(absolute_prog);
+
+    auto missing_root_prog = create_temp_file_with_content(
+        "polonio_sqlite_missing_root",
+        "<% db_connect(\"data/app.db\") %>");
+    auto missing_root = run_polonio({"run", missing_root_prog});
+    CHECK(missing_root.exit_code != 0);
+    CHECK(missing_root.stderr_output.find("missing storage root") != std::string::npos);
+    std::filesystem::remove(missing_root_prog);
+
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("db_connect requires parent directory") {
+    auto dir = std::filesystem::temp_directory_path() / "polonio_sqlite_parent";
+    std::filesystem::remove_all(dir);
+    std::filesystem::create_directories(dir);
+    auto env = storage_env(dir.string());
+    auto program = create_temp_file_with_content(
+        "polonio_sqlite_parent_program",
+        "<% db_connect(\"missing/app.db\") %>");
+    auto result = run_polonio({"run", program}, env);
+    CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("missing directory") != std::string::npos);
+    std::filesystem::remove(program);
+    std::filesystem::remove_all(dir);
+}
+
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
                                               "<% header(\"bad header\") %>");

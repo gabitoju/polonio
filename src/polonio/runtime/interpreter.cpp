@@ -12,6 +12,7 @@
 
 #include "polonio/common/error.h"
 #include "polonio/runtime/builtins.h"
+#include "polonio/runtime/db.h"
 
 namespace polonio {
 
@@ -82,6 +83,7 @@ void ResponseContext::emit(std::ostream& os) {
 
 Interpreter::Interpreter(std::shared_ptr<Env> env, std::string path)
     : env_(env ? std::move(env) : std::make_shared<Env>()), path_(std::move(path)) {
+    db_connection_ = std::make_unique<DatabaseConnection>();
     if (!env_->parent() && !env_->has_local("type")) {
         install_builtins(*env_);
     }

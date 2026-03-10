@@ -11,6 +11,7 @@
 #include "polonio/parser/ast.h"
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/output.h"
+#include "polonio/runtime/db.h"
 
 namespace polonio {
 
@@ -60,6 +61,8 @@ public:
     CGIContext* cgi_context() const { return cgi_context_; }
     void set_session_context(SessionContext* ctx) { session_context_ = ctx; }
     SessionContext* session_context() const { return session_context_; }
+    DatabaseConnection* db_connection() { return db_connection_.get(); }
+    const DatabaseConnection* db_connection() const { return db_connection_.get(); }
 
 private:
     Value eval_expr_internal(const ExprPtr& expr);
@@ -98,6 +101,7 @@ private:
     ResponseContext* response_context_ = nullptr;
     CGIContext* cgi_context_ = nullptr;
     SessionContext* session_context_ = nullptr;
+    std::unique_ptr<DatabaseConnection> db_connection_;
 };
 
 } // namespace polonio
