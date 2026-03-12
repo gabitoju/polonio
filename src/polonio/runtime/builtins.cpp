@@ -99,6 +99,8 @@ std::string infer_mime_type(const std::string& path) {
         }
     }
     if (ext == ".txt") return "text/plain; charset=utf-8";
+    if (ext == ".css") return "text/css; charset=utf-8";
+    if (ext == ".js") return "application/javascript";
     if (ext == ".html" || ext == ".htm") return "text/html; charset=utf-8";
     if (ext == ".json") return "application/json";
     if (ext == ".png") return "image/png";
