@@ -18,6 +18,7 @@ COMMON_SRC := $(SRC_DIR)/polonio/common/source.cpp \
               $(SRC_DIR)/polonio/runtime/env.cpp \
               $(SRC_DIR)/polonio/runtime/output.cpp \
               $(SRC_DIR)/polonio/runtime/builtins.cpp \
+              $(SRC_DIR)/polonio/runtime/http_request_utils.cpp \
               $(SRC_DIR)/polonio/runtime/cgi.cpp \
               $(SRC_DIR)/polonio/runtime/session.cpp \
               $(SRC_DIR)/polonio/runtime/storage.cpp \

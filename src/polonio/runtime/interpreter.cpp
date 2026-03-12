@@ -62,7 +62,7 @@ bool ResponseContext::has_content_type() const {
 
 void ResponseContext::ensure_default_headers() {
     if (!has_content_type()) {
-        headers.emplace_back("Content-Type", "text/html");
+        headers.emplace_back("Content-Type", "text/html; charset=utf-8");
     }
 }
 

@@ -30,7 +30,7 @@ void print_usage(std::ostream& os) {
           "  polonio --dump-ast <expr>   Dump AST for expression (dev)\n"
           "  polonio run <file.pol>      Run a Polonio template\n"
           "  polonio <file.pol>          Shorthand for run\n"
-          "  polonio serve ...           Development server (coming soon)\n";
+          "  polonio serve ...           Development server\n";
 }
 
 int handle_run(const std::vector<std::string>& args) {

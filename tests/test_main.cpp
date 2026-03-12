@@ -12,9 +12,11 @@
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/template_scanner.h"
+#include "polonio/server/http_server.h"
 
 #include <arpa/inet.h>
 #include <chrono>
+#include <cctype>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -23,6 +25,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <netinet/in.h>
 #include <sstream>
 #include <stdexcept>
@@ -86,6 +89,16 @@ std::string create_temp_directory(const std::string& prefix) {
     char* result = mkdtemp(buffer.data());
     REQUIRE(result != nullptr);
     return std::string(result);
+}
+
+void write_text_file(const std::filesystem::path& path, const std::string& content) {
+    auto dir = path.parent_path();
+    if (!dir.empty()) {
+        std::filesystem::create_directories(dir);
+    }
+    std::ofstream stream(path, std::ios::binary);
+    REQUIRE(stream.is_open());
+    stream << content;
 }
 
 CommandResult run_polonio_with_env(const std::vector<std::string>& args,
@@ -153,92 +166,207 @@ CommandResult run_polonio_with_env(const std::vector<std::string>& args,
     return result;
 }
 
-int reserve_tcp_port() {
-    int sock = ::socket(AF_INET, SOCK_STREAM, 0);
-    REQUIRE(sock >= 0);
-    int opt = 1;
-    ::setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = 0;
-    int rc = ::bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-    if (rc != 0) {
-        INFO("reserve_tcp_port bind failed: " << std::strerror(errno));
-    }
-    REQUIRE(rc == 0);
-    socklen_t len = sizeof(addr);
-    rc = ::getsockname(sock, reinterpret_cast<sockaddr*>(&addr), &len);
-    REQUIRE(rc == 0);
-    int port = ntohs(addr.sin_port);
-    ::close(sock);
-    return port;
-}
-
-int connect_with_retry(int port) {
-    for (int attempt = 0; attempt < 200; ++attempt) {
-        int sock = ::socket(AF_INET, SOCK_STREAM, 0);
-        REQUIRE(sock >= 0);
-        sockaddr_in addr{};
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(static_cast<uint16_t>(port));
-        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        if (::connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
-            return sock;
-        }
-        ::close(sock);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-    FAIL("unable to connect to test server");
-    return -1;
-}
-
-std::string perform_http_get(int port) {
-    int sock = connect_with_retry(port);
-    const std::string request = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
-    ssize_t sent = ::send(sock, request.data(), request.size(), 0);
-    REQUIRE(sent == static_cast<ssize_t>(request.size()));
-    std::string response;
-    char buffer[1024];
-    while (true) {
-        ssize_t n = ::recv(sock, buffer, sizeof(buffer), 0);
-        if (n <= 0) break;
-        response.append(buffer, static_cast<std::size_t>(n));
-    }
-    ::close(sock);
-    return response;
-}
-
-struct ChildProcessGuard {
-    pid_t pid = -1;
-    explicit ChildProcessGuard(pid_t p) : pid(p) {}
-    ~ChildProcessGuard() {
-        if (pid > 0) {
-            ::kill(pid, SIGTERM);
-            ::waitpid(pid, nullptr, 0);
-        }
-    }
-    void release() { pid = -1; }
+struct MultipartPart {
+    std::string name;
+    bool is_file = false;
+    std::string filename;
+    std::string content_type;
+    std::string data;
 };
 
-std::string run_serve_request(const std::string& root, int port) {
-    auto binary = (std::filesystem::current_path() / "build/polonio").string();
-    REQUIRE(std::filesystem::exists(binary));
-    pid_t pid = ::fork();
-    REQUIRE(pid >= 0);
-    if (pid == 0) {
-        std::string port_str = std::to_string(port);
-        execl(binary.c_str(), binary.c_str(), "serve", "--port", port_str.c_str(), "--root", root.c_str(), (char*)nullptr);
-        _exit(127);
+std::string build_multipart_body(const std::string& boundary, const std::vector<MultipartPart>& parts) {
+    std::string body;
+    for (const auto& part : parts) {
+        body += "--" + boundary + "\r\n";
+        body += "Content-Disposition: form-data; name=\"" + part.name + "\"";
+        if (part.is_file) {
+            body += "; filename=\"" + part.filename + "\"";
+        }
+        body += "\r\n";
+        if (part.is_file) {
+            if (!part.content_type.empty()) {
+                body += "Content-Type: " + part.content_type + "\r\n";
+            } else {
+                body += "Content-Type: application/octet-stream\r\n";
+            }
+        }
+        body += "\r\n";
+        body += part.data;
+        body += "\r\n";
     }
-    ChildProcessGuard guard(pid);
-    std::string response = perform_http_get(port);
+    body += "--" + boundary + "--\r\n";
+    return body;
+}
+
+bool iequals(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(a[i])) !=
+            std::tolower(static_cast<unsigned char>(b[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::string trim_copy(const std::string& input) {
+    std::size_t start = 0;
+    while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start]))) {
+        ++start;
+    }
+    std::size_t end = input.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
+        --end;
+    }
+    return input.substr(start, end - start);
+}
+
+struct HttpResponseMessage {
     int status = 0;
-    ::waitpid(pid, &status, 0);
-    guard.release();
-    REQUIRE(WIFEXITED(status));
-    CHECK(WEXITSTATUS(status) == 0);
-    return response;
+    std::string reason;
+    std::vector<std::pair<std::string, std::string>> headers;
+    std::string body;
+
+    std::string header_value(const std::string& name) const {
+        for (auto it = headers.rbegin(); it != headers.rend(); ++it) {
+            if (iequals(it->first, name)) {
+                return it->second;
+            }
+        }
+        return {};
+    }
+
+    std::vector<std::string> header_values(const std::string& name) const {
+        std::vector<std::string> values;
+        for (const auto& header : headers) {
+            if (iequals(header.first, name)) {
+                values.push_back(header.second);
+            }
+        }
+        return values;
+    }
+};
+
+std::string build_http_request(const std::string& method,
+                               const std::string& target,
+                               const std::vector<std::pair<std::string, std::string>>& headers,
+                               const std::string& body) {
+    bool has_host = false;
+    bool has_content_length = false;
+    std::ostringstream request;
+    request << method << " " << target << " HTTP/1.1\r\n";
+    for (const auto& header : headers) {
+        if (iequals(header.first, "Host")) {
+            has_host = true;
+        }
+        if (iequals(header.first, "Content-Length")) {
+            has_content_length = true;
+        }
+        request << header.first << ": " << header.second << "\r\n";
+    }
+    if (!has_host) {
+        request << "Host: localhost\r\n";
+    }
+    if (!has_content_length) {
+        if (!body.empty()) {
+            request << "Content-Length: " << body.size() << "\r\n";
+        } else if (iequals(method, "POST")) {
+            request << "Content-Length: 0\r\n";
+        }
+    }
+    request << "\r\n";
+    request << body;
+    return request.str();
+}
+
+HttpResponseMessage parse_http_response(const std::string& raw) {
+    auto header_end = raw.find("\r\n\r\n");
+    REQUIRE(header_end != std::string::npos);
+    HttpResponseMessage resp;
+    resp.body = raw.substr(header_end + 4);
+    std::string head = raw.substr(0, header_end);
+    std::size_t pos = 0;
+    bool first_line = true;
+    while (pos <= head.size()) {
+        std::size_t line_end = head.find("\r\n", pos);
+        std::string line = head.substr(
+            pos,
+            line_end == std::string::npos ? head.size() - pos : line_end - pos);
+        if (line.empty() && line_end != std::string::npos) {
+            pos = line_end + 2;
+            continue;
+        }
+        if (first_line) {
+            first_line = false;
+            REQUIRE(line.rfind("HTTP/1.", 0) == 0);
+            auto first_space = line.find(' ');
+            REQUIRE(first_space != std::string::npos);
+            auto second_space = line.find(' ', first_space + 1);
+            std::string code_str = (second_space == std::string::npos)
+                                       ? line.substr(first_space + 1)
+                                       : line.substr(first_space + 1, second_space - first_space - 1);
+            resp.status = std::stoi(code_str);
+            resp.reason = (second_space == std::string::npos) ? std::string()
+                                                              : line.substr(second_space + 1);
+        } else {
+            if (line.empty()) {
+                break;
+            }
+            auto colon = line.find(':');
+            REQUIRE(colon != std::string::npos);
+            std::string name = line.substr(0, colon);
+            std::string value = trim_copy(line.substr(colon + 1));
+            resp.headers.emplace_back(name, value);
+        }
+        if (line_end == std::string::npos) break;
+        pos = line_end + 2;
+    }
+    return resp;
+}
+
+struct ScopedEnvs {
+    struct Entry {
+        std::string key;
+        std::optional<std::string> previous;
+    };
+    std::vector<Entry> entries;
+    explicit ScopedEnvs(const std::vector<std::pair<std::string, std::string>>& vars) {
+        for (const auto& var : vars) {
+            Entry entry;
+            entry.key = var.first;
+            const char* existing = std::getenv(var.first.c_str());
+            if (existing) {
+                entry.previous = std::string(existing);
+            }
+            entries.push_back(entry);
+            ::setenv(var.first.c_str(), var.second.c_str(), 1);
+        }
+    }
+    ~ScopedEnvs() {
+        for (const auto& entry : entries) {
+            if (entry.previous) {
+                ::setenv(entry.key.c_str(), entry.previous->c_str(), 1);
+            } else {
+                ::unsetenv(entry.key.c_str());
+            }
+        }
+    }
+};
+
+HttpResponseMessage perform_http_request_message(
+    const std::filesystem::path& root,
+    const std::string& method,
+    const std::string& target,
+    const std::vector<std::pair<std::string, std::string>>& headers,
+    const std::string& body = std::string(),
+    const std::vector<std::pair<std::string, std::string>>& env = {}) {
+    ScopedEnvs scoped(env);
+    polonio::ServerConfig config;
+    config.root = root;
+    config.port = 8080;
+    auto request = build_http_request(method, target, headers, body);
+    auto raw = polonio::simulate_http_request(config, request);
+    return parse_http_response(raw);
 }
 
 } // namespace
@@ -554,9 +682,9 @@ CGIOutput parse_cgi_output(const std::string& output) {
 }
 
 std::string extract_cgi_body(const std::string& output) {
-    const std::string header = "Content-Type: text/html\r\n\r\n";
-    if (output.rfind(header, 0) == 0) {
-        return output.substr(header.size());
+    auto parsed = parse_cgi_output(output);
+    if (!parsed.body.empty()) {
+        return parsed.body;
     }
     return output;
 }
@@ -663,7 +791,7 @@ TEST_CASE("CGI mode populates _GET") {
     };
     auto result = run_polonio_cgi(env);
     CHECK(result.exit_code == 0);
-    CHECK(result.stdout_output.rfind("Content-Type: text/html\r\n\r\n", 0) == 0);
+    CHECK(result.stdout_output.rfind("Content-Type: text/html; charset=utf-8\r\n\r\n", 0) == 0);
     CHECK(extract_cgi_body(result.stdout_output) == "1twothree");
     std::filesystem::remove(path);
 }
@@ -726,7 +854,7 @@ TEST_CASE("CGI mode supports status() and header() builtins") {
     auto parsed = parse_cgi_output(result.stdout_output);
     CHECK(parsed.headers.find("Status: 404") != std::string::npos);
     CHECK(parsed.headers.find("X-Test: yes") != std::string::npos);
-    CHECK(parsed.headers.find("Content-Type: text/html") != std::string::npos);
+    CHECK(parsed.headers.find("Content-Type: text/html; charset=utf-8") != std::string::npos);
     CHECK(parsed.body.find("<h1>Missing</h1>") != std::string::npos);
     std::filesystem::remove(path);
 }
@@ -776,12 +904,132 @@ TEST_CASE("CGI http helpers control status and headers") {
     std::filesystem::remove(path);
 }
 
-TEST_CASE("serve stub handles single request") {
-    auto root = create_temp_directory("polonio_serve_root");
-    int port = reserve_tcp_port();
-    auto response = run_serve_request(root, port);
-    CHECK(response.find("HTTP/1.1 200 OK") != std::string::npos);
-    CHECK(response.find("\r\n\r\nOK") != std::string::npos);
+TEST_CASE("Dev server serves static files") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_static"));
+    write_text_file(root / "hello.txt", "hello");
+    auto response = perform_http_request_message(root, "GET", "/hello.txt", {});
+    CHECK(response.status == 200);
+    CHECK(response.body == "hello");
+    CHECK(response.header_value("Content-Type") == "text/plain; charset=utf-8");
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server renders index.pol at root") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_index"));
+    write_text_file(root / "index.pol", "<h1>Hello</h1>");
+    auto response = perform_http_request_message(root, "GET", "/", {});
+    CHECK(response.status == 200);
+    CHECK(response.body.find("<h1>Hello</h1>") != std::string::npos);
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server renders templates with query strings") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_query"));
+    write_text_file(root / "hello.pol", "<% echo get(_GET, \"name\") %>");
+    auto response = perform_http_request_message(root, "GET", "/hello.pol?name=Ada", {});
+    CHECK(response.status == 200);
+    CHECK(response.body.find("Ada") != std::string::npos);
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server handles POST form submissions") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_post"));
+    write_text_file(root / "form.pol", "<% echo get(_POST, \"msg\") %>");
+    std::vector<std::pair<std::string, std::string>> headers = {
+        {"Content-Type", "application/x-www-form-urlencoded"},
+    };
+    auto response = perform_http_request_message(root, "POST", "/form.pol", headers, "msg=hi");
+    CHECK(response.status == 200);
+    CHECK(response.body.find("hi") != std::string::npos);
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server handles multipart uploads") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_upload"));
+    write_text_file(root / "upload.pol", "<% echo _FILES[\"file\"][\"name\"] %>");
+    MultipartPart part;
+    part.name = "file";
+    part.is_file = true;
+    part.filename = "hello.txt";
+    part.data = "hi";
+    std::string boundary = "----PolonioBoundaryServe";
+    auto body = build_multipart_body(boundary, {part});
+    std::vector<std::pair<std::string, std::string>> headers = {
+        {"Content-Type", std::string("multipart/form-data; boundary=") + boundary},
+    };
+    auto response = perform_http_request_message(root, "POST", "/upload.pol", headers, body);
+    CHECK(response.status == 200);
+    CHECK(response.body.find("hello.txt") != std::string::npos);
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server send_file builtin streams files") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_send_file"));
+    write_text_file(root / "files" / "a.txt", "hello");
+    write_text_file(root / "download.pol", "<% send_file(\"files/a.txt\") %>");
+    auto response = perform_http_request_message(root, "GET", "/download.pol", {});
+    CHECK(response.status == 200);
+    CHECK(response.body == "hello");
+    CHECK(response.header_value("Content-Type") == "text/plain; charset=utf-8");
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server sessions persist via cookies") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_sessions"));
+    write_text_file(root / "session_set.pol", "<% session_set(\"user\", \"Ada\") %><% echo session_get(\"user\") %>");
+    write_text_file(root / "session_get.pol", "<% echo session_get(\"user\") %>");
+    std::vector<std::pair<std::string, std::string>> env = {{"POLONIO_SESSION_SECRET", "secret"}};
+    auto first = perform_http_request_message(root, "GET", "/session_set.pol", {}, {}, env);
+    CHECK(first.body.find("Ada") != std::string::npos);
+    auto cookies = first.header_values("Set-Cookie");
+    REQUIRE_FALSE(cookies.empty());
+    std::string cookie = cookies.front();
+    auto semi = cookie.find(';');
+    if (semi != std::string::npos) {
+        cookie = cookie.substr(0, semi);
+    }
+    auto second = perform_http_request_message(root, "GET", "/session_get.pol", {{"Cookie", cookie}}, {}, env);
+    CHECK(second.body.find("Ada") != std::string::npos);
+    std::filesystem::remove_all(root);
+}
+
+TEST_CASE("Dev server 404 handling renders fallback or template") {
+    SUBCASE("default 404 body") {
+        auto root = std::filesystem::path(create_temp_directory("polonio_serve_404_default"));
+        auto response = perform_http_request_message(root, "GET", "/missing", {});
+        CHECK(response.status == 404);
+        CHECK(response.body.find("Not Found") != std::string::npos);
+        std::filesystem::remove_all(root);
+    }
+    SUBCASE("custom 404 template") {
+        auto root = std::filesystem::path(create_temp_directory("polonio_serve_404_template"));
+        write_text_file(root / "404.pol", "<h1>gone</h1>");
+        auto response = perform_http_request_message(root, "GET", "/missing", {});
+        CHECK(response.status == 404);
+        CHECK(response.body.find("<h1>gone</h1>") != std::string::npos);
+        std::filesystem::remove_all(root);
+    }
+}
+
+TEST_CASE("Dev server rejects directory traversal") {
+    auto base = std::filesystem::path(create_temp_directory("polonio_serve_traversal"));
+    auto root = base / "public";
+    std::filesystem::create_directories(root);
+    write_text_file(base / "secret.txt", "secret");
+    auto response = perform_http_request_message(root, "GET", "/../secret.txt", {});
+    CHECK((response.status == 404 || response.status == 400));
+    CHECK(response.body.find("secret") == std::string::npos);
+    std::filesystem::remove_all(base);
+}
+
+TEST_CASE("Dev server rejects unsupported HTTP methods") {
+    auto root = std::filesystem::path(create_temp_directory("polonio_serve_method"));
+    write_text_file(root / "index.pol", "ok");
+    auto response = perform_http_request_message(root, "PUT", "/index.pol", {});
+    CHECK(response.status == 405);
+    auto allow = response.header_value("Allow");
+    CHECK(allow.find("GET") != std::string::npos);
+    CHECK(allow.find("POST") != std::string::npos);
     std::filesystem::remove_all(root);
 }
 
@@ -1233,38 +1481,6 @@ CommandResult run_cgi_template(const std::string& name,
     auto result = run_polonio_cgi(env, stdin_body);
     std::filesystem::remove(path);
     return result;
-}
-
-struct MultipartPart {
-    std::string name;
-    bool is_file = false;
-    std::string filename;
-    std::string content_type;
-    std::string data;
-};
-
-std::string build_multipart_body(const std::string& boundary, const std::vector<MultipartPart>& parts) {
-    std::string body;
-    for (const auto& part : parts) {
-        body += "--" + boundary + "\r\n";
-        body += "Content-Disposition: form-data; name=\"" + part.name + "\"";
-        if (part.is_file) {
-            body += "; filename=\"" + part.filename + "\"";
-        }
-        body += "\r\n";
-        if (part.is_file) {
-            if (!part.content_type.empty()) {
-                body += "Content-Type: " + part.content_type + "\r\n";
-            } else {
-                body += "Content-Type: application/octet-stream\r\n";
-            }
-        }
-        body += "\r\n";
-        body += part.data;
-        body += "\r\n";
-    }
-    body += "--" + boundary + "--\r\n";
-    return body;
 }
 
 CommandResult run_multipart_template(const std::string& name,

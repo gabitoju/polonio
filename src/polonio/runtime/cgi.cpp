@@ -1,19 +1,17 @@
 #include "polonio/runtime/cgi.h"
 
-#include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 
 #include "polonio/common/error.h"
 #include "polonio/runtime/crypto.h"
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/storage.h"
+#include "polonio/runtime/http_request_utils.h"
 
 extern char** environ;
 
@@ -24,94 +22,6 @@ namespace {
 std::string get_env(const char* name) {
     const char* value = std::getenv(name);
     return value ? std::string(value) : std::string();
-}
-
-std::string url_decode(const std::string& input) {
-    std::string out;
-    out.reserve(input.size());
-    for (std::size_t i = 0; i < input.size(); ++i) {
-        char c = input[i];
-        if (c == '+') {
-            out.push_back(' ');
-        } else if (c == '%' && i + 2 < input.size() && std::isxdigit(static_cast<unsigned char>(input[i + 1])) &&
-                   std::isxdigit(static_cast<unsigned char>(input[i + 2]))) {
-            auto hex = input.substr(i + 1, 2);
-            char decoded = static_cast<char>(std::strtol(hex.c_str(), nullptr, 16));
-            out.push_back(decoded);
-            i += 2;
-        } else {
-            out.push_back(c);
-        }
-    }
-    return out;
-}
-
-using EntryMap = std::unordered_map<std::string, std::vector<std::string>>;
-
-EntryMap parse_urlencoded_entries(const std::string& data) {
-    EntryMap entries;
-    std::size_t start = 0;
-    while (start <= data.size()) {
-        std::size_t amp = data.find('&', start);
-        std::string pair = (amp == std::string::npos) ? data.substr(start) : data.substr(start, amp - start);
-        std::size_t eq = pair.find('=');
-        std::string name_enc = (eq == std::string::npos) ? pair : pair.substr(0, eq);
-        std::string value_enc = (eq == std::string::npos) ? std::string() : pair.substr(eq + 1);
-        std::string name = url_decode(name_enc);
-        std::string value = url_decode(value_enc);
-        entries[name].push_back(value);
-        if (amp == std::string::npos) break;
-        start = amp + 1;
-    }
-    return entries;
-}
-
-Value::Object entries_to_object(const EntryMap& entries) {
-    Value::Object obj;
-    for (const auto& entry : entries) {
-        if (entry.second.empty()) {
-            obj[entry.first] = Value();
-            continue;
-        }
-        if (entry.second.size() == 1) {
-            obj[entry.first] = Value(entry.second.front());
-        } else {
-            Value::Array arr;
-            for (const auto& val : entry.second) {
-                arr.emplace_back(val);
-            }
-            obj[entry.first] = Value(arr);
-        }
-    }
-    return obj;
-}
-
-Value::Object parse_query_string(const std::string& qs) { return entries_to_object(parse_urlencoded_entries(qs)); }
-
-Value::Object parse_cookie_header(const std::string& header) {
-    Value::Object obj;
-    std::size_t start = 0;
-    while (start < header.size()) {
-        std::size_t semi = header.find(';', start);
-        std::string pair = (semi == std::string::npos) ? header.substr(start) : header.substr(start, semi - start);
-        std::size_t eq = pair.find('=');
-        std::string name = (eq == std::string::npos) ? pair : pair.substr(0, eq);
-        std::string value = (eq == std::string::npos) ? std::string() : pair.substr(eq + 1);
-        auto trim = [](std::string s) {
-            std::size_t first = s.find_first_not_of(" \t");
-            std::size_t last = s.find_last_not_of(" \t");
-            if (first == std::string::npos) return std::string();
-            return s.substr(first, last - first + 1);
-        };
-        name = trim(name);
-        value = trim(value);
-        if (!name.empty()) {
-            obj[name] = Value(url_decode(value));
-        }
-        if (semi == std::string::npos) break;
-        start = semi + 1;
-    }
-    return obj;
 }
 
 Value::Object build_server_object() {
@@ -138,51 +48,6 @@ Value::Object build_server_object() {
     return server;
 }
 
-Value::Object parse_post_body(const std::string& body) {
-    if (body.empty()) return Value::Object();
-    return entries_to_object(parse_urlencoded_entries(body));
-}
-
-void append_form_value(Value::Object& target, const std::string& name, const Value& value) {
-    auto it = target.find(name);
-    if (it == target.end()) {
-        target[name] = value;
-        return;
-    }
-    auto& existing = it->second;
-    auto& storage = existing.storage();
-    if (std::holds_alternative<Value::ArrayPtr>(storage)) {
-        auto arr = std::get<Value::ArrayPtr>(storage);
-        if (!arr) {
-            arr = std::make_shared<Value::Array>();
-            storage = arr;
-        }
-        arr->push_back(value);
-    } else {
-        Value::Array arr;
-        arr.push_back(existing);
-        arr.push_back(value);
-        existing = Value(std::move(arr));
-    }
-}
-
-std::string trim(const std::string& input) {
-    std::size_t start = 0;
-    while (start < input.size() && std::isspace(static_cast<unsigned char>(input[start]))) {
-        ++start;
-    }
-    std::size_t end = input.size();
-    while (end > start && std::isspace(static_cast<unsigned char>(input[end - 1]))) {
-        --end;
-    }
-    return input.substr(start, end - start);
-}
-
-std::string to_lower_copy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
 std::string random_hex_string(std::size_t nbytes, Interpreter& interpreter) {
     std::string bytes;
     if (!secure_random_bytes(bytes, nbytes)) {
@@ -201,19 +66,6 @@ std::string random_hex_string(std::size_t nbytes, Interpreter& interpreter) {
     return out;
 }
 
-std::string normalize_header_key(const std::string& name) {
-    std::string normalized;
-    normalized.reserve(name.size());
-    for (char ch : name) {
-        if (ch == '_') {
-            normalized.push_back('-');
-        } else {
-            normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
-        }
-    }
-    return normalized;
-}
-
 Value::Object build_headers_object() {
     Value::Object headers;
     auto add_header = [&](const std::string& key, const std::string& value) {
@@ -230,7 +82,7 @@ Value::Object build_headers_object() {
         std::string name = entry.substr(0, eq);
         if (name.rfind("HTTP_", 0) == 0) {
             std::string raw = name.substr(5);
-            add_header(normalize_header_key(raw), entry.substr(eq + 1));
+            add_header(http::normalize_header_key(raw), entry.substr(eq + 1));
         }
     }
     return headers;
@@ -266,8 +118,8 @@ CGIContext build_cgi_context() {
     ctx.script_filename = script;
     ctx.server = build_server_object();
     ctx.headers = build_headers_object();
-    ctx.get = parse_query_string(get_env("QUERY_STRING"));
-    ctx.cookie = parse_cookie_header(get_env("HTTP_COOKIE"));
+    ctx.get = http::parse_query_string(get_env("QUERY_STRING"));
+    ctx.cookie = http::parse_cookie_header(get_env("HTTP_COOKIE"));
     ctx.post = Value::Object();
     ctx.files = Value::Object();
     ctx.body.clear();
@@ -290,7 +142,7 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
     if (ctx.request_method.empty()) {
         return;
     }
-    std::string method = to_lower_copy(ctx.request_method);
+    std::string method = http::to_lower_copy(ctx.request_method);
     if (method != "post") {
         return;
     }
@@ -298,9 +150,9 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
     if (content_type.empty()) {
         return;
     }
-    std::string lowered = to_lower_copy(content_type);
+    std::string lowered = http::to_lower_copy(content_type);
     if (lowered.rfind("application/x-www-form-urlencoded", 0) == 0) {
-        ctx.post = parse_post_body(ctx.body);
+        ctx.post = http::parse_post_body(ctx.body);
         return;
     }
     if (lowered.rfind("multipart/form-data", 0) != 0) {
@@ -318,7 +170,7 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
     if (semi != std::string::npos) {
         boundary = boundary.substr(0, semi);
     }
-    boundary = trim(boundary);
+    boundary = http::trim_whitespace(boundary);
     if (!boundary.empty() && boundary.front() == '"' && boundary.back() == '"') {
         boundary = boundary.substr(1, boundary.size() - 2);
     }
@@ -398,14 +250,14 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
             if (colon == std::string::npos) {
                 runtime_error("invalid multipart body");
             }
-            std::string key = to_lower_copy(trim(line.substr(0, colon)));
-            std::string value = trim(line.substr(colon + 1));
+            std::string key = http::to_lower_copy(http::trim_whitespace(line.substr(0, colon)));
+            std::string value = http::trim_whitespace(line.substr(colon + 1));
             if (key == "content-disposition") {
                 std::stringstream ss(value);
                 std::string token;
                 bool first_token = true;
                 while (std::getline(ss, token, ';')) {
-                    token = trim(token);
+                    token = http::trim_whitespace(token);
                     if (token.empty()) continue;
                     if (first_token) {
                         first_token = false;
@@ -413,8 +265,8 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
                     }
                     auto eq = token.find('=');
                     if (eq == std::string::npos) continue;
-                    std::string param_key = to_lower_copy(trim(token.substr(0, eq)));
-                    std::string param_value = trim(token.substr(eq + 1));
+                    std::string param_key = http::to_lower_copy(http::trim_whitespace(token.substr(0, eq)));
+                    std::string param_value = http::trim_whitespace(token.substr(eq + 1));
                     if (!param_value.empty() && param_value.front() == '"' && param_value.back() == '"') {
                         param_value = param_value.substr(1, param_value.size() - 2);
                     }
@@ -434,7 +286,7 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
         }
 
         if (filename.empty()) {
-            append_form_value(ctx.post, field_name, Value(data));
+            http::append_form_value(ctx.post, field_name, Value(data));
         } else {
             std::string extension;
             auto dot = filename.find_last_of('.');
@@ -454,7 +306,7 @@ void process_request_body(CGIContext& ctx, Interpreter& interpreter) {
             file_entry["type"] = Value(part_type.empty() ? std::string("application/octet-stream") : part_type);
             file_entry["size"] = Value(static_cast<double>(data.size()));
             file_entry["tmp_path"] = Value(relative_file.generic_string());
-            append_form_value(ctx.files, field_name, Value(std::move(file_entry)));
+            http::append_form_value(ctx.files, field_name, Value(std::move(file_entry)));
         }
 
         if (final) {
