@@ -43,13 +43,13 @@
 
   <section id="what-is">
     <h2>What is Polonio?</h2>
-    <p>Polonio started as a CGI experiment and now delivers a modern lexer, Pratt parser, tree-walking interpreter, template renderer, and HTTP runtime in one binary. Templates stay readable because HTML and Polonio code coexist without ceremony, so designers can skim markup while developers wire in loops, includes, and functions.</p>
+    <p>Polonio started as a CGI experiment and now has a modern lexer, Pratt parser, tree-walking interpreter, and template renderer. The official reference distribution packages those layers with Web and Data Runtimes in one binary. Templates stay readable because HTML and Polonio code coexist without ceremony, so designers can skim markup while developers wire in loops, includes, and functions.</p>
     <p>Core pillars:</p>
     <ul>
       <li>HTML-first templates: literal HTML interleaved with `<% ... %>` and `<% echo expr %>` blocks.</li>
       <li>7 fundamental types (`null`, `bool`, `number`, `string`, `array`, `object`, `function`) with lexical scoping and closures.</li>
-      <li>A rich standard library spanning string, array, object, math, date, output, and HTTP helpers.</li>
-      <li>CGI awareness: `_GET`, `_POST`, `_COOKIE`, and `_SERVER` superglobals plus response helpers like `http_status`.</li>
+      <li>A Standard Library of string, array, object, math, date, and URL helpers; template output and HTTP helpers are separate runtime layers.</li>
+      <li>The reference distribution's Web Runtime supplies `_GET`, `_POST`, `_COOKIE`, `_SERVER`, response helpers such as `http_status`, CGI, and the local development server.</li>
     </ul>
   </section>
 
@@ -134,7 +134,7 @@ Serving ./examples on http://127.0.0.1:8080</code></pre>
       </a>
       <a class="card" href="runtime.html">
         <h3>HTTP &amp; Runtime</h3>
-        <p>CGI detection, superglobals, response helpers, URL utilities, and dev-server roadmap.</p>
+        <p>Web Runtime behavior: CGI, superglobals, response helpers, and the local development server.</p>
       </a>
       <a class="card" href="examples.html">
         <h3>Examples &amp; Cookbook</h3>

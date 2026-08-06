@@ -121,7 +121,12 @@ No namespace implementation is required in this item.
 
 ---
 
-## [ACCEPTED] L1-3 Core Language vs Runtime Boundary
+## [IMPLEMENTED] L1-3 Core Language vs Runtime Boundary
+
+- [DONE] L1-3a Publish conformance profiles
+- [DONE] L1-3b Apply runtime boundary to documentation
+- [DONE] L1-3c Validate builtin profile assignments
+- [BLOCKED] L1-3d Freeze language/runtime boundary in Language Specification v1
 
 Define the official boundary between:
 

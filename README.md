@@ -1,14 +1,13 @@
 # Polonio
 
-Polonio is a single-binary C++17 server-side templating language. It has a lexer, Pratt parser, tree-walking interpreter, template renderer, CGI runtime, and a local development server.
+Polonio is a C++17 templating language. The official reference distribution is a single binary that ships the language, template runtime, CGI adapter, and local development server.
 
 ## Features
 
 - Templates with `<% %>` code, `$var` interpolation, inline `echo`, and relative includes
 - Closures, arrays, objects, control flow, and 99 registered builtins
-- CGI and a filesystem-routed local server
-- GET and POST, URL-encoded forms, multipart uploads, cookies, and JSON bodies through `request_json()`
-- Signed sessions, CSRF tokens, password helpers, `send_file`, SQLite, and sandboxed storage
+- The reference distribution's Web Runtime provides CGI, a filesystem-routed local server, GET/POST, URL-encoded forms, multipart uploads, cookies, JSON bodies through `request_json()`, and signed sessions/CSRF.
+- The reference distribution's Data Runtime provides sandboxed storage and SQLite; its Web Runtime also provides password helpers, `send_file`, and file-mode `send_mail`.
 
 ## Build
 
@@ -41,12 +40,11 @@ The server listens on `127.0.0.1`, defaults to port `8080` and the current direc
 
 ## Current Runtime Boundaries
 
-- CGI is suitable behind a CGI-capable web server.
+- CGI and `polonio serve` are adapters shipped by the reference distribution's Web Runtime; neither is required for Language Core conformance.
 - `polonio serve` is single-threaded, loopback-only, and intended for local development—not a hardened public Internet server.
 - The server supports GET/POST, URL-encoded forms, multipart uploads, and JSON access through `request_json()`. It does not provide TLS, keep-alive, concurrent handling, or chunked request bodies.
 - `send_mail` writes `.eml` files to the sandboxed storage outbox; SMTP delivery and background jobs are not implemented.
-- SQLite is the built-in database backend.
-- Storage is sandboxed through `POLONIO_STORAGE_PATH`; database and upload paths use that root.
+- The Data Runtime provides the reference distribution's SQLite backend and sandboxed storage through `POLONIO_STORAGE_PATH`; database and upload paths use that root.
 - There is no framework router, middleware, ORM, or production-server feature set.
 
 ## Documentation
@@ -56,6 +54,8 @@ The server listens on `127.0.0.1`, defaults to port `8080` and the current direc
 - [Builtin reference](docs/site/builtins.html) — registered runtime APIs
 - [Examples](examples/README.md) — runnable filesystem routes
 - [Architecture audit](ARCHITECTURE_AUDIT.md) — current implementation snapshot
+- [Conformance profiles](docs/CONFORMANCE_PROFILES.md) — language, runtime, and reference-distribution guarantees
+- [Conformance matrix](docs/CONFORMANCE_MATRIX.md) — definitive profile quick reference
 
 ## License
 
