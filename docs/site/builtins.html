@@ -58,7 +58,7 @@
           <tr><td><code>contains(haystack, needle)</code></td><td>Return true if the substring exists.</td></tr>
           <tr><td><code>starts_with(text, prefix)</code></td><td>Return true if text begins with prefix.</td></tr>
           <tr><td><code>ends_with(text, suffix)</code></td><td>Return true if text ends with suffix.</td></tr>
-          <tr><td><code>htmlspecialchars / html_escape</code></td><td>Escape &, <, >, " and ' for HTML output (aliases).</td></tr>
+          <tr><td><code>html_escape(value)</code></td><td>Escape &, <, >, " and ' for HTML output. Compatibility alias: <code>htmlspecialchars</code>.</td></tr>
         </tbody>
       </table>
     </div>
@@ -125,8 +125,9 @@
       <div class="example-output"><strong>Output:</strong> <code>true</code></div>
     </article>
     <article>
-      <h3><code>htmlspecialchars / html_escape</code></h3>
-      <p>Escape &, <, >, " and ' for HTML output (aliases).</p>
+      <h3 id="html_escape"><code>html_escape(value)</code></h3>
+      <p><strong>Compatibility alias:</strong> <code>htmlspecialchars(value)</code>. Both names have identical behavior.</p>
+      <p>Escape &, <, >, " and ' for HTML output.</p>
       <pre><code>&lt;% echo html_escape(&quot;Rock &amp; Roll&quot;) %&gt;</code></pre>
       <div class="example-output"><strong>Output:</strong> <code>Rock &amp; Roll</code></div>
     </article>
@@ -340,8 +341,7 @@
         <thead><tr><th>Function</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>type(value)</code></td><td>Return the runtime type name.</td></tr>
-          <tr><td><code>tostring(value)</code></td><td>Serialize a value exactly as the output buffer would.</td></tr>
-          <tr><td><code>to_string(value)</code></td><td>Alias of <code>tostring</code>.</td></tr>
+          <tr><td><code>to_string(value)</code></td><td>Serialize a value exactly as the output buffer would. Compatibility alias: <code>tostring</code>.</td></tr>
           <tr><td><code>to_number(value)</code></td><td>Convert strings/bools/null to numbers.</td></tr>
           <tr><td><code>is_null(value)</code></td><td>Return true if the value is null.</td></tr>
           <tr><td><code>is_bool(value)</code></td><td>Return true for booleans.</td></tr>
@@ -360,16 +360,11 @@
       <div class="example-output"><strong>Output:</strong> <code>number</code></div>
     </article>
     <article>
-      <h3><code>tostring(value)</code></h3>
+      <h3 id="to_string"><code>to_string(value)</code></h3>
+      <p><strong>Compatibility alias:</strong> <code>tostring(value)</code>. Both names have identical behavior.</p>
       <p>Serialize a value exactly as the output buffer would.</p>
-      <pre><code>&lt;% echo tostring([1,2]) %&gt;</code></pre>
+      <pre><code>&lt;% echo to_string([1,2]) %&gt;</code></pre>
       <div class="example-output"><strong>Output:</strong> <code>[1, 2]</code></div>
-    </article>
-    <article>
-      <h3><code>to_string(value)</code></h3>
-      <p>Alias of <code>tostring</code>.</p>
-      <pre><code>&lt;% echo to_string(true) %&gt;</code></pre>
-      <div class="example-output"><strong>Output:</strong> <code>true</code></div>
     </article>
     <article>
       <h3><code>to_number(value)</code></h3>
@@ -512,13 +507,13 @@ b</code></div>
   </section>
   <section id="http">
     <h2>HTTP &amp; Response Helpers (6)</h2>
-    <p>Available when a <code>ResponseContext</code> is active (CGI today, dev server soon).</p>
+    <p>Available when a <code>ResponseContext</code> is active in CGI or the development server.</p>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Function</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>http_status(code) / status(code)</code></td><td>Set the outgoing HTTP status line (100–599).</td></tr>
-          <tr><td><code>http_header(name, value) / header(...)</code></td><td>Add or overwrite headers.</td></tr>
+          <tr><td><code>http_status(code)</code></td><td>Set the outgoing HTTP status line (100–599). Compatibility alias: <code>status</code>.</td></tr>
+          <tr><td><code>http_header(name, value)</code></td><td>Add or overwrite headers. Compatibility alias: <code>header</code>.</td></tr>
           <tr><td><code>http_content_type(value)</code></td><td>Set the <code>Content-Type</code> header.</td></tr>
           <tr><td><code>redirect(target[, status])</code></td><td>Set Location header plus 3xx status (default 302).</td></tr>
           <tr><td><code>urlencode(text)</code></td><td>Percent-encode query-string fragments.</td></tr>
@@ -527,13 +522,15 @@ b</code></div>
       </table>
     </div>
     <article>
-      <h3><code>http_status(code) / status(code)</code></h3>
+      <h3 id="http_status"><code>http_status(code)</code></h3>
+      <p><strong>Compatibility alias:</strong> <code>status(code)</code>. Both names have identical behavior.</p>
       <p>Set the outgoing HTTP status line (100–599).</p>
       <pre><code>&lt;% http_status(302) %&gt;</code></pre>
       <div class="example-output"><strong>Output:</strong> <code>Status: 302</code></div>
     </article>
     <article>
-      <h3><code>http_header(name, value) / header(...)</code></h3>
+      <h3 id="http_header"><code>http_header(name, value)</code></h3>
+      <p><strong>Compatibility alias:</strong> <code>header(name, value)</code>. Both names have identical behavior.</p>
       <p>Add or overwrite headers.</p>
       <pre><code>&lt;% http_header(&quot;X-Test&quot;, &quot;ok&quot;) %&gt;</code></pre>
       <div class="example-output"><strong>Output:</strong> <code>X-Test: ok</code></div>
@@ -979,7 +976,7 @@ db_rollback()
       <dt><code>send_file(path[, opts])</code></dt><dd>Accepts a relative sandboxed path and optional object with string <code>content_type</code> and/or <code>download_name</code>, finalizes the CGI/server response, and returns null. Missing/unsafe files raise errors. Example: <code>send_file("reports/latest.txt")</code>.</dd>
       <dt><code>send_mail(to, subject, body[, headers])</code></dt><dd>Accepts strings and optional header object; writes an <code>.eml</code> file to storage <code>outbox</code> and returns its path. Reserved/injected headers raise errors. It does not send SMTP mail. Example: <code>send_mail("dev@example.test", "Hi", "Body")</code>.</dd>
     </dl></article>
-    <article><h3>Response and conversion aliases</h3><p><code>status(code)</code> is the canonical status helper; <code>http_status(code)</code> is its alias. <code>header(name, value)</code> is canonical; <code>http_header(name, value)</code> is its alias. Both require a response context, return null, validate their accepted number/string arguments, and reject use after headers are sent. <code>http_content_type(value)</code> sets a string content type. <code>redirect(target[, status])</code> accepts a string target and optional 3xx-compatible number, sets Location/status, and returns null.</p><p><code>htmlspecialchars(value)</code> is the canonical HTML escaping name; <code>html_escape(value)</code> is an alias with identical behavior and returns an escaped string. <code>to_string(value)</code> is the canonical conversion name; <code>tostring(value)</code> is an alias with identical behavior and returns a string.</p></article>
+    <article><h3>Compatibility aliases</h3><p><code>http_status(code)</code> has the compatibility alias <code>status(code)</code>; <code>http_header(name, value)</code> has <code>header(name, value)</code>. Both aliases have identical behavior, including response effects. <code>http_content_type(value)</code> sets a string content type. <code>redirect(target[, status])</code> accepts a string target and optional 3xx-compatible number, sets Location/status, and returns null.</p><p><code>html_escape(value)</code> has compatibility alias <code>htmlspecialchars(value)</code>; <code>to_string(value)</code> has compatibility alias <code>tostring(value)</code>. Both pairs have identical successful behavior.</p></article>
   </section>
 </main>
 <script src="highlight.js"></script>

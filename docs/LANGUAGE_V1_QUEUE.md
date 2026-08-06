@@ -38,7 +38,11 @@ An item may move to `FROZEN` only when its behavior is included in the Polonio v
 
 # L1 — Public Language Surface
 
-## [ACCEPTED] L1-1 Canonical Names and Alias Policy
+## [IMPLEMENTED] L1-1 Canonical Names and Alias Policy
+
+- [DONE] L1-1a Apply canonical names to public documentation
+- [DONE] L1-1b Add alias conformance tests
+- [BLOCKED] L1-1c Freeze alias policy in Language Specification v1
 
 Define the canonical public name for every duplicated builtin or syntax form.
 

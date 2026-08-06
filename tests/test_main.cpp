@@ -841,10 +841,10 @@ TEST_CASE("CGI mode populates _SERVER") {
     std::filesystem::remove(path);
 }
 
-TEST_CASE("CGI mode supports status() and header() builtins") {
+TEST_CASE("CGI mode supports canonical http_status() and http_header() builtins") {
     auto path = create_temp_file_with_content(
         "polonio_cgi_headers",
-        "<% status(404) %><% header(\"X-Test\", \"yes\") %><h1>Missing</h1>");
+        "<% http_status(404) %><% http_header(\"X-Test\", \"yes\") %><h1>Missing</h1>");
     std::vector<std::pair<std::string, std::string>> env = {
         {"GATEWAY_INTERFACE", "CGI/1.1"},
         {"SCRIPT_FILENAME", path},
@@ -861,7 +861,7 @@ TEST_CASE("CGI mode supports status() and header() builtins") {
 
 TEST_CASE("CGI mode allows raw header lines") {
     auto path = create_temp_file_with_content("polonio_cgi_header_raw",
-                                              "<% header(\"X-A: 1\") %>ok");
+                                              "<% http_header(\"X-A: 1\") %>ok");
     std::vector<std::pair<std::string, std::string>> env = {
         {"GATEWAY_INTERFACE", "CGI/1.1"},
         {"SCRIPT_FILENAME", path},
@@ -874,7 +874,7 @@ TEST_CASE("CGI mode allows raw header lines") {
 
 TEST_CASE("CGI mode allows Content-Type override") {
     auto path = create_temp_file_with_content("polonio_cgi_ct",
-                                              "<% header(\"Content-Type\", \"text/plain\") %>ok");
+                                              "<% http_header(\"Content-Type\", \"text/plain\") %>ok");
     std::vector<std::pair<std::string, std::string>> env = {
         {"GATEWAY_INTERFACE", "CGI/1.1"},
         {"SCRIPT_FILENAME", path},
@@ -2517,7 +2517,7 @@ echo file_exists(f["tmp_path"])
 
 TEST_CASE("CGI header builtin validates syntax") {
     auto path = create_temp_file_with_content("polonio_cgi_header_bad",
-                                              "<% header(\"bad header\") %>");
+                                              "<% http_header(\"bad header\") %>");
     std::vector<std::pair<std::string, std::string>> env = {
         {"GATEWAY_INTERFACE", "CGI/1.1"},
         {"SCRIPT_FILENAME", path},
@@ -2529,9 +2529,9 @@ TEST_CASE("CGI header builtin validates syntax") {
     std::filesystem::remove(path);
 }
 
-TEST_CASE("htmlspecialchars escapes string") {
+TEST_CASE("canonical html_escape escapes string") {
     auto path = create_temp_file_with_content("polonio_escape",
-                                              "<% echo htmlspecialchars(\"<a&b>\\\"'\") %>");
+                                              "<% echo html_escape(\"<a&b>\\\"'\") %>");
     auto result = run_polonio({"run", path});
     CHECK(result.exit_code == 0);
     CHECK(result.stdout_output == "&lt;a&amp;b&gt;&quot;&#39;");
@@ -2607,7 +2607,7 @@ TEST_CASE("debug validates arity") {
 
 TEST_CASE("header/status error outside CGI mode") {
     auto path = create_temp_file_with_content("polonio_noncgi_header",
-                                              "<% header(\"X\", \"1\") %>");
+                                              "<% http_header(\"X\", \"1\") %>");
     auto result = run_polonio({"run", path});
     CHECK(result.exit_code != 0);
     CHECK(result.stderr_output.find("CGI") != std::string::npos);
@@ -3503,12 +3503,12 @@ echo type({"a": 1})
     CHECK(run_program_output(src) == "nullboolnumberstringarrayobject");
 }
 
-TEST_CASE("Builtin tostring mirrors echo formatting") {
+TEST_CASE("Canonical to_string mirrors echo formatting") {
     const char* src = R"(
-echo tostring(null)
-echo tostring(true)
-echo tostring(3)
-echo tostring("x")
+echo to_string(null)
+echo to_string(true)
+echo to_string(3)
+echo to_string("x")
 )";
     CHECK(run_program_output(src) == "true3x");
 }
@@ -3523,6 +3523,58 @@ TEST_CASE("Builtins to_string and to_number convert values") {
     CHECK(run_program_output("echo to_number(null)") == "0");
     CHECK(run_program_output("echo to_number(\"3.14\")") == "3.14");
     CHECK_THROWS_AS(run_program_output("echo to_number(\"abc\")"), polonio::PolonioError);
+}
+
+TEST_CASE("Alias conformance: tostring matches canonical to_string") {
+    const std::string canonical = run_program_output(
+        "echo to_string(null) .. \"|\" .. to_string(true) .. \"|\" .. to_string(3.5) .. \"|\" .. "
+        "to_string(\"text\") .. \"|\" .. to_string([1, \"x\"]) .. \"|\" .. to_string({\"a\": 1})");
+    const std::string alias = run_program_output(
+        "echo tostring(null) .. \"|\" .. tostring(true) .. \"|\" .. tostring(3.5) .. \"|\" .. "
+        "tostring(\"text\") .. \"|\" .. tostring([1, \"x\"]) .. \"|\" .. tostring({\"a\": 1})");
+    CHECK(alias == canonical);
+    CHECK_THROWS_AS(run_program_output("echo to_string()"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo tostring()"), polonio::PolonioError);
+}
+
+TEST_CASE("Alias conformance: htmlspecialchars matches canonical html_escape") {
+    const std::string canonical = run_program_output(
+        "echo html_escape(\"plain\") .. \"|\" .. html_escape(\"&\") .. \"|\" .. html_escape(\"<\") .. \"|\" .. "
+        "html_escape(\">\") .. \"|\" .. html_escape(\"\\\"\") .. \"|\" .. html_escape(\"'\") .. \"|\" .. "
+        "html_escape(\"<&\\\"'\") .. \"|\" .. html_escape(42)");
+    const std::string alias = run_program_output(
+        "echo htmlspecialchars(\"plain\") .. \"|\" .. htmlspecialchars(\"&\") .. \"|\" .. htmlspecialchars(\"<\") .. \"|\" .. "
+        "htmlspecialchars(\">\") .. \"|\" .. htmlspecialchars(\"\\\"\") .. \"|\" .. htmlspecialchars(\"'\") .. \"|\" .. "
+        "htmlspecialchars(\"<&\\\"'\") .. \"|\" .. htmlspecialchars(42)");
+    CHECK(alias == canonical);
+    CHECK_THROWS_AS(run_program_output("echo html_escape()"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo htmlspecialchars()"), polonio::PolonioError);
+}
+
+TEST_CASE("Alias conformance: status matches canonical http_status") {
+    auto canonical = run_cgi_template("polonio_alias_http_status", "<% http_status(418) %>body", {});
+    auto alias = run_cgi_template("polonio_alias_status", "<% status(418) %>body", {});
+    CHECK(alias.exit_code == canonical.exit_code);
+    CHECK(alias.stdout_output == canonical.stdout_output);
+
+    auto invalid_canonical = run_cgi_template("polonio_alias_http_status_bad", "<% http_status(99) %>", {});
+    auto invalid_alias = run_cgi_template("polonio_alias_status_bad", "<% status(99) %>", {});
+    CHECK(invalid_alias.exit_code == invalid_canonical.exit_code);
+    CHECK(invalid_alias.exit_code != 0);
+    CHECK(run_polonio({"run", create_temp_file_with_content("polonio_alias_status_outside", "<% http_status(200) %>")}).exit_code != 0);
+    CHECK(run_polonio({"run", create_temp_file_with_content("polonio_alias_status_outside", "<% status(200) %>")}).exit_code != 0);
+}
+
+TEST_CASE("Alias conformance: header matches canonical http_header") {
+    auto canonical = run_cgi_template("polonio_alias_http_header", "<% http_header(\"X-Test\", \"one\") %><% http_header(\"X-Test\", \"two\") %>body", {});
+    auto alias = run_cgi_template("polonio_alias_header", "<% header(\"X-Test\", \"one\") %><% header(\"X-Test\", \"two\") %>body", {});
+    CHECK(alias.exit_code == canonical.exit_code);
+    CHECK(alias.stdout_output == canonical.stdout_output);
+
+    for (const std::string& call : {"http_header(\"invalid\")", "header(\"invalid\")", "http_header(\"X\", \"bad\\r\\nvalue\")", "header(\"X\", \"bad\\r\\nvalue\")"}) {
+        auto result = run_cgi_template("polonio_alias_header_bad", "<% " + call + " %>", {});
+        CHECK(result.exit_code != 0);
+    }
 }
 
 TEST_CASE("Builtin nl2br handles newlines") {
