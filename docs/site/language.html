@@ -197,6 +197,16 @@ count ..= <span class="str">" total"</span>
       <li>Includes are available while rendering templates.</li>
     </ul>
   </section>
+  <section id="recovery">
+    <h2>Operational recovery</h2>
+    <p>Use <code>attempt</code> / <code>recover</code> only for unavailable capabilities and resources. Programming errors remain fatal; recovery never retries or rolls back output or side effects.</p>
+    <pre><code>attempt
+  var config = file_read("config.json")
+recover error
+  echo error["category"]
+end</code></pre>
+    <p>The optional binding is immutable and exists only in <code>recover</code>. A finalized <code>send_file</code> response cannot be recovered.</p>
+  </section>
 
   <section id="truthiness">
     <h2>Truthiness</h2>

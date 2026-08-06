@@ -263,7 +263,29 @@ StmtPtr Parser::statement() {
     if (match(TokenKind::Return)) {
         return return_statement();
     }
+    if (match(TokenKind::Attempt)) {
+        return attempt_statement(previous());
+    }
+    if (check(TokenKind::Recover)) {
+        error(peek(), "'recover' is valid only in an attempt statement");
+    }
     return expression_statement();
+}
+
+StmtPtr Parser::attempt_statement(const Token& attempt_token) {
+    auto attempt_body = block_until({TokenKind::Recover});
+    const Token& recover_token = consume(TokenKind::Recover, "expected 'recover' after attempt body");
+    std::optional<std::string> binding;
+    std::optional<Span> binding_span;
+    if (match(TokenKind::Identifier)) {
+        binding = previous().lexeme;
+        binding_span = previous().span;
+    }
+    auto recover_body = block_until({TokenKind::End});
+    consume(TokenKind::End, "expected 'end' after recover body");
+    return std::make_shared<AttemptStmt>(std::move(attempt_body), std::move(binding),
+                                         std::move(recover_body), attempt_token.span,
+                                         recover_token.span, std::move(binding_span));
 }
 
 StmtPtr Parser::function_declaration() {

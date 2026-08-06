@@ -28,6 +28,8 @@ enum class TokenKind {
     In,
     While,
     Return,
+    Attempt,
+    Recover,
     LeftParen,
     RightParen,
     LeftBracket,

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "polonio/parser/ast.h"
+#include "polonio/common/error.h"
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/output.h"
 #include "polonio/runtime/db.h"
@@ -87,7 +88,9 @@ private:
     void exec_if(const IfStmt& stmt);
     void exec_while(const WhileStmt& stmt);
     void exec_for(const ForStmt& stmt);
+    void exec_attempt(const AttemptStmt& stmt);
     void exec_block(const std::vector<StmtPtr>& statements);
+    Value error_value(const PolonioError& error) const;
 
     [[noreturn]] void runtime_error(const std::string& message);
     Value lookup_identifier(const std::string& name);

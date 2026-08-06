@@ -124,6 +124,10 @@ void Interpreter::exec_stmt(const StmtPtr& stmt) {
         exec_for(*for_stmt);
         return;
     }
+    if (auto attempt = std::dynamic_pointer_cast<AttemptStmt>(stmt)) {
+        exec_attempt(*attempt);
+        return;
+    }
     if (auto include_stmt = std::dynamic_pointer_cast<IncludeStmt>(stmt)) {
         if (!include_callback_) {
             runtime_error("include not supported here");
@@ -538,6 +542,13 @@ Value Interpreter::eval_index(const IndexExpr& index) {
         }
         return it->second;
     }
+    if (std::holds_alternative<Value::ReadOnlyObjectPtr>(collection.storage())) {
+        if (!std::holds_alternative<std::string>(idx.storage())) runtime_error("object keys must be strings");
+        const auto& object = std::get<Value::ReadOnlyObjectPtr>(collection.storage());
+        if (!object) return Value();
+        auto it = object->find(std::get<std::string>(idx.storage()));
+        return it == object->end() ? Value() : it->second;
+    }
 
     runtime_error("indexing only supported on arrays and objects for now");
 }
@@ -695,6 +706,42 @@ void Interpreter::exec_block(const std::vector<StmtPtr>& statements) {
     for (const auto& stmt : statements) {
         exec_stmt(stmt);
     }
+}
+
+void Interpreter::exec_attempt(const AttemptStmt& stmt) {
+    try {
+        exec_block(stmt.attempt_body());
+    } catch (const PolonioError& error) {
+        if (error.recoverability() != Recoverability::Operational || response_finalized_) throw;
+        auto recover_env = std::make_shared<Env>(env_);
+        if (stmt.recover_binding()) recover_env->set_local(*stmt.recover_binding(), error_value(error));
+        auto previous_env = env_;
+        env_ = recover_env;
+        try { exec_block(stmt.recover_body()); } catch (...) { env_ = previous_env; throw; }
+        env_ = previous_env;
+    }
+}
+
+Value Interpreter::error_value(const PolonioError& error) const {
+    Value::Object fields;
+    static const char* categories[] = {"SourceError", "LexError", "ParseError", "RuntimeError", "CapabilityError", "ResourceError", "InternalError"};
+    fields["category"] = Value(categories[static_cast<std::size_t>(error.category())]);
+    fields["message"] = Value(error.message());
+    if (!error.path().empty()) fields["source_path"] = Value(error.path());
+    if (error.has_location()) { fields["line"] = Value(static_cast<double>(error.location().line)); fields["column"] = Value(static_cast<double>(error.location().column)); }
+    const auto& d = error.details();
+    if (!d.operation.empty()) fields["operation"] = Value(d.operation);
+    if (!d.function_name.empty()) fields["function"] = Value(d.function_name);
+    if (!d.canonical_function_name.empty()) fields["canonical_function"] = Value(d.canonical_function_name);
+    if (d.argument_index) fields["argument_index"] = Value(static_cast<double>(*d.argument_index));
+    if (!d.capability.empty()) fields["capability"] = Value(d.capability);
+    if (!d.configuration_name.empty()) fields["configuration"] = Value(d.configuration_name);
+    if (!d.resource.empty()) fields["resource"] = Value(d.resource);
+    if (d.builtin_reason) {
+        static const char* reasons[] = {"arity", "type", "value", "shape", "unsupported_value", "context", "configuration", "resource", "operation"};
+        fields["reason"] = Value(reasons[static_cast<std::size_t>(*d.builtin_reason)]);
+    }
+    return Value(std::make_shared<const Value::Object>(std::move(fields)));
 }
 
 [[noreturn]] void Interpreter::runtime_error(const std::string& message) {

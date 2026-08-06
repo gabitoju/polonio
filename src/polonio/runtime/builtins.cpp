@@ -591,7 +591,8 @@ std::string describe_value_for_debug(const Value& value) {
             } else if constexpr (std::is_same_v<T, Value::ArrayPtr>) {
                 std::size_t len = alt ? alt->size() : 0;
                 return "array(len=" + std::to_string(len) + ")";
-            } else if constexpr (std::is_same_v<T, Value::ObjectPtr>) {
+            } else if constexpr (std::is_same_v<T, Value::ObjectPtr> ||
+                                 std::is_same_v<T, Value::ReadOnlyObjectPtr>) {
                 std::size_t len = alt ? alt->size() : 0;
                 return "object(len=" + std::to_string(len) + ")";
             } else if constexpr (std::is_same_v<T, BuiltinFunction>) {
@@ -1738,6 +1739,9 @@ Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Loc
     Value object_value = ensure_arg("set", 0, args, interp, loc);
     Value key_value = ensure_arg("set", 1, args, interp, loc);
     Value val = ensure_arg("set", 2, args, interp, loc);
+    if (std::holds_alternative<Value::ReadOnlyObjectPtr>(object_value.storage())) {
+        throw PolonioError(ErrorKind::Runtime, "set: object is immutable", interp.path(), loc);
+    }
     if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
         throw PolonioError(ErrorKind::Runtime, "set: expected object", interp.path(), loc);
     }
