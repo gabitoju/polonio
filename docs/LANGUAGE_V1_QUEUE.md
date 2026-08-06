@@ -73,9 +73,13 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC 0005f — Alias and family conformance tests
    - [DONE] RFC 0005g — Final builtin error audit
    - [BLOCKED] RFC 0005h — Freeze builtin error contract in Language Specification v1
-3. [ACCEPTED] RFC 0006 — Failure Philosophy
-   - [BLOCKED] Define recovery block semantics and syntax after this RFC.
-   - [BLOCKED] Define a read-only structured Error value after recovery semantics.
+3. [IMPLEMENTED] RFC 0006 — Failure Philosophy
+   - [DONE] RFC 0006a — Encode failure-class recoverability metadata
+   - [DONE] RFC 0006b — Add propagation conformance tests
+   - [DONE] RFC 0006c — Document expected-condition and domain-failure policy
+   - [DONE] RFC 0006d — Document adapter termination boundaries
+   - [BLOCKED] RFC 0006e — Implement restricted recovery mechanism
+   - [BLOCKED] RFC 0006f — Freeze failure philosophy in Language Specification v1
 4. [RFC] RFC 0007 — Type and Conversion Semantics
 5. [RFC] RFC 0008 — Truthiness
 6. [RFC] RFC 0009 — Equality and Comparison

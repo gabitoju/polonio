@@ -21,6 +21,16 @@ enum class ErrorCategory {
     IO = Source,
 };
 
+// RFC 0006 eligibility for a future restricted recovery mechanism. It does
+// not make an error catchable in v1 and is deliberately derived only from the
+// immutable structural category.
+enum class Recoverability {
+    Never,
+    Operational,
+};
+
+Recoverability recoverability_for(ErrorCategory category) noexcept;
+
 // RFC 0005 models builtin failure facts without adding public error codes.
 enum class BuiltinFailureReason {
     Arity, Type, Value, Shape, UnsupportedValue, Context, Configuration,
@@ -62,6 +72,7 @@ public:
                  ErrorDetails details = {});
 
     ErrorCategory category() const noexcept { return category_; }
+    Recoverability recoverability() const noexcept { return recoverability_for(category_); }
     ErrorKind kind() const noexcept { return category_; }
     const std::string& path() const noexcept { return path_; }
     const Location& location() const noexcept { return location_; }

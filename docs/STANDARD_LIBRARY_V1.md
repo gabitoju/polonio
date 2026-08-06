@@ -71,3 +71,25 @@ positions and the seven Polonio type names, and follow arity, type, shape,
 value, context/configuration, resource, then operation validation. Compatibility
 aliases preserve the same failure facts and behavior. Message wording is not a
 compatibility contract; sensitive values are redacted.
+
+## Expected conditions
+
+The following representative negative outcomes are normal values, not RFC
+0004 errors. They are existing API behavior; a future semantic review may
+refine absence conventions without changing them here.
+
+| Operation / condition | Normal value |
+| --- | --- |
+| `file_exists` / `dir_exists` target absent | `false` |
+| `has_key` key absent | `false` |
+| `get` key absent | supplied default or `null` |
+| `session_get` key absent | `null` |
+| `request_header` header absent | `null` |
+| `request_headers` or `cookies` without request data | empty object |
+| `csrf_verify` mismatch or unavailable token | `false` |
+| `db_query` matching no rows | empty array |
+| `db_exec` matching no rows | numeric affected-row count, including zero |
+
+Application validation, conflicts, permissions, and quotas likewise use
+application/framework values (`null`, `false`, validation objects, or status
+objects) rather than language errors. No mandatory Result shape exists.

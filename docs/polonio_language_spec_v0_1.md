@@ -500,6 +500,14 @@ resource, or operation. Argument positions are one-based. Exact prose is not
 stable, and diagnostics redact credentials, tokens, cookies, request bodies,
 mail bodies, upload contents, and SQL parameter values.
 
+Expected absence and ordinary negative outcomes are normal values, such as
+`null`, `false`, empty collections, or counts. Programming errors terminate
+the current execution. Capability and resource failures also currently
+terminate execution, though they are eligible for a future restricted recovery
+mechanism; Polonio v0.1 provides no recovery syntax or Error value. Domain and
+validation outcomes are application-defined values, and recovery never implies
+rollback of output, files, sessions, database changes, or external effects.
+
 ------------------------------------------------------------------------
 
 ## Language and runtime boundary

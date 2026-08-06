@@ -5,6 +5,21 @@
 
 namespace polonio {
 
+Recoverability recoverability_for(ErrorCategory category) noexcept {
+    switch (category) {
+    case ErrorCategory::Capability:
+    case ErrorCategory::Resource:
+        return Recoverability::Operational;
+    case ErrorCategory::Source:
+    case ErrorCategory::Lex:
+    case ErrorCategory::Parse:
+    case ErrorCategory::Runtime:
+    case ErrorCategory::Internal:
+        return Recoverability::Never;
+    }
+    return Recoverability::Never;
+}
+
 namespace {
 const char* category_name(ErrorCategory category) {
     switch (category) {

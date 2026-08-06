@@ -2795,6 +2795,48 @@ TEST_CASE("safe builtin summaries are bounded and non-recursive") {
     CHECK(polonio::safe_value_summary(polonio::Value(polonio::Value::Array{polonio::Value(1)})) == "array(count=1)");
 }
 
+TEST_CASE("RFC 0006 recoverability is derived centrally from error category") {
+    using polonio::ErrorCategory;
+    using polonio::Recoverability;
+    CHECK(polonio::recoverability_for(ErrorCategory::Source) == Recoverability::Never);
+    CHECK(polonio::recoverability_for(ErrorCategory::Lex) == Recoverability::Never);
+    CHECK(polonio::recoverability_for(ErrorCategory::Parse) == Recoverability::Never);
+    CHECK(polonio::recoverability_for(ErrorCategory::Runtime) == Recoverability::Never);
+    CHECK(polonio::recoverability_for(ErrorCategory::Capability) == Recoverability::Operational);
+    CHECK(polonio::recoverability_for(ErrorCategory::Resource) == Recoverability::Operational);
+    CHECK(polonio::recoverability_for(ErrorCategory::Internal) == Recoverability::Never);
+    polonio::PolonioError runtime(ErrorCategory::Runtime, "builtin value failure");
+    polonio::PolonioError resource(ErrorCategory::Resource, "read failed");
+    CHECK(runtime.recoverability() == Recoverability::Never);
+    CHECK(resource.recoverability() == Recoverability::Operational);
+}
+
+TEST_CASE("operational errors propagate through nested user functions and stop execution") {
+    const char* input = R"(
+function inner()
+  return http_status(200)
+end
+function outer()
+  return inner()
+end
+echo "before"
+outer()
+echo "after"
+)";
+    polonio::Lexer lexer(input, "propagation.pol");
+    polonio::Parser parser(lexer.scan_all(), "propagation.pol");
+    polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), "propagation.pol");
+    try {
+        interpreter.exec_program(parser.parse_program());
+        FAIL_CHECK("expected CapabilityError");
+    } catch (const polonio::PolonioError& err) {
+        CHECK(err.category() == polonio::ErrorCategory::Capability);
+        CHECK(err.recoverability() == polonio::Recoverability::Operational);
+        CHECK(err.has_location());
+        CHECK(interpreter.output() == "before");
+    }
+}
+
 TEST_CASE("Location start is beginning of file") {
     polonio::Location loc = polonio::Location::start();
     CHECK(loc.offset == 0);
