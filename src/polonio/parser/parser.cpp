@@ -138,6 +138,7 @@ ExprPtr Parser::postfix() {
     auto expr = primary();
     while (true) {
         if (match(TokenKind::LeftParen)) {
+            Location call_location = previous().span.start;
             std::vector<ExprPtr> args;
             if (!check(TokenKind::RightParen)) {
                 do {
@@ -145,7 +146,7 @@ ExprPtr Parser::postfix() {
                 } while (match(TokenKind::Comma));
             }
             consume(TokenKind::RightParen, "expected ')' after arguments");
-            expr = std::make_shared<CallExpr>(expr, std::move(args));
+            expr = std::make_shared<CallExpr>(expr, std::move(args), call_location);
             continue;
         }
         if (match(TokenKind::LeftBracket)) {

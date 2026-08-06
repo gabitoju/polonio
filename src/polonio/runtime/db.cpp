@@ -49,10 +49,13 @@ void DatabaseConnection::connect_relative(const std::string& relative_path,
             message = sqlite3_errmsg(new_handle);
             sqlite3_close(new_handle);
         }
-        throw PolonioError(ErrorKind::Runtime,
+        ErrorDetails details;
+        details.resource = "sqlite";
+        details.operation = builtin_name;
+        throw PolonioError(ErrorCategory::Resource,
                            builtin_name + ": sqlite open failed: " + message,
                            interp.path(),
-                           loc);
+                           loc, std::move(details));
     }
     handle_ = new_handle;
     transaction_active_ = false;
@@ -75,10 +78,13 @@ void sqlite_exec_or_throw(sqlite3* handle,
         } else {
             message = sqlite3_errmsg(handle);
         }
-        throw PolonioError(ErrorKind::Runtime,
+        ErrorDetails details;
+        details.resource = "sqlite";
+        details.operation = builtin_name;
+        throw PolonioError(ErrorCategory::Resource,
                            builtin_name + ": sqlite error: " + message,
                            interp.path(),
-                           loc);
+                           loc, std::move(details));
     }
 }
 
@@ -88,10 +94,13 @@ void DatabaseConnection::begin_transaction(const std::string& builtin_name,
                                            Interpreter& interp,
                                            const Location& loc) {
     if (!handle_) {
-        throw PolonioError(ErrorKind::Runtime,
+        ErrorDetails details;
+        details.capability = "database";
+        details.operation = builtin_name;
+        throw PolonioError(ErrorCategory::Capability,
                            "database not connected",
                            interp.path(),
-                           loc);
+                           loc, std::move(details));
     }
     if (transaction_active_) {
         throw PolonioError(ErrorKind::Runtime,
