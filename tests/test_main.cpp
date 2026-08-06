@@ -38,6 +38,8 @@
 
 namespace {
 
+std::string run_program_output(const std::string& input);
+
 struct CommandResult {
     int exit_code;
     std::string stdout_output;
@@ -2764,6 +2766,33 @@ TEST_CASE("PolonioError exposes structured category and optional facts") {
     CHECK(err.details().function_name == "type");
     REQUIRE(err.details().argument_index.has_value());
     CHECK(*err.details().argument_index == 0);
+}
+
+TEST_CASE("builtin failures expose RFC 0005 arity and alias facts") {
+    for (const auto& source : {"echo to_string()", "echo tostring()"}) {
+        try {
+            (void)run_program_output(source);
+            FAIL_CHECK("expected builtin error");
+        } catch (const polonio::PolonioError& err) {
+            CHECK(err.category() == polonio::ErrorCategory::Runtime);
+            REQUIRE(err.details().builtin_reason.has_value());
+            CHECK(*err.details().builtin_reason == polonio::BuiltinFailureReason::Arity);
+            REQUIRE(err.details().argument_index.has_value());
+            CHECK(*err.details().argument_index == 1);
+            REQUIRE(err.details().expected_arity_min.has_value());
+            CHECK(*err.details().expected_arity_min == 1);
+            REQUIRE(err.details().actual_arity.has_value());
+            CHECK(*err.details().actual_arity == 0);
+            CHECK(err.details().canonical_function_name == "to_string");
+        }
+    }
+}
+
+TEST_CASE("safe builtin summaries are bounded and non-recursive") {
+    CHECK(polonio::safe_value_summary(polonio::Value()) == "null");
+    CHECK(polonio::safe_value_summary(polonio::Value(true)) == "true");
+    CHECK(polonio::safe_value_summary(polonio::Value(std::string(65, 'x'))) == "string(length=65)");
+    CHECK(polonio::safe_value_summary(polonio::Value(polonio::Value::Array{polonio::Value(1)})) == "array(count=1)");
 }
 
 TEST_CASE("Location start is beginning of file") {

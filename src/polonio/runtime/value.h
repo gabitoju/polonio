@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+#include <utility>
 
 namespace polonio {
 
@@ -33,9 +34,17 @@ struct FunctionValue {
 struct BuiltinFunction {
     std::string name;
     BuiltinCallback callback = nullptr;
+    std::string canonical_name;
+
+    BuiltinFunction() = default;
+    BuiltinFunction(std::string registered_name,
+                    BuiltinCallback registered_callback,
+                    std::string canonical = {})
+        : name(std::move(registered_name)), callback(registered_callback),
+          canonical_name(std::move(canonical)) {}
 
     bool operator==(const BuiltinFunction& other) const {
-        return name == other.name && callback == other.callback;
+        return name == other.name && canonical_name == other.canonical_name && callback == other.callback;
     }
 };
 
@@ -74,5 +83,10 @@ public:
 private:
     Storage storage_;
 };
+
+// Bounded, non-recursive display suitable for non-sensitive diagnostics. Call
+// sites handling credentials, bodies, cookies, tokens, or SQL parameters must
+// deliberately leave the summary empty instead.
+std::string safe_value_summary(const Value& value);
 
 } // namespace polonio
