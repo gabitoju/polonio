@@ -71,7 +71,7 @@ Acceptance criteria:
 
 ---
 
-## [RFC] L1-2 Builtin Categorization and Namespace Policy
+## [ACCEPTED] L1-2 Builtin Categorization and Namespace Policy
 
 Polonio currently exposes a large global builtin surface.
 
