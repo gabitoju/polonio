@@ -4,6 +4,10 @@ Polonio is a small, HTML-first templating language for rendering dynamic pages. 
 
 It is a good fit for local template-driven applications, small CGI deployments, and people who want templates to remain easy to read. The official Reference Distribution includes the language, template renderer, CGI adapter, and local development server.
 
+## History
+
+Polonio began as a C++ CGI experiment in 2005 and was fully reimplemented in 2026. Its current form keeps that direct, template-first approach while providing a modern standalone toolchain.
+
 ## What you can do
 
 - Mix HTML with `<% %>` code blocks, `$var` interpolation, inline `echo`, and relative includes.

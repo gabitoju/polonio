@@ -6,7 +6,8 @@
 
 # 1. Overview
 
-Polonio is a server-side templating language for generating HTML.
+Polonio is a server-side templating language for generating HTML. It began as
+a C++ CGI experiment in 2005 and was fully reimplemented in 2026.
 
 The official Reference Distribution includes:
 
