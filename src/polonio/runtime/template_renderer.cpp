@@ -206,7 +206,13 @@ std::string render_template_with_interpreter(const Source& source, Interpreter& 
         }
         auto child_source = Source::from_file(candidate.string());
         Source normalized(canonical_child.string(), child_source.content());
-        render_source(state, normalized, canonical_child);
+        try {
+            render_source(state, normalized, canonical_child);
+        } catch (PolonioError& error) {
+            error.add_include_frame(state.path_stack.back().string() + ":" +
+                                    std::to_string(loc.line) + ":" + std::to_string(loc.column));
+            throw;
+        }
     });
     render_source(state, source, root_path);
     if (interpreter.response_finalized()) {

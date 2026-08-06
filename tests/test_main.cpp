@@ -2749,7 +2749,21 @@ TEST_CASE("PolonioError format includes path and location") {
         "example.pol",
         polonio::Location{5, 2, 3}
     );
-    CHECK(err.format() == std::string("example.pol:2:3: unexpected token"));
+    CHECK(err.category() == polonio::ErrorCategory::Parse);
+    CHECK(err.has_location());
+    CHECK(err.format() == std::string("example.pol:2:3: ParseError: unexpected token"));
+}
+
+TEST_CASE("PolonioError exposes structured category and optional facts") {
+    polonio::ErrorDetails details;
+    details.function_name = "type";
+    details.argument_index = 0;
+    polonio::PolonioError err(polonio::ErrorCategory::Runtime, "wrong argument", "test.pol",
+                              polonio::Location{0, 1, 1}, details);
+    CHECK(err.category() == polonio::ErrorCategory::Runtime);
+    CHECK(err.details().function_name == "type");
+    REQUIRE(err.details().argument_index.has_value());
+    CHECK(*err.details().argument_index == 0);
 }
 
 TEST_CASE("Location start is beginning of file") {
@@ -3609,6 +3623,18 @@ TEST_CASE("Builtins enforce argument counts") {
             CHECK(err.message().find("nl2br") != std::string::npos);
         }
         CHECK(threw);
+    }
+}
+
+TEST_CASE("Builtin errors retain the Polonio invocation location") {
+    try {
+        run_program_output("\necho type()\n");
+        FAIL_CHECK("expected builtin error");
+    } catch (const polonio::PolonioError& err) {
+        CHECK(err.category() == polonio::ErrorCategory::Runtime);
+        CHECK(err.has_location());
+        CHECK(err.location().line == 2);
+        CHECK(err.location().column == 10);
     }
 }
 

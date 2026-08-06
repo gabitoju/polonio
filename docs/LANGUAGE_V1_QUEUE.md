@@ -58,7 +58,12 @@ the Standard Library, and optional runtime profiles.
 **Purpose:** define the observable behavior of Polonio programs. Each entry is
 a planning title, not an accepted design, unless its RFC says otherwise.
 
-1. [ACCEPTED] RFC 0004 — Error Model
+1. [IMPLEMENTED] RFC 0004 — Error Model
+   - [DONE] RFC 0004a — Structured error representation
+   - [DONE] RFC 0004b — Error category mapping
+   - [DONE] RFC 0004c — Adapter presentation consistency
+   - [DONE] RFC 0004d — Error-model conformance tests
+   - [BLOCKED] RFC 0004e — Freeze error model in Language Specification v1
 2. [RFC] RFC 0005 — Builtin Error Consistency
 3. [RFC] RFC 0006 — User-Level Error Handling
 4. [RFC] RFC 0007 — Type and Conversion Semantics

@@ -373,7 +373,7 @@ Value Interpreter::eval_call(const CallExpr& call) {
         if (!builtin.callback) {
             runtime_error("attempt to call non-function value");
         }
-        return builtin.callback(*this, args, Location::start());
+        return builtin.callback(*this, args, call.location());
     }
 
     if (!std::holds_alternative<FunctionValue>(callee.storage())) {
@@ -602,7 +602,7 @@ void Interpreter::exec_block(const std::vector<StmtPtr>& statements) {
 }
 
 [[noreturn]] void Interpreter::runtime_error(const std::string& message) {
-    throw PolonioError(ErrorKind::Runtime, message, path_, Location::start());
+    throw PolonioError(ErrorCategory::Runtime, message, path_);
 }
 
 Value Interpreter::lookup_identifier(const std::string& name) {

@@ -114,8 +114,8 @@ private:
 
 class CallExpr : public Expr {
 public:
-    CallExpr(ExprPtr callee, std::vector<ExprPtr> args)
-        : callee_(std::move(callee)), args_(std::move(args)) {}
+    CallExpr(ExprPtr callee, std::vector<ExprPtr> args, Location location = Location::start())
+        : callee_(std::move(callee)), args_(std::move(args)), location_(location) {}
 
     std::string dump() const override {
         std::string out = "call(" + callee_->dump();
@@ -127,10 +127,12 @@ public:
     }
     const ExprPtr& callee() const { return callee_; }
     const std::vector<ExprPtr>& args() const { return args_; }
+    const Location& location() const { return location_; }
 
 private:
     ExprPtr callee_;
     std::vector<ExprPtr> args_;
+    Location location_;
 };
 
 class IndexExpr : public Expr {

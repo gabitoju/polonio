@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Implemented.
 
 ## Context
 
@@ -224,3 +224,20 @@ all audit rows, and conformance/adapter fixtures.
 - Implement structured errors and consistent formatting.
 - Add include tracing and source/call-site propagation.
 - Add conformance fixtures and adapter-specific error tests.
+
+## Implementation status
+
+The reference implementation now exposes `ErrorCategory`, optional
+`ErrorDetails`, and location-presence information through `PolonioError`.
+Source, lex, parse, and runtime paths retain structural categories; source
+loading maps to `Source`, selected optional-context paths map to `Capability`,
+and SQLite/storage-root paths map to `Resource`/`Capability` as appropriate.
+The remaining Runtime call sites preserve the RFC distinction through their
+operation context and are incrementally normalized by RFC 0005.
+
+Template include failures retain the failing file as their primary location and
+append de-duplicated include frames from inner to outer. Function call stacks
+remain deferred. CLI, CGI, and the development server now present unexpected
+host exceptions as safe `InternalError` diagnostics rather than raw C++ text.
+Partial and finalized output behavior is unchanged and remains implementation-
+defined pending RFC 0014.

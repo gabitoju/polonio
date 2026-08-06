@@ -28,10 +28,13 @@ std::string storage_root(Interpreter& interp,
                          const Location& loc) {
     std::string root = get_storage_root_internal();
     if (root.empty()) {
-        throw PolonioError(ErrorKind::Runtime,
+        ErrorDetails details;
+        details.capability = "storage";
+        details.operation = builtin_name;
+        throw PolonioError(ErrorCategory::Capability,
                            builtin_name + ": missing storage root",
                            interp.path(),
-                           loc);
+                           loc, std::move(details));
     }
     return root;
 }

@@ -485,6 +485,15 @@ behavior. `echo` is language syntax, not a built-in. Sandboxing is outside
 Language Core; the Reference Distribution's Data Runtime provides sandboxed
 storage.
 
+## Error model
+
+The reference implementation reports structured Source, Lex, Parse, Runtime,
+Capability, Resource, and Internal error categories. Errors end the current
+execution; user-level recovery is deferred. Source-associated diagnostics carry
+their available location, and template include diagnostics retain include
+context. Exact English message wording is not a compatibility guarantee; see
+`docs/rfcs/0004-error-model.md` for the v1 design and adapter rules.
+
 ------------------------------------------------------------------------
 
 ## Language and runtime boundary

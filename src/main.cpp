@@ -179,8 +179,8 @@ int handle_serve(const std::vector<std::string>& args) {
     try {
         polonio::run_http_server(config);
         return EXIT_SUCCESS;
-    } catch (const std::exception& ex) {
-        std::cerr << "serve: " << ex.what() << '\n';
+    } catch (const std::exception&) {
+        std::cerr << "serve: InternalError: server failed\n";
         return EXIT_FAILURE;
     }
 }
@@ -238,6 +238,9 @@ int handle_cgi_request() {
     } catch (const polonio::PolonioError& err) {
         std::cout << "Status: 500\r\nContent-Type: text/plain\r\n\r\n" << err.format();
         return EXIT_FAILURE;
+    } catch (const std::exception&) {
+        std::cout << "Status: 500\r\nContent-Type: text/plain\r\n\r\nInternalError: request failed";
+        return EXIT_FAILURE;
     }
 }
 
@@ -289,8 +292,8 @@ int main(int argc, char** argv) {
     } catch (const polonio::PolonioError& err) {
         std::cerr << err.format() << '\n';
         return EXIT_FAILURE;
-    } catch (const std::exception& ex) {
-        std::cerr << "error: " << ex.what() << '\n';
+    } catch (const std::exception&) {
+        std::cerr << "InternalError: execution failed\n";
         return EXIT_FAILURE;
     }
 }

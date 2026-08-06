@@ -40,10 +40,14 @@ const Value& ensure_arg(const std::string& name,
                         Interpreter& interp,
                         const Location& loc) {
     if (index >= args.size()) {
-        throw PolonioError(ErrorKind::Runtime,
+        ErrorDetails details;
+        details.function_name = name;
+        details.operation = "argument";
+        details.argument_index = index;
+        throw PolonioError(ErrorCategory::Runtime,
                            name + ": expected at least " + std::to_string(index + 1) + " argument(s)",
                            interp.path(),
-                           loc);
+                           loc, std::move(details));
     }
     return args[index];
 }
@@ -287,7 +291,10 @@ void write_output_values(Interpreter& interp, const std::vector<Value>& args) {
 ResponseContext* require_cgi_context(const std::string& name, Interpreter& interp, const Location& loc) {
     auto* ctx = interp.response_context();
     if (!ctx) {
-        throw PolonioError(ErrorKind::Runtime, name + ": CGI mode only", interp.path(), loc);
+        ErrorDetails details;
+        details.capability = "web response";
+        details.operation = name;
+        throw PolonioError(ErrorCategory::Capability, name + ": CGI mode only", interp.path(), loc, std::move(details));
     }
     if (ctx->headers_sent) {
         throw PolonioError(ErrorKind::Runtime, name + ": headers already sent", interp.path(), loc);
@@ -332,10 +339,16 @@ SessionContext* require_session_context(const std::string& name,
                                         const Location& loc) {
     auto* ctx = interp.session_context();
     if (!ctx) {
-        throw PolonioError(ErrorKind::Runtime, name + ": sessions unavailable", interp.path(), loc);
+        ErrorDetails details;
+        details.capability = "session";
+        details.operation = name;
+        throw PolonioError(ErrorCategory::Capability, name + ": sessions unavailable", interp.path(), loc, std::move(details));
     }
     if (ctx->is_cgi && ctx->secret_missing) {
-        throw PolonioError(ErrorKind::Runtime, "missing session secret", interp.path(), loc);
+        ErrorDetails details;
+        details.capability = "session secret";
+        details.operation = name;
+        throw PolonioError(ErrorCategory::Capability, "missing session secret", interp.path(), loc, std::move(details));
     }
     return ctx;
 }

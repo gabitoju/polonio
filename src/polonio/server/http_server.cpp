@@ -573,8 +573,8 @@ std::string template_response(const HttpRequest& request,
         return response_from_context(response, body);
     } catch (const PolonioError& err) {
         return plain_response(500, err.format());
-    } catch (const std::exception& ex) {
-        return plain_response(500, ex.what());
+    } catch (const std::exception&) {
+        return plain_response(500, "InternalError: request failed");
     }
 }
 
@@ -585,8 +585,8 @@ std::string static_response(const ResolvedResource& resource) {
             {"Content-Type", infer_static_mime_type(resource.path)},
         };
         return build_http_response(200, headers, body);
-    } catch (const std::exception& ex) {
-        return plain_response(500, ex.what());
+    } catch (const std::exception&) {
+        return plain_response(500, "InternalError: resource failed");
     }
 }
 
@@ -656,8 +656,8 @@ void handle_client(int client_fd, const sockaddr_in& client, const ServerState& 
         }
         std::string response = dispatch_request(state, request, client);
         send_all(client_fd, response);
-    } catch (const std::exception& ex) {
-        std::string response = plain_response(500, ex.what());
+    } catch (const std::exception&) {
+        std::string response = plain_response(500, "InternalError: request failed");
         send_all(client_fd, response);
     }
 }
