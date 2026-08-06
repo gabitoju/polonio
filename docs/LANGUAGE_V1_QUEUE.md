@@ -718,16 +718,16 @@ Requirements:
 
 # Current Next Item
 
-The first item to work on is:
+The first open design item to work on is:
 
 ```text
-L1-1 Canonical Names and Alias Policy
+L2-1 Error Categories and Formatting
 ```
 
 The first pass must only investigate and write:
 
 ```text
-docs/rfcs/0001-alias-policy.md
+docs/rfcs/0004-error-model.md
 ```
 
-It must not rename or remove builtins.
+It must not change runtime error behavior.

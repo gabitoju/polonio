@@ -27,7 +27,7 @@ for name in "${listed[@]}"; do
   [[ -n "$entry" ]] || { echo "builtin missing profile documentation: $name"; exit 1; }
   layer=$(awk -F '\t' -v n="$name" '$1==n {print $3}' "$manifest")
   case "$layer" in
-    1) [[ "$entry" == *'Language Core; Standard Library; Template Runtime; Web Runtime; Data Runtime; Reference Distribution'* ]] || { echo "core builtin lacks Language Core profile: $name"; exit 1; } ;;
+    1) [[ "$entry" == *'Language Core; Reference Standard Library; Template Runtime; Web Runtime; Data Runtime; Reference Distribution'* ]] || { echo "core builtin lacks Language Core profile: $name"; exit 1; } ;;
     3) [[ "$entry" == *'Template Runtime; Reference Distribution'* ]] || { echo "template builtin lacks Template Runtime profile: $name"; exit 1; } ;;
     4) [[ "$entry" == *'Web Runtime; Reference Distribution'* ]] || { echo "web builtin lacks Web Runtime profile: $name"; exit 1; } ;;
     5) [[ "$entry" == *'Data Runtime; Reference Distribution'* ]] || { echo "data builtin lacks Data Runtime profile: $name"; exit 1; } ;;
