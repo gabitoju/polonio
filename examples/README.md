@@ -16,4 +16,6 @@ present in the storage root (for example `downloads/example.txt`). Runtime data
 belongs in `.polonio-storage/`, which is ignored by Git.
 
 `send_mail` writes `.eml` files below `.polonio-storage/outbox`; it does not
-deliver email. The included server is for local development only.
+deliver email. These examples use the official reference distribution's Web
+and Data Runtimes. The included server is for local development only; none of
+those runtime capabilities is required for Language Core conformance.

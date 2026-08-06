@@ -476,3 +476,18 @@ documentation and examples use the canonical names: `to_string` (`tostring`),
 `http_header` (`header`). Each alias remains functional with the same
 successful behavior. `echo` is language syntax, not a builtin.
 -   Sandboxing is out of scope for v0.1.
+
+------------------------------------------------------------------------
+
+## v1 Planning: Language and Runtime Boundary
+
+This frozen v0.1 document describes syntax and the currently shipped
+reference implementation. RFC 0003 defines the v1 planning boundary: Language
+Core consists of syntax, semantics, values, execution, and Layer 1 support.
+The Standard Library, Template Runtime, Web Runtime, and Data Runtime are
+separately claimable profiles. HTTP, CGI, the development server, sessions,
+storage, SQLite, uploads, `send_file`, and `send_mail` are runtime
+capabilities, not Language Core requirements. The official reference
+distribution ships every currently implemented layer. See
+`docs/CONFORMANCE_PROFILES.md` and `docs/CONFORMANCE_MATRIX.md` for the
+profile contract; this note does not alter the v0.1 syntax specification.

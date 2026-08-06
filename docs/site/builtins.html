@@ -40,7 +40,7 @@
 </aside>
 <main class="content">
   <h1>Built-in Functions</h1>
-  <p><strong>v1 planning layers:</strong> Core Language Support, Standard Library, Template Runtime, Web Runtime, and Data Runtime. See <code>docs/STANDARD_LIBRARY_V1.md</code>. Current globals remain stable in v1.x; namespace syntax is deferred.</p>
+  <p><strong>v1 planning layers:</strong> Core Language Support, Standard Library, Template Runtime, Web Runtime, and Data Runtime. They are conformance profiles, not namespaces: only Language Core is universal, while the official reference distribution ships every layer. See <code>docs/STANDARD_LIBRARY_V1.md</code> and <code>docs/CONFORMANCE_PROFILES.md</code>. Current globals remain stable in v1.x; namespace syntax is deferred.</p>
   <p class="subtitle">Shipping functions registered in <code>src/polonio/runtime/builtins.cpp</code> (v0.1.0).</p>
   <section id="string">
     <h2>String Helpers (11)</h2>
@@ -507,8 +507,8 @@ b</code></div>
     </article>
   </section>
   <section id="http">
-    <h2>HTTP &amp; Response Helpers (6)</h2>
-    <p>Available when a <code>ResponseContext</code> is active in CGI or the development server.</p>
+    <h2>Response Helpers and URL Utilities (6)</h2>
+    <p><strong>Layer:</strong> <code>http_status</code>, <code>http_header</code>, <code>http_content_type</code>, and <code>redirect</code> belong to the Web Runtime and need a <code>ResponseContext</code>; CGI and the development server are the reference distribution's current adapters. <code>urlencode</code> and <code>urldecode</code> belong to the Standard Library and do not require HTTP.</p>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Function</th><th>Description</th></tr></thead>
@@ -563,7 +563,7 @@ b</code></div>
   </section>
   <section id="storage">
     <h2>Storage Functions (10)</h2>
-    <p>Polonio provides a sandboxed storage API for reading and writing files. All filesystem access occurs inside the directory referenced by the <code>POLONIO_STORAGE_PATH</code> environment variable, keeping templates away from arbitrary host files.</p>
+    <p><strong>Layer:</strong> Data Runtime. The official reference distribution provides a sandboxed storage API for reading and writing files. All filesystem access occurs inside the directory referenced by the <code>POLONIO_STORAGE_PATH</code> environment variable, keeping templates away from arbitrary host files.</p>
     <p>Rules enforced by every storage builtin:</p>
     <ul>
       <li>All paths must be relative (absolute paths are rejected).</li>
@@ -794,7 +794,7 @@ end
   </section>
   <section id="database">
     <h2>Database (SQLite)</h2>
-    <p>Polonio provides a built-in SQLite interface for persistent storage. All database files live inside the directory indicated by <code>POLONIO_STORAGE_PATH</code>; paths are resolved relative to that root and may not escape it.</p>
+    <p><strong>Layer:</strong> Data Runtime. The official reference distribution includes a SQLite interface for persistent storage. All database files live inside the directory indicated by <code>POLONIO_STORAGE_PATH</code>; paths are resolved relative to that root and may not escape it.</p>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Function</th><th>Description</th></tr></thead>
@@ -951,7 +951,7 @@ db_rollback()
   </section>
   <section id="runtime">
     <h2>Request, Session, Security, and Delivery APIs</h2>
-    <p>These APIs require a CGI or development-server request context unless noted. Calls made without the required context raise a runtime error. Argument mismatches also raise runtime errors.</p>
+    <p><strong>Layer:</strong> Web Runtime. These APIs require a Web Runtime request context; CGI and the development server are the reference distribution's current adapters. Calls made without the required context raise a runtime error. Argument mismatches also raise runtime errors.</p>
     <article><h3>Request</h3><dl>
       <dt><code>request_body()</code></dt><dd>Returns the raw request body string. Example: <code>var raw = request_body()</code>.</dd>
       <dt><code>request_header(name)</code></dt><dd>Accepts a string header name and returns its string value or null. Example: <code>request_header("Content-Type")</code>.</dd>
