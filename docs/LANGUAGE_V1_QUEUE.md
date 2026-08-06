@@ -121,7 +121,7 @@ No namespace implementation is required in this item.
 
 ---
 
-## [RFC] L1-3 Core Language vs Runtime Boundary
+## [ACCEPTED] L1-3 Core Language vs Runtime Boundary
 
 Define the official boundary between:
 
