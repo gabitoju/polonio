@@ -2636,6 +2636,40 @@ TEST_CASE("CLI: help command shows usage text") {
     CHECK(result.stdout_output.find("polonio run") != std::string::npos);
 }
 
+TEST_CASE("CLI: help documents serve syntax") {
+    auto result = run_polonio({"help"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("polonio serve [--root DIR] [--port N]") != std::string::npos);
+}
+
+TEST_CASE("CLI: serve --help prints serve help without starting") {
+    auto result = run_polonio({"serve", "--help"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Usage: polonio serve") != std::string::npos);
+    CHECK(result.stdout_output.find("--root DIR") != std::string::npos);
+    CHECK(result.stdout_output.find("--port N") != std::string::npos);
+}
+
+TEST_CASE("CLI: serve -h prints serve help") {
+    auto result = run_polonio({"serve", "-h"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output.find("Usage: polonio serve") != std::string::npos);
+}
+
+TEST_CASE("CLI: serve rejects invalid options, ports, and roots") {
+    auto unknown = run_polonio({"serve", "--unknown"});
+    CHECK(unknown.exit_code != 0);
+    CHECK(unknown.stderr_output.find("unknown option") != std::string::npos);
+
+    auto invalid_port = run_polonio({"serve", "--port", "70000"});
+    CHECK(invalid_port.exit_code != 0);
+    CHECK(invalid_port.stderr_output.find("port must be") != std::string::npos);
+
+    auto missing_root = run_polonio({"serve", "--root", "/tmp/polonio-missing-root-for-cli-test"});
+    CHECK(missing_root.exit_code != 0);
+    CHECK(missing_root.stderr_output.find("root directory not found") != std::string::npos);
+}
+
 // run command tests updated after interpreter wiring
 
 TEST_CASE("CLI: run without file shows usage") {

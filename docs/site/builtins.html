@@ -35,6 +35,7 @@
     <a href="#http">HTTP</a>
     <a href="#storage">Storage</a>
     <a href="#database">Database</a>
+    <a href="#runtime">Runtime APIs</a>
   </nav>
 </aside>
 <main class="content">
@@ -949,6 +950,36 @@ db_exec("delete from users where id = ?", [user_id])
 db_rollback()
 %&gt;</code></pre>
     </article>
+  </section>
+  <section id="runtime">
+    <h2>Request, Session, Security, and Delivery APIs</h2>
+    <p>These APIs require a CGI or development-server request context unless noted. Calls made without the required context raise a runtime error. Argument mismatches also raise runtime errors.</p>
+    <article><h3>Request</h3><dl>
+      <dt><code>request_body()</code></dt><dd>Returns the raw request body string. Example: <code>var raw = request_body()</code>.</dd>
+      <dt><code>request_header(name)</code></dt><dd>Accepts a string header name and returns its string value or null. Example: <code>request_header("Content-Type")</code>.</dd>
+      <dt><code>request_headers()</code></dt><dd>Returns an object of request headers. Example: <code>keys(request_headers())</code>.</dd>
+      <dt><code>request_json()</code></dt><dd>Parses the raw body and returns the JSON value; invalid JSON raises an error. Example: <code>var data = request_json()</code>.</dd>
+      <dt><code>cookies()</code></dt><dd>Returns the parsed cookie object. Example: <code>cookies()["theme"]</code>.</dd>
+    </dl></article>
+    <article><h3>Sessions</h3><p>Require <code>POLONIO_SESSION_SECRET</code>; otherwise they raise an error. Data is stored in a signed cookie and persists only when the response can emit the updated cookie.</p><dl>
+      <dt><code>session_get(key[, default])</code></dt><dd>String key; returns the stored value, default, or null. Example: <code>session_get("user_id")</code>.</dd>
+      <dt><code>session_set(key, value)</code></dt><dd>String key and any value; stores it and returns null. Example: <code>session_set("flash", "Saved")</code>.</dd>
+      <dt><code>session_unset(key)</code></dt><dd>String key; removes it and returns null. Example: <code>session_unset("flash")</code>.</dd>
+      <dt><code>session_clear()</code></dt><dd>Removes all session values and returns null. Example: <code>session_clear()</code>.</dd>
+    </dl></article>
+    <article><h3>Security</h3><dl>
+      <dt><code>random_token(bytes)</code></dt><dd>Number of random bytes (1 through 1024); returns a URL-safe token. Invalid sizes raise an error. Example: <code>random_token(32)</code>.</dd>
+      <dt><code>csrf_token()</code></dt><dd>Requires a session; returns the current session-backed token. Example: <code>&lt;input value="&lt;% echo csrf_token() %&gt;"&gt;</code>.</dd>
+      <dt><code>csrf_verify(token)</code></dt><dd>Requires a session and a string token; returns bool. Example: <code>if csrf_verify(_POST["csrf"])</code>.</dd>
+      <dt><code>hash_password(password)</code></dt><dd>Accepts a string and returns a password hash. Example: <code>var hash = hash_password("secret")</code>.</dd>
+      <dt><code>verify_password(password, hash)</code></dt><dd>Accepts strings and returns bool. Example: <code>verify_password(input, hash)</code>.</dd>
+    </dl></article>
+    <article><h3>Uploads, file responses, and mail</h3><dl>
+      <dt><code>upload_save(file, path)</code></dt><dd>Accepts a `_FILES` file object and a relative storage path; moves the temporary upload and returns the saved path. Requires <code>POLONIO_STORAGE_PATH</code>. Example: <code>upload_save(_FILES["photo"], "uploads/photo.bin")</code>.</dd>
+      <dt><code>send_file(path[, opts])</code></dt><dd>Accepts a relative sandboxed path and optional object with string <code>content_type</code> and/or <code>download_name</code>, finalizes the CGI/server response, and returns null. Missing/unsafe files raise errors. Example: <code>send_file("reports/latest.txt")</code>.</dd>
+      <dt><code>send_mail(to, subject, body[, headers])</code></dt><dd>Accepts strings and optional header object; writes an <code>.eml</code> file to storage <code>outbox</code> and returns its path. Reserved/injected headers raise errors. It does not send SMTP mail. Example: <code>send_mail("dev@example.test", "Hi", "Body")</code>.</dd>
+    </dl></article>
+    <article><h3>Response and conversion aliases</h3><p><code>status(code)</code> is the canonical status helper; <code>http_status(code)</code> is its alias. <code>header(name, value)</code> is canonical; <code>http_header(name, value)</code> is its alias. Both require a response context, return null, validate their accepted number/string arguments, and reject use after headers are sent. <code>http_content_type(value)</code> sets a string content type. <code>redirect(target[, status])</code> accepts a string target and optional 3xx-compatible number, sets Location/status, and returns null.</p><p><code>htmlspecialchars(value)</code> is the canonical HTML escaping name; <code>html_escape(value)</code> is an alias with identical behavior and returns an escaped string. <code>to_string(value)</code> is the canonical conversion name; <code>tostring(value)</code> is an alias with identical behavior and returns a string.</p></article>
   </section>
 </main>
 <script src="highlight.js"></script>

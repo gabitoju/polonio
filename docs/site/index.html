@@ -73,11 +73,10 @@ $ make test</code></pre>
       </div>
       <div class="card">
         <h3>3. Start the Dev Server</h3>
-        <p>Milestone 10 kicked off with a stub server: <code>polonio serve</code> validates <code>--port</code>/<code>--root</code>, listens on localhost, and replies with a fixed <code>200 OK</code> body.</p>
+        <p><code>polonio serve</code> is a local development server. It binds <code>127.0.0.1</code>, serves static files and <code>.pol</code> templates, and supports GET/POST forms and uploads.</p>
         <pre><code>$ ./build/polonio serve --port 8080 --root ./examples
-Serving ./examples on http://localhost:8080
-# first request receives plain-text "OK"</code></pre>
-        <div class="note">Static files, templates, and POST handling are coming in follow-up M10 sub-milestones; for now the stub is a scaffolding target.</div>
+Serving ./examples on http://127.0.0.1:8080</code></pre>
+        <div class="note">The server is sequential and loopback-only: use it for development, not public production deployment.</div>
       </div>
     </div>
   </section>
@@ -95,7 +94,7 @@ Serving ./examples on http://localhost:8080
         <tbody>
           <tr>
             <td><code>polonio help</code></td>
-            <td>Show usage, commands, and current dev server status.</td>
+            <td>Show usage and commands.</td>
           </tr>
           <tr>
             <td><code>polonio version</code></td>
@@ -115,7 +114,7 @@ Serving ./examples on http://localhost:8080
           </tr>
           <tr>
             <td><code>polonio serve [--port N] [--root DIR]</code></td>
-            <td>Experimental dev server stub: validates options, listens on localhost, serves a single <code>200 OK</code> response.</td>
+            <td>Local development server. Defaults to the current directory and port 8080; serves static files and <code>.pol</code> templates.</td>
           </tr>
         </tbody>
       </table>

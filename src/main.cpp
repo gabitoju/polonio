@@ -30,7 +30,29 @@ void print_usage(std::ostream& os) {
           "  polonio --dump-ast <expr>   Dump AST for expression (dev)\n"
           "  polonio run <file.pol>      Run a Polonio template\n"
           "  polonio <file.pol>          Shorthand for run\n"
-          "  polonio serve ...           Development server\n";
+          "  polonio serve [--root DIR] [--port N]\n"
+          "                              Start the local development server\n";
+}
+
+void print_serve_usage(std::ostream& os) {
+    os << "Usage: polonio serve [--root DIR] [--port N]\n"
+          "\n"
+          "Serve a directory on http://127.0.0.1:PORT for local development.\n"
+          "\n"
+          "Options:\n"
+          "  --root DIR   Root directory to serve (default: current directory)\n"
+          "  --port N     Listening port (default: 8080)\n"
+          "  -h, --help   Show this help message\n"
+          "\n"
+          "Behavior:\n"
+          "  - Supports GET and POST requests.\n"
+          "  - Renders .pol templates and serves static files.\n"
+          "  - Resolves extensionless paths to .pol files when available.\n"
+          "  - Uses index.pol, then index.html, for directory requests.\n"
+          "  - Renders 404.pol for missing paths when present.\n"
+          "\n"
+          "This single-threaded, loopback-only server is for local development,\n"
+          "not public production deployment.\n";
 }
 
 int handle_run(const std::vector<std::string>& args) {
@@ -102,7 +124,10 @@ int handle_serve(const std::vector<std::string>& args) {
     std::filesystem::path root = ".";
     for (std::size_t i = 0; i < args.size(); ++i) {
         const std::string& arg = args[i];
-        if (arg == "--port") {
+        if (arg == "--help" || arg == "-h") {
+            print_serve_usage(std::cout);
+            return EXIT_SUCCESS;
+        } else if (arg == "--port") {
             if (i + 1 >= args.size()) {
                 std::cerr << "serve: --port requires a value\n";
                 return EXIT_FAILURE;

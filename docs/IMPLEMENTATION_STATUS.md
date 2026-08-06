@@ -1,4 +1,8 @@
-# Implementation Status Report
+# Historical Implementation Status Report
+
+> **Historical snapshot — generated 2026-03-02.** This document records the
+> repository state at that date and is not current. For the current
+> implementation assessment, see [ARCHITECTURE_AUDIT.md](../ARCHITECTURE_AUDIT.md).
 
 Generated on `2026-03-02` for the Polonio repository. This report summarizes the current implementation against the v0.1 specifications, records validation commands, and recommends the next steps.
 

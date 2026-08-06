@@ -1,0 +1,5 @@
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>JSON</title></head><body>
+<h1>JSON request body</h1>
+<% if _SERVER["REQUEST_METHOD"] == "POST" %><pre><% echo html_escape(to_string(request_json())) %></pre><% end %>
+<p>POST JSON to this endpoint (for example with curl) to inspect it.</p>
+</body></html>

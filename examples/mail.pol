@@ -1,0 +1,2 @@
+<% var saved = send_mail("developer@example.test", "Polonio example", "This message is stored in the local outbox.") %>
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Mail</title></head><body><h1>File-mode mail</h1><p>Wrote: <% echo html_escape(saved) %></p><p>No SMTP delivery is performed.</p></body></html>

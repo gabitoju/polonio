@@ -79,11 +79,13 @@ Legend: TODO | DOING | DONE | BLOCKED
 
 ## Milestone 10 — Dev server
 - [DONE] (M10-1) `polonio serve` CLI plumbing + stub listener
-- [TODO] (M10-2) Static asset handling + routing
-- [TODO] (M10-3) Template rendering for `.pol` files
-- [TODO] (M10-4) POST handling + superglobals
-- [TODO] (M10-5) Response helpers + redirects
-- [TODO] (M10-6) Documentation + help updates
+- [DONE] (M10-2) Static asset handling + routing
+- [DONE] (M10-3) Template rendering for `.pol` files
+- [DONE] (M10-4) POST handling + superglobals
+- [DONE] (M10-5) Response helpers + redirects
+- [DONE] (M10-6) Documentation + help updates
+
+> Historical alignment note: M15-1 completed the shared dev-server runtime. M10-2 through M10-6 remain as the original incremental server deliverables and are updated here without renumbering or removing historical milestones.
 
 ## Milestone 11 — Request helpers
 - [DONE] (M11-1) request helper builtins (body/headers/cookies/json)

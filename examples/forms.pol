@@ -1,0 +1,10 @@
+<% var message = _GET["message"] %>
+<% if _SERVER["REQUEST_METHOD"] == "POST" and csrf_verify(_POST["csrf"]) %>
+  <% message = _POST["message"] %>
+<% end %>
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Forms</title></head><body>
+<h1>GET and URL-encoded POST</h1>
+<form method="get"><input name="message"><button>Send GET</button></form>
+<form method="post"><input type="hidden" name="csrf" value="<% echo csrf_token() %>"><input name="message"><button>Send POST</button></form>
+<% if message != null %><p>Message: <% echo html_escape(message) %></p><% end %>
+</body></html>

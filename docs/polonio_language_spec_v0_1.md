@@ -96,14 +96,37 @@ Available functions:
 
 -   `_GET`
 -   `_POST`
+-   `_FILES`
 -   `_COOKIE`
 -   `_SERVER`
+
+`_FILES` is populated for multipart file parts. The HTTP/runtime APIs are
+implementation extensions rather than additions to the template syntax.
 
 ## Execution Modes
 
 -   CLI template processor
 -   Development server
 -   Automatic CGI mode
+
+## Runtime Extensions (Implementation Reference)
+
+This specification defines language syntax. The following implemented runtime
+facilities do not change that syntax: request helpers (`request_body`,
+`request_header`, `request_headers`, `request_json`, and `cookies`), signed
+sessions, CSRF helpers, password hashing, secure random tokens, sandboxed
+storage, SQLite, multipart uploads, `send_file`, and file-mode `send_mail`.
+
+Storage and SQLite resolve relative paths beneath `POLONIO_STORAGE_PATH`.
+Sessions use a signed cookie and require `POLONIO_SESSION_SECRET` when they are
+used. `send_mail` writes an `.eml` file to the storage outbox; it does not send
+SMTP mail.
+
+The development server is local tooling: it binds `127.0.0.1`, supports GET
+and POST, renders `.pol` files, and serves static files. CGI and server
+transport behavior, request limits, and routing conventions are documented in
+`docs/site/runtime.html`. The detailed builtin reference is
+`docs/site/builtins.html`.
 
 ------------------------------------------------------------------------
 

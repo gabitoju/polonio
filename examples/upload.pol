@@ -1,0 +1,8 @@
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Upload</title></head><body>
+<h1>Multipart upload</h1>
+<% if _SERVER["REQUEST_METHOD"] == "POST" and _FILES["upload"] != null %>
+  <% var path = upload_save(_FILES["upload"], "uploads/example-upload.bin") %>
+  <p>Saved upload to <% echo html_escape(path) %>.</p>
+<% end %>
+<form method="post" enctype="multipart/form-data"><input type="file" name="upload"><button>Upload</button></form>
+<p>Requires <code>POLONIO_STORAGE_PATH</code>.</p></body></html>
