@@ -64,7 +64,7 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC 0004c — Adapter presentation consistency
    - [DONE] RFC 0004d — Error-model conformance tests
    - [BLOCKED] RFC 0004e — Freeze error model in Language Specification v1
-2. [RFC] RFC 0005 — Builtin Error Consistency
+2. [ACCEPTED] RFC 0005 — Builtin Error Consistency
 3. [RFC] RFC 0006 — User-Level Error Handling
 4. [RFC] RFC 0007 — Type and Conversion Semantics
 5. [RFC] RFC 0008 — Truthiness
