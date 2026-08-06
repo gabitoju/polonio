@@ -1,0 +1,6 @@
+<% db_connect("examples.sqlite") %>
+<% db_exec("CREATE TABLE IF NOT EXISTS visits (name TEXT)") %>
+<% db_exec("INSERT INTO visits (name) VALUES (?)", ["Polonio"] ) %>
+<% var rows = db_query("SELECT name FROM visits ORDER BY rowid DESC LIMIT 5") %>
+<% db_close() %>
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>SQLite</title></head><body><h1>SQLite</h1><ul><% for row in rows %><li><% echo html_escape(row["name"]) %></li><% end %></ul></body></html>

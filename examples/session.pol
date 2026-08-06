@@ -1,0 +1,5 @@
+<% var visits = session_get("visits", 0) + 1 %>
+<% session_set("visits", visits) %>
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Session</title></head><body>
+<h1>Session counter</h1><p>Visits in this signed session: <% echo visits %></p>
+<p>Requires <code>POLONIO_SESSION_SECRET</code>.</p></body></html>

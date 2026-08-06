@@ -1,0 +1,7 @@
+<% var name = "Polonio" %>
+<% var items = ["templates", "forms", "SQLite"] %>
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Hello</title></head><body>
+<h1>Hello, $name</h1>
+<p>2 + 3 = <% echo 2 + 3 %></p>
+<ul><% for item in items %><li>$item</li><% end %></ul>
+</body></html>

@@ -1,0 +1,5 @@
+<% dir_create("notes") %>
+<% file_write("notes/hello.txt", "stored by Polonio\n") %>
+<!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Storage</title></head><body>
+<h1>Sandboxed storage</h1><pre><% echo html_escape(file_read("notes/hello.txt")) %></pre>
+<p>Files: <% echo html_escape(to_string(dir_list("notes"))) %></p></body></html>
