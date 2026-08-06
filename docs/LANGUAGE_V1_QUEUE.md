@@ -80,18 +80,26 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC 0006d — Document adapter termination boundaries
    - [BLOCKED] RFC 0006e — Implement restricted recovery mechanism
    - [BLOCKED] RFC 0006f — Freeze failure philosophy in Language Specification v1
-4. [RFC] RFC 0007 — Type and Conversion Semantics
-5. [RFC] RFC 0008 — Truthiness
-6. [RFC] RFC 0009 — Equality and Comparison
-7. [RFC] RFC 0010 — Scope and Closures
-8. [RFC] RFC 0011 — Collection Mutation and Aliasing
-9. [RFC] RFC 0012 — Function Semantics
-10. [RFC] RFC 0013 — Include Semantics
-11. [RFC] RFC 0014 — Evaluation and Output Order
-12. [RFC] RFC 0015 — Template Interpolation and Escaping
+4. [IMPLEMENTED] RFC 0007 — `attempt` / `recover` Blocks
+   - [DONE] RFC 0007a — Lexer and parser support
+   - [DONE] RFC 0007b — AST and interpreter semantics
+   - [DONE] RFC 0007c — Immutable Error binding
+   - [DONE] RFC 0007d — Template and include integration
+   - [DONE] RFC 0007e — Recovery conformance tests
+   - [DONE] RFC 0007f — Documentation and examples
+   - [BLOCKED] RFC 0007g — Freeze attempt/recover in Language Specification v1
+5. [RFC] RFC 0008 — Type and Conversion Semantics
+6. [RFC] RFC 0009 — Truthiness
+7. [RFC] RFC 0010 — Equality and Comparison
+8. [RFC] RFC 0011 — Scope and Closures
+9. [RFC] RFC 0012 — Collection Mutation and Aliasing
+10. [RFC] RFC 0013 — Function Semantics
+11. [RFC] RFC 0014 — Include Semantics
+12. [RFC] RFC 0015 — Evaluation and Output Order
+13. [RFC] RFC 0016 — Template Interpolation and Escaping
 
-RFC 0004 is the current item. It must map present behavior before RFC 0005
-normalizes built-in failures or RFC 0006 considers user-level recovery.
+RFC 0007 is the next implementation item. Its accepted recovery semantics must
+be implemented before later L2 language-semantics RFCs are taken up.
 
 # L3 — Ecosystem
 

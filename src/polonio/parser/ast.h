@@ -371,6 +371,51 @@ private:
     ExprPtr value_;
 };
 
+class AttemptStmt : public Stmt {
+public:
+    AttemptStmt(std::vector<StmtPtr> attempt_body,
+                std::optional<std::string> recover_binding,
+                std::vector<StmtPtr> recover_body,
+                Span attempt_span,
+                Span recover_span,
+                std::optional<Span> binding_span)
+        : attempt_body_(std::move(attempt_body)),
+          recover_binding_(std::move(recover_binding)),
+          recover_body_(std::move(recover_body)),
+          attempt_span_(attempt_span), recover_span_(recover_span),
+          binding_span_(std::move(binding_span)) {}
+
+    std::string dump() const override {
+        std::string out = "Attempt([";
+        for (std::size_t i = 0; i < attempt_body_.size(); ++i) {
+            if (i) out += ", ";
+            out += attempt_body_[i]->dump();
+        }
+        out += "], ";
+        out += recover_binding_ ? *recover_binding_ : "";
+        out += ", [";
+        for (std::size_t i = 0; i < recover_body_.size(); ++i) {
+            if (i) out += ", ";
+            out += recover_body_[i]->dump();
+        }
+        return out + "])";
+    }
+    const std::vector<StmtPtr>& attempt_body() const { return attempt_body_; }
+    const std::optional<std::string>& recover_binding() const { return recover_binding_; }
+    const std::vector<StmtPtr>& recover_body() const { return recover_body_; }
+    const Span& attempt_span() const { return attempt_span_; }
+    const Span& recover_span() const { return recover_span_; }
+    const std::optional<Span>& binding_span() const { return binding_span_; }
+
+private:
+    std::vector<StmtPtr> attempt_body_;
+    std::optional<std::string> recover_binding_;
+    std::vector<StmtPtr> recover_body_;
+    Span attempt_span_;
+    Span recover_span_;
+    std::optional<Span> binding_span_;
+};
+
 class FunctionStmt : public Stmt {
 public:
     FunctionStmt(std::string name,

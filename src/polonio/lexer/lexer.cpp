@@ -29,6 +29,8 @@ TokenKind keyword_kind(const std::string& identifier) {
         {"in", TokenKind::In},
         {"while", TokenKind::While},
         {"return", TokenKind::Return},
+        {"attempt", TokenKind::Attempt},
+        {"recover", TokenKind::Recover},
     };
 
     auto it = keywords.find(identifier);

@@ -54,7 +54,8 @@ public:
     using Object = std::unordered_map<std::string, Value>;
     using ArrayPtr = std::shared_ptr<Array>;
     using ObjectPtr = std::shared_ptr<Object>;
-    using Storage = std::variant<std::monostate, bool, double, std::string, ArrayPtr, ObjectPtr, FunctionValue, BuiltinFunction>;
+    using ReadOnlyObjectPtr = std::shared_ptr<const Object>;
+    using Storage = std::variant<std::monostate, bool, double, std::string, ArrayPtr, ObjectPtr, ReadOnlyObjectPtr, FunctionValue, BuiltinFunction>;
 
     Value();
     Value(std::nullptr_t);
@@ -68,6 +69,7 @@ public:
     explicit Value(Array&& array);
     explicit Value(const Object& object);
     explicit Value(Object&& object);
+    explicit Value(ReadOnlyObjectPtr object);
     explicit Value(FunctionValue fn);
     explicit Value(BuiltinFunction fn);
 

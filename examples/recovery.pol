@@ -1,0 +1,7 @@
+<%
+attempt
+  http_status(200)
+recover error
+  echo "Web response capability is unavailable: " .. error["category"]
+end
+%>

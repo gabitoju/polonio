@@ -12,6 +12,7 @@
 #include "polonio/runtime/env.h"
 #include "polonio/runtime/interpreter.h"
 #include "polonio/runtime/template_scanner.h"
+#include "polonio/runtime/template_renderer.h"
 #include "polonio/server/http_server.h"
 
 #include <arpa/inet.h>
@@ -3206,6 +3207,70 @@ std::string run_program_output(const std::string& input) {
     polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), "test.pol");
     interpreter.exec_program(program);
     return interpreter.output();
+}
+
+TEST_CASE("RFC 0007 lexer reserves attempt and recover without reserving substrings") {
+    polonio::Lexer lexer("attempt recover attempt_count recovery recoverable Attempt");
+    CHECK(kinds(lexer.scan_all()) == std::vector<polonio::TokenKind>{
+        polonio::TokenKind::Attempt, polonio::TokenKind::Recover,
+        polonio::TokenKind::Identifier, polonio::TokenKind::Identifier,
+        polonio::TokenKind::Identifier, polonio::TokenKind::Identifier,
+        polonio::TokenKind::EndOfFile});
+}
+
+TEST_CASE("RFC 0007 parser accepts exactly one recover clause") {
+    CHECK(parse_program("attempt echo 1 recover echo 2 end") ==
+          "Program(Attempt([Echo(num(1))], , [Echo(num(2))]))");
+    CHECK(parse_program("attempt recover error echo error[\"category\"] end") ==
+          "Program(Attempt([], error, [Echo(index(ident(error), str(\"category\")))]))");
+    for (const auto& input : {"recover echo 1", "attempt echo 1 end", "attempt recover end recover end"}) {
+        polonio::Lexer lexer(input, "attempt.pol");
+        polonio::Parser parser(lexer.scan_all(), "attempt.pol");
+        CHECK_THROWS_AS(parser.parse_program(), polonio::PolonioError);
+    }
+}
+
+TEST_CASE("RFC 0007 recovers operational failures, preserves output, and continues") {
+    const char* source = R"(
+echo "A"
+attempt
+  echo "B"
+  http_status(200)
+  echo "C"
+recover error
+  echo error["category"]
+  echo "D"
+end
+echo "E"
+)";
+    CHECK(run_program_output(source) == "ABCapabilityErrorDE");
+}
+
+TEST_CASE("RFC 0007 never recovers programming errors and bindings are scoped") {
+    CHECK_THROWS_AS(run_program_output("attempt echo undefined_variable recover error echo \"hidden\" end"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("attempt http_status(200) recover error echo error end echo error"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("attempt http_status(200) recover error set(error, \"x\", 1) end"), polonio::PolonioError);
+}
+
+TEST_CASE("RFC 0007 recovers through functions and propagates failures from recover outward") {
+    CHECK(run_program_output(R"(
+function unavailable() http_status(200) end
+attempt unavailable() recover echo "ok" end
+)") == "ok");
+}
+
+TEST_CASE("RFC 0007 return passes through attempt and recover") {
+    CHECK(run_program_output(R"(
+function load(ok)
+  attempt
+    if ok return "yes" end
+    http_status(200)
+  recover error
+    return "no"
+  end
+end
+echo load(true) .. load(false)
+)") == "yesno");
 }
 
 } // namespace

@@ -26,7 +26,7 @@
   <section id="template">
     <h2>Template Runtime</h2>
     <p>The Template Runtime turns a template into ordered output. It emits literal text, evaluates <code>&lt;% ... %&gt;</code> blocks, replaces <code>$variable</code> in text, and resolves <code>include</code> paths relative to the current file.</p>
-    <p>Use it whenever you render a page or text file. Start with the <a href="language.html">Language guide</a>; the <a href="examples.html">Hello example</a> is the smallest complete template.</p>
+    <p>Use it whenever you render a page or text file. <code>attempt</code> / <code>recover</code> may handle only capability and resource failures during rendering; emitted output remains emitted. Recovery cannot alter a response finalized by <code>send_file</code>. Start with the <a href="language.html">Language guide</a>; the <a href="examples.html">Hello example</a> is the smallest complete template.</p>
   </section>
 
   <section id="web">

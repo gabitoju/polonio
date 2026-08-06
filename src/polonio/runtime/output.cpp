@@ -31,7 +31,8 @@ std::string OutputBuffer::value_to_string(const Value& value) {
                 return alt;
             } else if constexpr (std::is_same_v<T, Value::Array>) {
                 return "[array]";
-            } else if constexpr (std::is_same_v<T, Value::Object>) {
+            } else if constexpr (std::is_same_v<T, Value::ObjectPtr> ||
+                                 std::is_same_v<T, Value::ReadOnlyObjectPtr>) {
                 return "[object]";
             } else {
                 return "[function]";

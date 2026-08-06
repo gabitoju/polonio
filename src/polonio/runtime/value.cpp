@@ -29,6 +29,8 @@ Value::Value(const Object& object) : storage_(std::make_shared<Object>(object)) 
 
 Value::Value(Object&& object) : storage_(std::make_shared<Object>(std::move(object))) {}
 
+Value::Value(ReadOnlyObjectPtr object) : storage_(std::move(object)) {}
+
 Value::Value(FunctionValue fn) : storage_(std::move(fn)) {}
 
 Value::Value(BuiltinFunction fn) : storage_(std::move(fn)) {}
@@ -48,6 +50,8 @@ std::string Value::type_name() const {
             } else if constexpr (std::is_same_v<T, ArrayPtr>) {
                 return "array";
             } else if constexpr (std::is_same_v<T, ObjectPtr>) {
+                return "object";
+            } else if constexpr (std::is_same_v<T, ReadOnlyObjectPtr>) {
                 return "object";
             } else if constexpr (std::is_same_v<T, BuiltinFunction>) {
                 return "function";
@@ -113,6 +117,9 @@ bool Value::operator==(const Value& other) const {
                     }
                 }
                 return true;
+            } else if constexpr (std::is_same_v<L, ReadOnlyObjectPtr>) {
+                if (!lhs || !rhs) return !lhs && !rhs;
+                return *lhs == *rhs;
             } else {
                 return lhs == rhs;
             }
@@ -139,6 +146,8 @@ std::string safe_value_summary(const Value& value) {
         } else if constexpr (std::is_same_v<T, Value::ArrayPtr>) {
             return "array(count=" + std::to_string(alt ? alt->size() : 0) + ")";
         } else if constexpr (std::is_same_v<T, Value::ObjectPtr>) {
+            return "object(count=" + std::to_string(alt ? alt->size() : 0) + ")";
+        } else if constexpr (std::is_same_v<T, Value::ReadOnlyObjectPtr>) {
             return "object(count=" + std::to_string(alt ? alt->size() : 0) + ")";
         } else return "function";
     }, value.storage());

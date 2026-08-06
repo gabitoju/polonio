@@ -37,6 +37,7 @@ private:
     StmtPtr for_statement();
     StmtPtr include_statement();
     StmtPtr return_statement();
+    StmtPtr attempt_statement(const Token& attempt_token);
     std::vector<StmtPtr> block_until(std::initializer_list<TokenKind> terminators);
     StmtPtr expression_statement();
 
