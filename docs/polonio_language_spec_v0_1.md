@@ -355,7 +355,7 @@ Supports: - Closures - Recursion - Lexical scope
 ## String
 
 len, substr, split, join, replace, trim, lower, upper, contains,
-starts_with, ends_with, htmlspecialchars
+starts_with, ends_with, html_escape
 
 ## Array
 
@@ -466,5 +466,13 @@ Emits headers 4. Renders template
 
 -   Templates are assumed trusted.
 -   No auto-escaping.
--   Escaping must be explicit (`htmlspecialchars()`).
+-   Escaping must be explicit (`html_escape()`).
+
+## Compatibility Names
+
+The v0.1 runtime retains the following compatibility aliases. New
+documentation and examples use the canonical names: `to_string` (`tostring`),
+`html_escape` (`htmlspecialchars`), `http_status` (`status`), and
+`http_header` (`header`). Each alias remains functional with the same
+successful behavior. `echo` is language syntax, not a builtin.
 -   Sandboxing is out of scope for v0.1.
