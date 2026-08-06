@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Implemented.
 
 ## Purpose
 
@@ -258,3 +258,13 @@ existing successful API changes or compatibility breaks result.
 - Expected-absence conventions and validation/status-object guidance.
 - Output/finalization interaction for a handled operational failure.
 - Transaction/resource-cleanup semantics, if separately justified.
+
+## Implementation status
+
+The reference implementation exposes an immutable category-derived
+`Recoverability` designation. `CapabilityError` and `ResourceError` are
+`Operational`; all other RFC 0004 categories are `Never`. This is eligibility
+metadata for a future restricted mechanism, not current catchability. Existing
+function/template propagation and CLI/CGI/server terminal boundaries remain
+unchanged and are covered by conformance tests. No Polonio Error value,
+user-created error, recovery syntax, or rollback behavior exists.
