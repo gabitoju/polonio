@@ -21,7 +21,7 @@
     <div class="nav-section">Reference</div>
     <a href="language.html" class="active">Language</a>
     <a href="builtins.html">Built-in Functions</a>
-    <a href="runtime.html">HTTP &amp; Server</a>
+    <a href="runtime.html">Runtime</a>
     <div class="nav-section">Learn</div>
     <a href="examples.html">Examples</a>
     <div class="nav-section">This Page</div>
@@ -34,6 +34,7 @@
     <a href="#includes">Includes</a>
     <a href="#truthiness">Truthiness</a>
     <a href="#scope">Scope</a>
+    <a href="#runtime-references">Runtime References</a>
   </nav>
 </aside>
 <main class="content">
@@ -49,8 +50,8 @@
         <h3>Code blocks</h3>
         <pre><code><span class="tag">&lt;%</span>
 <span class="kw">var</span> <span class="var">title</span> = <span class="str">"Docs"</span>
-<span class="kw">if</span> _SERVER[<span class="str">"REQUEST_METHOD"</span>] == <span class="str">"POST"</span>
-  <span class="kw">echo</span> <span class="str">"Posted"</span>
+<span class="kw">if</span> title != <span class="kw">null</span>
+  <span class="kw">echo</span> title
 <span class="kw">end</span>
 <span class="tag">%&gt;</span></code></pre>
       </div>
@@ -198,6 +199,12 @@ count ..= <span class="str">" total"</span>
       <li>Variables defined before the include remain readable and writable inside the partial.</li>
       <li>Includes are disabled outside template rendering (you will see “include not supported here” if no include callback is registered).</li>
     </ul>
+  </section>
+
+  <section id="runtime-references">
+    <h2>Runtime References</h2>
+    <p>This page describes the Polonio Language: syntax, values, expressions, control flow, and functions. Template rendering, HTTP requests and responses, storage, SQLite, sessions, uploads, and mail are runtime capabilities rather than language syntax.</p>
+    <p>See <a href="builtins.html">Built-in Functions</a> for canonical names, aliases, and layers; <a href="runtime.html">Runtime Guide</a> for Template, Web, and Data Runtime behavior; and <a href="examples.html">Examples</a> for runnable Reference Distribution routes.</p>
   </section>
 
   <section id="truthiness">

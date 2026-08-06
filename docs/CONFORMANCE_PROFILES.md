@@ -20,7 +20,7 @@ sessions, storage, SQLite, uploads, `send_file`, and `send_mail`.
 
 ## Reference Standard Library
 
-**Purpose:** provide the general-purpose library above Language Core.
+**Purpose:** provide the general-purpose Standard Library above Language Core.
 
 **Required capabilities:** Language Core plus every Layer 2 string,
 collection/object, math, predicate, date, escaping, URL, and development

@@ -21,7 +21,7 @@
     <div class="nav-section">Reference</div>
     <a href="language.html">Language</a>
     <a href="builtins.html">Built-in Functions</a>
-    <a href="runtime.html">HTTP &amp; Server</a>
+    <a href="runtime.html">Runtime</a>
     <div class="nav-section">Learn</div>
     <a href="examples.html">Examples</a>
     <div class="nav-section">This Page</div>
@@ -33,12 +33,12 @@
 </aside>
 <main class="content">
   <h1>Polonio v0.1.0</h1>
-  <p class="subtitle">Single-binary templating language for modern CGI-friendly HTML workflows.</p>
+  <p class="subtitle">A readable templating language for HTML, from simple rendering to local web applications.</p>
 
   <section class="hero" id="hero">
     <h2>Build HTML the 2005 way, with 2026 tooling.</h2>
-    <p>Polonio mixes straightforward HTML with `<% %>` code blocks, `$var` interpolation, a pragmatic interpreter, and a runtime that can jump between CLI rendering and CGI automatically. Everything ships as a self-contained C++17 executable.</p>
-    <p>The language spec is frozen for v0.1.0, so you can count on consistent syntax, a predictable runtime, and a growing library of built-in helpers.</p>
+    <p>Polonio mixes straightforward HTML with `<% %>` code blocks, `$var` interpolation, loops, functions, and includes. Start by rendering a file locally; when needed, the Reference Distribution also supplies CGI and a local development server.</p>
+    <p>Its v0.1 syntax is frozen while the v1 planning work documents stable builtin names, runtime layers, and conformance profiles.</p>
   </section>
 
   <section id="what-is">
@@ -51,6 +51,7 @@
       <li>A Standard Library of string, array, object, math, date, and URL helpers; template output and HTTP helpers are separate runtime layers.</li>
       <li>The reference distribution's Web Runtime supplies `_GET`, `_POST`, `_COOKIE`, `_SERVER`, response helpers such as `http_status`, CGI, and the local development server.</li>
     </ul>
+    <p>Most users run the complete <strong>Reference Distribution</strong>. Other implementations may claim <strong>Language Core</strong> alone or add the <strong>Reference Standard Library</strong>, <strong>Template Runtime</strong>, <strong>Web Runtime</strong>, or <strong>Data Runtime</strong>. See the <a href="../CONFORMANCE_PROFILES.md">conformance profiles</a> for the precise guarantees.</p>
   </section>
 
   <section id="quickstart">
@@ -130,7 +131,7 @@ Serving ./examples on http://127.0.0.1:8080</code></pre>
       </a>
       <a class="card" href="builtins.html">
         <h3>Built-in Functions</h3>
-        <p>String, array, object, math, date, type, HTTP, and output helpers with signatures and examples.</p>
+        <p>Canonical builtin names, compatibility aliases, layers, and examples.</p>
       </a>
       <a class="card" href="runtime.html">
         <h3>HTTP &amp; Runtime</h3>
@@ -138,7 +139,7 @@ Serving ./examples on http://127.0.0.1:8080</code></pre>
       </a>
       <a class="card" href="examples.html">
         <h3>Examples &amp; Cookbook</h3>
-        <p>End-to-end samples (hello world, guestbook, todo) plus the original <code>prueba.html</code> lore.</p>
+        <p>Runnable hello, forms, JSON, sessions, uploads, storage, SQLite, download, and mail examples.</p>
       </a>
     </div>
   </section>

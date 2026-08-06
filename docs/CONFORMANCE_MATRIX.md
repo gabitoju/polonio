@@ -7,7 +7,7 @@ API surface, but CGI and `polonio serve` are optional adapters. `send_file`
 and `send_mail` are required Web Runtime APIs and use the reference Data
 Runtime storage model when run by the official distribution.
 
-| Capability | Language Core | Standard Library | Template Runtime | Web Runtime | Data Runtime | Reference Distribution |
+| Capability | Language Core | Reference Standard Library | Template Runtime | Web Runtime | Data Runtime | Reference Distribution |
 |---|---|---|---|---|---|---|
 | Parser | Required | Required | Required | Required | Required | Required |
 | Interpreter / execution | Required | Required | Required | Required | Required | Required |

@@ -21,7 +21,7 @@
     <div class="nav-section">Reference</div>
     <a href="language.html">Language</a>
     <a href="builtins.html" class="active">Built-in Functions</a>
-    <a href="runtime.html">HTTP &amp; Server</a>
+    <a href="runtime.html">Runtime</a>
     <div class="nav-section">Learn</div>
     <a href="examples.html">Examples</a>
     <div class="nav-section">This Page</div>
@@ -32,6 +32,7 @@
     <a href="#type">Type</a>
     <a href="#date">Date</a>
     <a href="#output">Output</a>
+    <a href="#profiles">Layers &amp; Profiles</a>
     <a href="#http">HTTP</a>
     <a href="#storage">Storage</a>
     <a href="#database">Database</a>
@@ -40,8 +41,23 @@
 </aside>
 <main class="content">
   <h1>Built-in Functions</h1>
-  <p><strong>v1 planning layers:</strong> Core Language Support, Standard Library, Template Runtime, Web Runtime, and Data Runtime. They are conformance profiles, not namespaces: only Language Core is universal, while the official reference distribution ships every layer. See <code>docs/STANDARD_LIBRARY_V1.md</code> and <code>docs/CONFORMANCE_PROFILES.md</code>. Current globals remain stable in v1.x; namespace syntax is deferred.</p>
+  <p><strong>v1 planning layers:</strong> Core Language Support, Standard Library, Template Runtime, Web Runtime, and Data Runtime. They are conformance profiles, not namespaces: only Language Core is universal, while the official Reference Distribution ships every layer. See <a href="../STANDARD_LIBRARY_V1.md">the builtin inventory</a> and <a href="../CONFORMANCE_PROFILES.md">the conformance profiles</a>. Current globals remain stable in v1.x; namespace syntax is deferred.</p>
   <p class="subtitle">Shipping functions registered in <code>src/polonio/runtime/builtins.cpp</code> (v0.1.0).</p>
+  <section id="profiles">
+    <h2>Layers and Profile Availability</h2>
+    <p>Every registered builtin belongs to one numbered layer. A profile guarantees its layer's canonical operations; the Reference Distribution ships every layer. The complete per-name inventory is <a href="../STANDARD_LIBRARY_V1.md">STANDARD_LIBRARY_V1.md</a>.</p>
+    <div class="table-wrapper"><table>
+      <thead><tr><th>Layer</th><th>Examples</th><th>Profile availability</th></tr></thead>
+      <tbody>
+        <tr><td>Language Core</td><td><code>type</code>, <code>to_string</code>, <code>to_number</code>, <code>count</code></td><td>All profiles</td></tr>
+        <tr><td>Standard Library</td><td>strings, collections, math, dates, <code>html_escape</code></td><td>Reference Standard Library, Web Runtime, Data Runtime, Reference Distribution</td></tr>
+        <tr><td>Template Runtime</td><td><code>print</code>, <code>println</code></td><td>Template Runtime, Reference Distribution</td></tr>
+        <tr><td>Web Runtime</td><td>request/response, sessions, CSRF, uploads, <code>send_file</code>, <code>send_mail</code></td><td>Web Runtime, Reference Distribution</td></tr>
+        <tr><td>Data Runtime</td><td><code>file_*</code>, <code>dir_*</code>, <code>db_*</code></td><td>Data Runtime, Reference Distribution</td></tr>
+      </tbody>
+    </table></div>
+    <p>Canonical names are primary. Compatibility aliases remain functional throughout v1.x: <code>tostring</code> for <code>to_string</code>, <code>htmlspecialchars</code> for <code>html_escape</code>, <code>status</code> for <code>http_status</code>, and <code>header</code> for <code>http_header</code>. <code>echo</code> is language syntax, not a builtin.</p>
+  </section>
   <section id="string">
     <h2>String Helpers (11)</h2>
     <p>Operate on any input coerced to a string.</p>

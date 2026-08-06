@@ -1,4 +1,56 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Examples — Polonio</title><link rel="stylesheet" href="style.css"></head><body><aside class="sidebar"><div class="sidebar-brand"><h2>Polonio</h2><div class="tagline">v0.1.0</div></div><nav><a href="index.html">Home</a><a href="language.html">Language</a><a href="builtins.html">Builtins</a><a href="runtime.html">HTTP &amp; Server</a></nav></aside><main class="content"><h1>Runnable examples</h1><p class="subtitle">These links point to real files in the repository’s <code>examples/</code> directory.</p><pre><code>export POLONIO_STORAGE_PATH="$PWD/.polonio-storage"
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Examples — Polonio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-brand"><h2>Polonio</h2><div class="tagline">v0.1.0</div></div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="language.html">Language</a>
+    <a href="builtins.html">Builtins</a>
+    <a href="runtime.html">Runtime</a>
+    <a href="examples.html" class="active">Examples</a>
+  </nav>
+</aside>
+<main class="content">
+  <h1>Runnable Examples</h1>
+  <p class="subtitle">Small filesystem routes for the official Polonio Reference Distribution.</p>
+  <p>These are real files in <code>examples/</code>. They demonstrate Template Runtime features and, where noted, the Web and Data Runtimes. A Language Core or template-only implementation is not required to provide the Web/Data examples.</p>
+  <pre><code>export POLONIO_STORAGE_PATH="$PWD/.polonio-storage"
 export POLONIO_SESSION_SECRET="development-secret-change-me"
 mkdir -p "$POLONIO_STORAGE_PATH"
-./build/polonio serve --root ./examples --port 8080</code></pre><p>Open <code>http://127.0.0.1:8080/hello</code>. Server filesystem routing also makes <code>/hello.pol</code> work. Storage-dependent examples require the environment above.</p><ul><li><a href="../../examples/hello.pol"><code>hello.pol</code></a> — variables, interpolation, loop, and inline echo.</li><li><a href="../../examples/forms.pol"><code>forms.pol</code></a> — query parameters, URL-encoded POST, CSRF, and escaped form output.</li><li><a href="../../examples/json.pol"><code>json.pol</code></a> — explicit <code>request_json()</code> handling.</li><li><a href="../../examples/session.pol"><code>session.pol</code></a> — signed session counter.</li><li><a href="../../examples/upload.pol"><code>upload.pol</code></a> — multipart <code>_FILES</code> and <code>upload_save</code>.</li><li><a href="../../examples/download.pol"><code>download.pol</code></a> — <code>send_file</code> (create a storage <code>downloads/example.txt</code> first).</li><li><a href="../../examples/storage.pol"><code>storage.pol</code></a> — sandboxed directory/file operations.</li><li><a href="../../examples/sqlite.pol"><code>sqlite.pol</code></a> — SQLite table, parameterized insert, query, close.</li><li><a href="../../examples/mail.pol"><code>mail.pol</code></a> — file-mode <code>send_mail</code>.</li><li><a href="../../examples/404.pol"><code>404.pol</code></a> — custom development-server missing-page template.</li><li><a href="../../examples/assets/style.css"><code>assets/style.css</code></a> — shared minimal styling.</li></ul><p>These examples use canonical names <code>html_escape</code> and <code>to_string</code>. Their aliases <code>htmlspecialchars</code> and <code>tostring</code> behave identically.</p></main></body></html>
+./build/polonio serve --root ./examples --port 8080</code></pre>
+  <p>Open <code>http://127.0.0.1:8080/</code> or <code>/hello</code>. Filesystem routing also accepts <code>/hello.pol</code>. Storage-dependent examples require the environment above.</p>
+
+  <h2>Language and Template Runtime</h2>
+  <ul>
+    <li><a href="../../examples/hello.pol"><code>hello.pol</code></a> — variables, interpolation, a loop, and inline <code>echo</code>.</li>
+    <li><a href="../../examples/404.pol"><code>404.pol</code></a> — custom missing-page template for the development-server adapter.</li>
+    <li><a href="../../examples/assets/style.css"><code>assets/style.css</code></a> — shared minimal styling.</li>
+  </ul>
+
+  <h2>Web Runtime</h2>
+  <ul>
+    <li><a href="../../examples/forms.pol"><code>forms.pol</code></a> — query parameters, URL-encoded POST, CSRF, and escaped form output.</li>
+    <li><a href="../../examples/json.pol"><code>json.pol</code></a> — explicit <code>request_json()</code> handling.</li>
+    <li><a href="../../examples/session.pol"><code>session.pol</code></a> — signed session counter.</li>
+    <li><a href="../../examples/upload.pol"><code>upload.pol</code></a> — multipart <code>_FILES</code> and <code>upload_save</code>.</li>
+    <li><a href="../../examples/download.pol"><code>download.pol</code></a> — <code>send_file</code>; create <code>downloads/example.txt</code> in storage first.</li>
+    <li><a href="../../examples/mail.pol"><code>mail.pol</code></a> — file-mode <code>send_mail</code>, not SMTP delivery.</li>
+  </ul>
+
+  <h2>Data Runtime</h2>
+  <ul>
+    <li><a href="../../examples/storage.pol"><code>storage.pol</code></a> — sandboxed directory/file operations.</li>
+    <li><a href="../../examples/sqlite.pol"><code>sqlite.pol</code></a> — SQLite table creation, parameterized insert, query, and close.</li>
+  </ul>
+
+  <p>Examples use the canonical names <code>html_escape</code> and <code>to_string</code>. The supported compatibility aliases <code>htmlspecialchars</code> and <code>tostring</code> behave identically, but are not primary example syntax. See <a href="builtins.html">Builtins</a> for aliases and layers, and <a href="runtime.html">Runtime</a> for execution requirements.</p>
+</main>
+</body>
+</html>

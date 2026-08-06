@@ -10,13 +10,12 @@ Polonio is a server-side templating language designed for generating
 HTML.
 
 Originally created in 2005 as a C++ CGI experiment, Polonio was fully
-reimplemented in 2026 with:
+reimplemented in 2026. The official Reference Distribution includes:
 
 -   A modern lexer
 -   A recursive-descent parser
 -   A tree-walking interpreter
--   A built-in HTTP runtime
--   A development server
+-   Web Runtime adapters (CGI and a development server)
 -   A single self-contained C++17 binary
 
 Polonio templates mix HTML with embedded code blocks, enabling
@@ -42,15 +41,18 @@ expressive, readable dynamic web pages.
 -   `object`
 -   `function`
 
-## Built-in Standard Library (48 functions)
+## Registered Builtins and Runtime Profiles
 
-Grouped by: - String - Array - Object - Math - Type - Date - Output -
-HTTP
+The Reference Distribution currently registers 99 builtin names across
+Language Core, Standard Library, Template Runtime, Web Runtime, and Data
+Runtime layers. The Standard Library is not the same thing as the complete
+registered surface. The authoritative inventory and profile availability are
+in `docs/STANDARD_LIBRARY_V1.md`.
 
 ## Storage Builtins
 
-Polonio templates can access the filesystem only through sandboxed
-storage helpers. Every storage operation resolves the requested relative
+The Reference Distribution's Data Runtime provides sandboxed storage helpers.
+Every storage operation resolves the requested relative
 path against the `POLONIO_STORAGE_PATH` environment variable, rejects
 absolute paths, rejects traversal (`..`) after normalization, and raises
 a runtime error if the resolved target would escape the storage root or
@@ -65,7 +67,8 @@ Available functions:
 
 ## Database Builtins
 
-Polonio embeds SQLite for lightweight persistence. Database files are
+The Reference Distribution's Data Runtime includes SQLite for lightweight
+persistence. Database files are
 resolved relative to `POLONIO_STORAGE_PATH` using the same sandbox rules
 as storage: only relative paths are allowed, traversal is rejected, and
 paths cannot leave the configured root. SQL parameters are bound
@@ -92,7 +95,7 @@ Available functions:
 -   Recursion
 -   First-class values
 
-## HTTP Runtime
+## Web Runtime Extensions
 
 -   `_GET`
 -   `_POST`
@@ -100,14 +103,14 @@ Available functions:
 -   `_COOKIE`
 -   `_SERVER`
 
-`_FILES` is populated for multipart file parts. The HTTP/runtime APIs are
+`_FILES` is populated for multipart file parts. These Web Runtime APIs are
 implementation extensions rather than additions to the template syntax.
 
-## Execution Modes
+## Reference Distribution Execution Modes
 
 -   CLI template processor
--   Development server
--   Automatic CGI mode
+-   Development server adapter
+-   Automatic CGI adapter
 
 ## Runtime Extensions (Implementation Reference)
 
@@ -184,7 +187,8 @@ Inside code blocks:
 ```
 
 -   `echo` writes to output.
--   `print(expr)` is an alias.
+-   `print(expr)` is a Template Runtime builtin with corresponding output
+    behavior; `echo` itself is language syntax, not a builtin alias.
 -   Output is raw unless escaped manually.
 
 ------------------------------------------------------------------------
@@ -392,7 +396,10 @@ redirect
 
 ## Implementation Notes (v0.1)
 
-The lists above capture the full target surface for v0.1, but not every builtin is currently implemented. For the authoritative, shipping set of functions (including `http_status`, `http_header`, `http_content_type`, `redirect`, `urlencode`, and `urldecode`), refer to the registry in `src/polonio/runtime/builtins.cpp`.
+The lists above summarize the v0.1 surface. For the authoritative current
+registry, canonical aliases, and layer/profile classification, refer to
+`docs/STANDARD_LIBRARY_V1.md`; runtime-specific details are in
+`docs/site/runtime.html`.
 
 ------------------------------------------------------------------------
 
@@ -402,6 +409,7 @@ Available in global scope:
 
 -   `_GET`
 -   `_POST`
+-   `_FILES`
 -   `_COOKIE`
 -   `_SERVER`
 
@@ -457,7 +465,7 @@ Emits headers 4. Renders template
 
 -   C++17
 -   Single binary
--   No runtime dependencies
+-   Reference Distribution storage and SQLite support
 -   Tree-walking interpreter (v0.1)
 
 ------------------------------------------------------------------------
@@ -475,7 +483,8 @@ documentation and examples use the canonical names: `to_string` (`tostring`),
 `html_escape` (`htmlspecialchars`), `http_status` (`status`), and
 `http_header` (`header`). Each alias remains functional with the same
 successful behavior. `echo` is language syntax, not a builtin.
--   Sandboxing is out of scope for v0.1.
+-   Sandboxing is out of scope for Language Core; the Reference Distribution's
+    Data Runtime provides sandboxed storage.
 
 ------------------------------------------------------------------------
 
