@@ -2,7 +2,7 @@
 
 The reviewed machine-readable inventory is [builtins_v1_manifest.tsv](builtins_v1_manifest.tsv). It lists every registered name, canonical target, numbered layer, category, and Compatibility/Development designation. It is validated against `install_builtins` by `tools/validate_builtin_manifest.sh`.
 
-The runtime has 99 registrations: Layer 1: 5; Layer 2: 52; Layer 3: 2; Layer 4: 29; Layer 5: 18. Compatibility designations: `tostring`, `htmlspecialchars`, `status`, `header`; Development: `debug`.
+The runtime has 99 registrations: Layer 1: 5; Layer 2: 51; Layer 3: 2; Layer 4: 23; Layer 5: 18. Compatibility designations: `tostring`, `htmlspecialchars`, `status`, `header`; Development: `debug`.
 
 ## Profiles
 
