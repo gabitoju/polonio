@@ -1,30 +1,40 @@
 # Polonio
 
-Polonio is a C++17 templating language. The official Reference Distribution is a single binary that ships the language, Template Runtime, CGI adapter, and local development server.
+Polonio is a small, HTML-first templating language for rendering dynamic pages. Write ordinary markup, add Polonio where a page needs data or control flow, and run the result with one C++17 binary.
 
-## Features
+It is a good fit for local template-driven applications, small CGI deployments, and people who want templates to remain easy to read. The official Reference Distribution includes the language, template renderer, CGI adapter, and local development server.
 
-- Templates with `<% %>` code, `$var` interpolation, inline `echo`, and relative includes
-- Closures, arrays, objects, control flow, and 99 registered builtins
-- The Reference Distribution's Web Runtime provides CGI, a filesystem-routed local server, GET/POST, URL-encoded forms, multipart uploads, cookies, JSON bodies through `request_json()`, and signed sessions/CSRF.
-- The Reference Distribution's Data Runtime provides sandboxed storage and SQLite; its Web Runtime also provides password helpers, `send_file`, and file-mode `send_mail`.
+## What you can do
 
-## Current maturity
+- Mix HTML with `<% %>` code blocks, `$var` interpolation, inline `echo`, and relative includes.
+- Use arrays, objects, functions, loops, conditions, and a standard set of helpers.
+- Build local web applications with forms, uploads, sessions, JSON requests, sandboxed storage, and SQLite when using the Reference Distribution.
 
-Polonio is suitable for local template-driven applications and CGI-capable
-hosts. The Reference Distribution deliberately remains a development-oriented
-runtime: its local server is loopback-only and sequential, and it does not
-provide TLS, keep-alive, concurrent handling, SMTP delivery, or framework
-abstractions such as routing, middleware, and an ORM.
+## Start here
 
-## Build
+Build Polonio and run its tests:
 
 ```sh
 make
 make test
 ```
 
-## CLI
+Create `hello.pol`:
+
+```pol
+<% var name = "World" %>
+<h1>Hello $name!</h1>
+```
+
+Render it:
+
+```sh
+./build/polonio run hello.pol
+```
+
+Continue with the [Language guide](docs/site/language.html), then try the runnable [examples](examples/README.md).
+
+## Commands
 
 ```text
 polonio help
@@ -35,7 +45,7 @@ polonio --dump-ast <expr>
 polonio serve [--root DIR] [--port N]
 ```
 
-Run the included examples:
+To run the included web examples:
 
 ```sh
 export POLONIO_STORAGE_PATH="$PWD/.polonio-storage"
@@ -44,27 +54,20 @@ mkdir -p "$POLONIO_STORAGE_PATH"
 ./build/polonio serve --root ./examples --port 8080
 ```
 
-The server listens on `127.0.0.1`, defaults to port `8080` and the current directory, serves static assets and `.pol` templates, resolves extensionless paths to `.pol` files, uses `index.pol` then `index.html` for directories, and renders `404.pol` when available.
+Open `http://127.0.0.1:8080/`. The server listens on `127.0.0.1`, serves static assets and `.pol` templates, and defaults to port `8080` and the current directory.
 
-## Current Runtime Boundaries
+## Runtime notes
 
-- CGI and `polonio serve` are adapters shipped by the Reference Distribution's Web Runtime; neither is required for Language Core conformance.
-- `polonio serve` is single-threaded, loopback-only, and intended for local development—not a hardened public Internet server.
-- The server supports GET/POST, URL-encoded forms, multipart uploads, and JSON access through `request_json()`. It does not provide TLS, keep-alive, concurrent handling, or chunked request bodies.
-- `send_mail` writes `.eml` files to the sandboxed storage outbox; SMTP delivery and background jobs are not implemented.
-- The Data Runtime provides the Reference Distribution's SQLite backend and sandboxed storage through `POLONIO_STORAGE_PATH`; database and upload paths use that root.
-- There is no framework router, middleware, ORM, or production-server feature set.
+The bundled server is loopback-only and intended for local development; it is not a public production server. It does not provide TLS, concurrent handling, keep-alive, SMTP delivery, or framework features such as routing and an ORM. See the [Runtime guide](docs/site/runtime.html) for the complete capability and deployment notes.
 
 ## Documentation
 
-- [Language specification](docs/polonio_language_spec_v0_1.md) — syntax and language contract
-- [Language reference](docs/site/language.html) — approachable syntax and semantics guide
-- [Builtin reference](docs/site/builtins.html) — canonical names, aliases, layers, and runtime APIs
-- [Runtime guide](docs/site/runtime.html) — Template, Web, Data, and Reference Distribution behavior
-- [Examples](examples/README.md) — runnable filesystem routes
-- [Architecture audit](ARCHITECTURE_AUDIT.md) — current implementation snapshot
-- [Conformance profiles](docs/CONFORMANCE_PROFILES.md) — language, runtime, and reference-distribution guarantees
-- [Conformance matrix](docs/CONFORMANCE_MATRIX.md) — definitive profile quick reference
+- [Language guide](docs/site/language.html) — learn template syntax and core concepts
+- [Examples](docs/site/examples.html) — run small, focused templates in a useful order
+- [Built-in functions](docs/site/builtins.html) — look up helpers by task
+- [Runtime guide](docs/site/runtime.html) — learn the optional web and data capabilities
+- [Language specification](docs/polonio_language_spec_v0_1.md) — precise v0.1 language contract
+- [Conformance profiles](docs/CONFORMANCE_PROFILES.md) and [matrix](docs/CONFORMANCE_MATRIX.md) — implementation capability guarantees
 
 ## License
 

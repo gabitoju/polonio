@@ -1,75 +1,57 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Runtime — Polonio</title>
-  <link rel="stylesheet" href="style.css">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Runtime — Polonio</title><link rel="stylesheet" href="style.css"></head>
 <body>
-<aside class="sidebar">
-  <div class="sidebar-brand"><h2>Polonio</h2><div class="tagline">v0.1.0</div></div>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="language.html">Language</a>
-    <a href="builtins.html">Builtins</a>
-    <a href="runtime.html" class="active">Runtime</a>
-    <a href="examples.html">Examples</a>
-    <div class="nav-section">This Page</div>
-    <a href="#profiles">Profiles</a>
-    <a href="#template">Template Runtime</a>
-    <a href="#web">Web Runtime</a>
-    <a href="#data">Data Runtime</a>
-    <a href="#limits">Limitations</a>
-  </nav>
-</aside>
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<aside class="sidebar"><div class="sidebar-brand"><h2>Polonio</h2><div class="tagline">v0.1.0</div></div><nav>
+  <div class="nav-section">Start</div><a href="index.html">Home</a><a href="language.html">Language</a><a href="examples.html">Examples</a>
+  <div class="nav-section">Reference</div><a href="builtins.html">Built-in functions</a><a href="runtime.html" class="active">Runtime</a>
+  <div class="nav-section">This Page</div><a href="#overview">Overview</a><a href="#template">Template runtime</a><a href="#web">Web runtime</a><a href="#data">Data runtime</a><a href="#limits">Development-server limits</a>
+</nav></aside>
 <main class="content">
-  <h1>Runtime Guide</h1>
-  <p class="subtitle">Implemented runtime behavior in the official Polonio Reference Distribution.</p>
+  <h1>Runtime guide</h1>
+  <p class="subtitle">Advanced capabilities supplied by the official Polonio Reference Distribution.</p>
 
-  <section id="profiles">
-    <h2>Language, Runtimes, and the Reference Distribution</h2>
-    <p>The <strong>Polonio Language</strong> is syntax, values, semantics, control flow, and Layer 1 Language Core support. The <strong>Standard Library</strong> supplies general string, collection, math, date, escaping, and URL helpers. Neither definition requires HTTP or SQLite.</p>
-    <p>The <strong>Template Runtime</strong> renders templates with interpolation, includes, and ordered output. The <strong>Web Runtime</strong> supplies request/response execution, sessions, CSRF, uploads, file responses, and file-mode mail. The <strong>Data Runtime</strong> supplies sandboxed storage and SQLite. The <strong>Reference Distribution</strong> is the official executable that ships all of these layers.</p>
-    <p>CGI and <code>polonio serve</code> are Reference Distribution Web Runtime adapters, not language requirements. See the <a href="../CONFORMANCE_PROFILES.md">conformance profiles</a> and <a href="../CONFORMANCE_MATRIX.md">conformance matrix</a> for exact guarantees.</p>
+  <section id="overview">
+    <h2>What “runtime” means</h2>
+    <p>The language defines expressions, control flow, functions, and values. A runtime gives that language a setting in which to work: rendering a template, handling an HTTP request, or saving data. You can learn and use the language without every runtime feature.</p>
+    <div class="table-wrapper"><table><thead><tr><th>Runtime</th><th>Use it when you need</th><th>Examples</th></tr></thead><tbody>
+      <tr><td>Template Runtime</td><td>Rendered text or HTML</td><td>Interpolation, includes, <code>print</code></td></tr>
+      <tr><td>Web Runtime</td><td>An HTTP request and response</td><td>Forms, cookies, sessions, uploads, redirects</td></tr>
+      <tr><td>Data Runtime</td><td>Persistent local data</td><td>Sandboxed files and SQLite</td></tr>
+    </tbody></table></div>
+    <p>The Reference Distribution includes all three. The <a href="../CONFORMANCE_PROFILES.md">conformance profiles</a> are for implementers who need exact capability guarantees.</p>
   </section>
 
   <section id="template">
     <h2>Template Runtime</h2>
-    <p>Templates combine literal text with <code>&lt;% ... %&gt;</code> code blocks, <code>$variable</code> interpolation, and the <code>echo</code> language statement. Includes are resolved during template rendering. The Template Runtime provides <code>print</code> and <code>println</code>; it does not require HTTP, CGI, storage, or SQLite.</p>
-    <p>Start with the <a href="language.html">Language Reference</a> for syntax and the <a href="examples.html">Examples</a> page for executable templates.</p>
+    <p>The Template Runtime turns a template into ordered output. It emits literal text, evaluates <code>&lt;% ... %&gt;</code> blocks, replaces <code>$variable</code> in text, and resolves <code>include</code> paths relative to the current file.</p>
+    <p>Use it whenever you render a page or text file. Start with the <a href="language.html">Language guide</a>; the <a href="examples.html">Hello example</a> is the smallest complete template.</p>
   </section>
 
   <section id="web">
     <h2>Web Runtime</h2>
-    <p>The Web Runtime provides request and response contexts. It populates <code>_GET</code>, <code>_POST</code>, <code>_FILES</code>, <code>_COOKIE</code>, and <code>_SERVER</code>; offers request helpers; and supports response helpers, sessions, CSRF, uploads, <code>send_file</code>, and file-mode <code>send_mail</code>. These APIs require the documented request, response, session-secret, or storage context.</p>
-
-    <h3>CGI adapter</h3>
-    <p>With no CLI arguments and <code>GATEWAY_INTERFACE</code> set, the Reference Distribution enters CGI mode. It resolves a script from <code>SCRIPT_FILENAME</code> or <code>PATH_TRANSLATED</code>, reads CGI environment variables and <code>CONTENT_LENGTH</code> bytes from stdin, then writes CGI headers followed by the rendered body. CGI errors produce a plain-text 500 response.</p>
-
-    <h3>Development-server adapter</h3>
-    <pre><code>polonio serve [--root DIR] [--port N]</code></pre>
-    <p>The defaults are the current directory and port 8080. The server binds only <code>127.0.0.1</code>, serves static files, renders <code>.pol</code> files, resolves extensionless paths to matching templates, uses <code>index.pol</code> then <code>index.html</code> for directories, and renders root-local <code>404.pol</code> when present. It supports GET and POST.</p>
-
-    <h3>Request and response processing</h3>
-    <p>Query strings populate <code>_GET</code>. URL-encoded POST bodies populate <code>_POST</code>; multipart form fields and files populate <code>_POST</code> and <code>_FILES</code>. JSON remains the raw request body until <code>request_json()</code> parses it. Use <code>request_body()</code>, <code>request_header()</code>, <code>request_headers()</code>, and <code>cookies()</code> for direct access.</p>
-    <p><code>http_status</code> (alias <code>status</code>), <code>http_header</code> (alias <code>header</code>), <code>http_content_type</code>, and <code>redirect</code> control a response before headers are emitted. Header names and values reject newline injection. <code>send_file(path)</code> finalizes a response as a file response.</p>
-
-    <h3>Sessions and security</h3>
-    <p>Session APIs require <code>POLONIO_SESSION_SECRET</code>. The Reference Distribution stores JSON session data in an HMAC-SHA256-signed <code>polonio_session</code> cookie; invalid signatures are not loaded. <code>csrf_token()</code> and <code>csrf_verify(token)</code> are session-backed. Password and secure-token helpers are also Web Runtime APIs.</p>
+    <p>The Web Runtime is available when Polonio runs with an HTTP request and response. It supplies <code>_GET</code>, <code>_POST</code>, <code>_FILES</code>, <code>_COOKIE</code>, and <code>_SERVER</code>, plus helpers for headers, redirects, request bodies, sessions, CSRF, uploads, and file responses.</p>
+    <h3>How requests arrive</h3>
+    <p>The official executable can run as CGI or through <code>polonio serve</code>. CGI is a conventional way for a web server to invoke an application: environment variables describe the request and Polonio writes the response to standard output. The local server is usually the easier way to learn:</p>
+    <pre><code>./build/polonio serve --root ./examples --port 8080</code></pre>
+    <p>It serves static files and renders <code>.pol</code> templates. Extensionless paths resolve to templates, directories use <code>index.pol</code> then <code>index.html</code>, and a root-local <code>404.pol</code> can supply a missing-page response.</p>
+    <h3>Working with a request</h3>
+    <p>Query strings populate <code>_GET</code>. URL-encoded and multipart form fields populate <code>_POST</code>; uploaded files appear in <code>_FILES</code>. Use <code>request_json()</code> for a JSON body. Set status, headers, content type, or redirects before output begins.</p>
+    <h3>Sessions and security helpers</h3>
+    <p>Sessions, CSRF tokens, password helpers, and secure tokens are Web Runtime features. Sessions require <code>POLONIO_SESSION_SECRET</code>; the Reference Distribution stores session data in a signed cookie. See the focused <a href="examples.html">forms and session examples</a> before using them.</p>
   </section>
 
   <section id="data">
     <h2>Data Runtime</h2>
-    <p>The Data Runtime supplies the Reference Distribution's sandboxed storage and SQLite APIs. <code>POLONIO_STORAGE_PATH</code> is the reference storage root for files, directories, SQLite database paths, temporary uploads, downloads, and mail outbox files. Paths must be relative and may not escape the root.</p>
-    <p>Multipart temporary files are created beneath <code>tmp/uploads</code>; move a supplied <code>_FILES</code> object with <code>upload_save(file, path)</code>. <code>send_mail(to, subject, body[, headers])</code> writes an RFC-like <code>.eml</code> file beneath <code>outbox</code>. SMTP is not implemented.</p>
-    <p>See the <a href="builtins.html">Builtin Reference</a> for signatures and the <a href="examples.html">Examples</a> page for storage, SQLite, upload, download, and mail routes.</p>
+    <p>The Data Runtime provides sandboxed file storage and SQLite. Set <code>POLONIO_STORAGE_PATH</code> to choose the storage root. File, directory, database, upload, download, and mail-outbox paths are relative to that root, so templates cannot reach arbitrary host files.</p>
+    <p>Use <code>file_*</code> and <code>dir_*</code> helpers for local files and <code>db_*</code> helpers for SQLite. <code>upload_save</code>, <code>send_file</code>, and <code>send_mail</code> also use this storage model in the Reference Distribution. <code>send_mail</code> writes an <code>.eml</code> file; it does not deliver email.</p>
+    <p>Find signatures in <a href="builtins.html">Built-in functions</a> and see the storage and SQLite examples for complete, small routes.</p>
   </section>
 
   <section id="limits">
-    <h2>Reference Distribution Server Limitations</h2>
-    <p>The development server is single-threaded, sequential, and loopback-only. It has no TLS, keep-alive, streaming, or chunked request-body support. It accepts HTTP/1.1 GET/POST, limits request headers to 64 KiB and bodies to 8 MiB, and closes each connection. Use it for local development, not public production deployment.</p>
+    <h2>Development-server limits</h2>
+    <p><code>polonio serve</code> is a local development tool. It is loopback-only, single-threaded, and sequential. It supports HTTP/1.1 GET and POST, URL-encoded forms, multipart uploads, and JSON request access; it does not provide TLS, keep-alive, streaming, chunked request bodies, concurrent handling, or SMTP delivery. Do not expose it as a public production server.</p>
+    <p>Return to <a href="examples.html">Examples</a> to apply these capabilities, or consult the <a href="../polonio_language_spec_v0_1.md">language specification</a> for the formal language boundary.</p>
   </section>
-</main>
-</body>
-</html>
+</main></body></html>

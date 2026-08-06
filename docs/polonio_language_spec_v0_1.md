@@ -6,20 +6,16 @@
 
 # 1. Overview
 
-Polonio is a server-side templating language designed for generating
-HTML.
+Polonio is a server-side templating language for generating HTML.
 
-Originally created in 2005 as a C++ CGI experiment, Polonio was fully
-reimplemented in 2026. The official Reference Distribution includes:
+The official Reference Distribution includes:
 
--   A modern lexer
--   A recursive-descent parser
--   A tree-walking interpreter
+-   A template renderer
 -   Web Runtime adapters (CGI and a development server)
 -   A single self-contained C++17 binary
 
-Polonio templates mix HTML with embedded code blocks, enabling
-expressive, readable dynamic web pages.
+Polonio templates mix HTML with embedded code blocks to create dynamic pages
+while keeping the surrounding document visible.
 
 ------------------------------------------------------------------------
 
@@ -43,7 +39,7 @@ expressive, readable dynamic web pages.
 
 ## Registered Builtins and Runtime Profiles
 
-The Reference Distribution currently registers 99 builtin names across
+The Reference Distribution registers 99 built-in names across
 Language Core, Standard Library, Template Runtime, Web Runtime, and Data
 Runtime layers. The Standard Library is not the same thing as the complete
 registered surface. The authoritative inventory and profile availability are
@@ -172,9 +168,12 @@ var b = 20
 
 Outside code blocks, `$identifier` is replaced with its string value.
 
-Rules: - Only valid outside `<% %>`. - Must follow identifier syntax. -
-`null` interpolates as an empty string. - Interpolation does **not**
-auto-escape HTML.
+Rules:
+
+-   Interpolation is valid only outside `<% %>`.
+-   The name must follow identifier syntax.
+-   `null` interpolates as an empty string.
+-   Interpolation does **not** escape HTML automatically.
 
 ------------------------------------------------------------------------
 
@@ -257,7 +256,7 @@ Assignment:
 <% name = "Maria" %>
 ```
 
-Compound operators: - `+= -= *= /= %=` - `..=` (string concatenation)
+Compound operators: `+=`, `-=`, `*=`, `/=`, `%=`, and `..=` (string concatenation).
 
 ------------------------------------------------------------------------
 
@@ -350,7 +349,7 @@ end
 %>
 ```
 
-Supports: - Closures - Recursion - Lexical scope
+Supports closures, recursion, and lexical scope.
 
 ------------------------------------------------------------------------
 
@@ -394,7 +393,7 @@ http_header\
 http_content_type\
 redirect
 
-## Implementation Notes (v0.1)
+## Reference Notes (v0.1)
 
 The lists above summarize the v0.1 surface. For the authoritative current
 registry, canonical aliases, and layer/profile classification, refer to
@@ -443,7 +442,7 @@ Dev server:
 
     polonio serve --port 3000 --root ./examples
 
-Defaults: - Port: 8080 - Root: current directory
+Defaults: port `8080` and the current directory as the root.
 
 ------------------------------------------------------------------------
 
@@ -456,17 +455,16 @@ If:
 
 Polonio automatically enters CGI mode.
 
-It: 1. Reads CGI environment variables 2. Populates superglobals 3.
-Emits headers 4. Renders template
+It reads CGI environment variables, populates superglobals, emits headers,
+and renders the template.
 
 ------------------------------------------------------------------------
 
-# 14. Implementation Constraints
+# 14. Reference Distribution Constraints
 
 -   C++17
 -   Single binary
 -   Reference Distribution storage and SQLite support
--   Tree-walking interpreter (v0.1)
 
 ------------------------------------------------------------------------
 
@@ -476,19 +474,19 @@ Emits headers 4. Renders template
 -   No auto-escaping.
 -   Escaping must be explicit (`html_escape()`).
 
-## Compatibility Names
+## Compatibility names
 
 The v0.1 runtime retains the following compatibility aliases. New
 documentation and examples use the canonical names: `to_string` (`tostring`),
 `html_escape` (`htmlspecialchars`), `http_status` (`status`), and
 `http_header` (`header`). Each alias remains functional with the same
-successful behavior. `echo` is language syntax, not a builtin.
--   Sandboxing is out of scope for Language Core; the Reference Distribution's
-    Data Runtime provides sandboxed storage.
+behavior. `echo` is language syntax, not a built-in. Sandboxing is outside
+Language Core; the Reference Distribution's Data Runtime provides sandboxed
+storage.
 
 ------------------------------------------------------------------------
 
-## v1 Planning: Language and Runtime Boundary
+## Language and runtime boundary
 
 This frozen v0.1 document describes syntax and the currently shipped
 reference implementation. RFC 0003 defines the v1 planning boundary: Language

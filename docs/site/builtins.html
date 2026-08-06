@@ -14,16 +14,14 @@
     <div class="tagline">v0.1.0</div>
   </div>
   <nav>
-    <div class="nav-section">Getting Started</div>
+    <div class="nav-section">Start</div>
     <a href="index.html">Home</a>
     <a class="sub" href="index.html#quickstart">Quick Start</a>
-    <a class="sub" href="index.html#cli">CLI Reference</a>
-    <div class="nav-section">Reference</div>
+    <div class="nav-section">Learn</div>
     <a href="language.html">Language</a>
+    <a href="examples.html">Examples</a>
     <a href="builtins.html" class="active">Built-in Functions</a>
     <a href="runtime.html">Runtime</a>
-    <div class="nav-section">Learn</div>
-    <a href="examples.html">Examples</a>
     <div class="nav-section">This Page</div>
     <a href="#string">String</a>
     <a href="#array">Array</a>
@@ -32,7 +30,7 @@
     <a href="#type">Type</a>
     <a href="#date">Date</a>
     <a href="#output">Output</a>
-    <a href="#profiles">Layers &amp; Profiles</a>
+    <a href="#profiles">Availability</a>
     <a href="#http">HTTP</a>
     <a href="#storage">Storage</a>
     <a href="#database">Database</a>
@@ -41,11 +39,11 @@
 </aside>
 <main class="content">
   <h1>Built-in Functions</h1>
-  <p><strong>v1 planning layers:</strong> Core Language Support, Standard Library, Template Runtime, Web Runtime, and Data Runtime. They are conformance profiles, not namespaces: only Language Core is universal, while the official Reference Distribution ships every layer. See <a href="../STANDARD_LIBRARY_V1.md">the builtin inventory</a> and <a href="../CONFORMANCE_PROFILES.md">the conformance profiles</a>. Current globals remain stable in v1.x; namespace syntax is deferred.</p>
-  <p class="subtitle">Shipping functions registered in <code>src/polonio/runtime/builtins.cpp</code> (v0.1.0).</p>
+  <p class="subtitle">A task-oriented reference for the functions available in the official Reference Distribution.</p>
+  <p>Start with the group that matches your task. Each entry gives its signature, what it is for, and a short example. <code>echo</code> writes output, but it is language syntax rather than a built-in function.</p>
   <section id="profiles">
-    <h2>Layers and Profile Availability</h2>
-    <p>Every registered builtin belongs to one numbered layer. A profile guarantees its layer's canonical operations; the Reference Distribution ships every layer. The complete per-name inventory is <a href="../STANDARD_LIBRARY_V1.md">STANDARD_LIBRARY_V1.md</a>.</p>
+    <h2>Availability by runtime</h2>
+    <p>Most helpers are available in the Reference Distribution. If you are using another Polonio implementation, this table shows which capability provides each group. For a complete implementation inventory, see <a href="../STANDARD_LIBRARY_V1.md">the built-in inventory</a>.</p>
     <div class="table-wrapper"><table>
       <thead><tr><th>Layer</th><th>Examples</th><th>Profile availability</th></tr></thead>
       <tbody>
@@ -56,7 +54,7 @@
         <tr><td>Data Runtime</td><td><code>file_*</code>, <code>dir_*</code>, <code>db_*</code></td><td>Data Runtime, Reference Distribution</td></tr>
       </tbody>
     </table></div>
-    <p>Canonical names are primary. Compatibility aliases remain functional throughout v1.x: <code>tostring</code> for <code>to_string</code>, <code>htmlspecialchars</code> for <code>html_escape</code>, <code>status</code> for <code>http_status</code>, and <code>header</code> for <code>http_header</code>. <code>echo</code> is language syntax, not a builtin.</p>
+    <p>Use canonical names in new code: <code>to_string</code>, <code>html_escape</code>, <code>http_status</code>, and <code>http_header</code>. The older aliases remain supported for compatibility.</p>
   </section>
   <section id="string">
     <h2>String Helpers (11)</h2>

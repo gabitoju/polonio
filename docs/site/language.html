@@ -14,16 +14,14 @@
     <div class="tagline">v0.1.0</div>
   </div>
   <nav>
-    <div class="nav-section">Getting Started</div>
+    <div class="nav-section">Start</div>
     <a href="index.html">Home</a>
     <a class="sub" href="index.html#quickstart">Quick Start</a>
-    <a class="sub" href="index.html#cli">CLI Reference</a>
-    <div class="nav-section">Reference</div>
+    <div class="nav-section">Learn</div>
     <a href="language.html" class="active">Language</a>
+    <a href="examples.html">Examples</a>
     <a href="builtins.html">Built-in Functions</a>
     <a href="runtime.html">Runtime</a>
-    <div class="nav-section">Learn</div>
-    <a href="examples.html">Examples</a>
     <div class="nav-section">This Page</div>
     <a href="#template-structure">Template Structure</a>
     <a href="#types">Types</a>
@@ -34,17 +32,17 @@
     <a href="#includes">Includes</a>
     <a href="#truthiness">Truthiness</a>
     <a href="#scope">Scope</a>
-    <a href="#runtime-references">Runtime References</a>
+    <a href="#next">Next steps</a>
   </nav>
 </aside>
 <main class="content">
   <h1>Language Reference</h1>
-  <p class="subtitle">Summary of the Polonio v0.1.0 grammar, semantics, and interpreter behavior.</p>
-  <p class="note">Language Core covers syntax, semantics, values, and Layer 1 support. Template, Web, and Data facilities documented elsewhere are optional runtime profiles; the official reference distribution ships all of them.</p>
+  <p class="subtitle">Learn how to read and write Polonio templates, from values and output to reusable page logic.</p>
+  <p>Start with a template, then add the language features your page needs. Web, storage, and database features are introduced separately in the <a href="runtime.html">Runtime guide</a>.</p>
 
   <section id="template-structure">
     <h2>Template Structure</h2>
-    <p>Templates mix literal HTML (emitted verbatim) with embedded code blocks. Files usually carry the <code>.pol</code> extension, but any extension works when you call <code>polonio run</code>.</p>
+    <p>Templates mix literal HTML, emitted as written, with embedded Polonio code. Use the <code>.pol</code> extension for templates.</p>
     <div class="grid-2">
       <div>
         <h3>Code blocks</h3>
@@ -63,16 +61,16 @@
       </div>
     </div>
     <ul>
-      <li><strong>`<% ... %>`:</strong> Multiline code, including control flow, function declarations, and includes.</li>
-      <li><strong>`$var`:</strong> Works only in HTML/text segments. `null` becomes the empty string, and no escaping happens automatically.</li>
-      <li><strong>Inline `<% echo expr %>`:</strong> Shortcut inside HTML where full blocks would be awkward.</li>
+      <li><strong><code>&lt;% ... %&gt;</code>:</strong> code blocks for declarations, control flow, functions, and includes.</li>
+      <li><strong><code>$var</code>:</strong> interpolation in HTML or text. <code>null</code> becomes an empty string; escape untrusted HTML explicitly.</li>
+      <li><strong>Inline <code>&lt;% echo expr %&gt;</code>:</strong> output an expression where a full block would be awkward.</li>
     </ul>
-    <div class="note">Both the lexer and the template scanner support `/* ... */` block comments. Inside HTML segments those comments are stripped before code runs, mirroring the original <code>prueba.html</code> behavior.</div>
+    <div class="note">Use <code>/* ... */</code> for block comments. In HTML segments, those comments are removed before rendering.</div>
   </section>
 
   <section id="types">
     <h2>Types</h2>
-    <p>Polonio has seven runtime types implemented in <code>Value</code> (<code>src/polonio/runtime/value.cpp</code>).</p>
+    <p>Polonio has seven value types.</p>
     <div class="table-wrapper">
       <table>
         <thead>
@@ -83,9 +81,9 @@
           <tr><td><code>bool</code></td><td><code>true</code> / <code>false</code>.</td></tr>
           <tr><td><code>number</code></td><td>Double-precision floating point (all integers are represented as doubles).</td></tr>
           <tr><td><code>string</code></td><td>UTF-8 text with <code>"</code> or <code>'</code> quoting plus <code>\n</code>, <code>\t</code>, <code>\"</code>, <code>\'</code> escapes.</td></tr>
-          <tr><td><code>array</code></td><td>Ordered list (<code>std::vector</code>) accessed with numeric indices.</td></tr>
+          <tr><td><code>array</code></td><td>Ordered list accessed with numeric indices.</td></tr>
           <tr><td><code>object</code></td><td>String-keyed map storing arbitrary values.</td></tr>
-          <tr><td><code>function</code></td><td>User-defined or builtin function values with lexical closures.</td></tr>
+          <tr><td><code>function</code></td><td>User-defined or built-in function value; user functions can close over surrounding values.</td></tr>
         </tbody>
       </table>
     </div>
@@ -103,14 +101,13 @@ count ..= <span class="str">" total"</span>
     <ul>
       <li><strong>`var name`:</strong> Declares a variable initialized to <code>null</code>.</li>
       <li><strong>`var name = expr`:</strong> Declares and initializes.</li>
-      <li><strong>Assignment:</strong> `=`, compound math (`+= -= *= /= %=`) and concatenation (`..=`) operators are implemented in the interpreter.</li>
-      <li><strong>Legacy casing:</strong> Only lowercase <code>var</code> is recognized; the uppercase <code>VAR</code> from archived templates is no longer tokenized as a keyword.</li>
+      <li><strong>Assignment:</strong> use <code>=</code>, compound math (<code>+=</code>, <code>-=</code>, and similar), or <code>..=</code> to concatenate.</li>
     </ul>
   </section>
 
   <section id="operators">
     <h2>Operators</h2>
-    <p>Expressions follow Pratt-precedence parsing (<code>parser/parser.cpp</code>). Everything is right-associative for assignments, and function calls/indexing bind tight.</p>
+    <p>Use parentheses when an expression would be clearer. Function calls and indexing bind most tightly; assignments are right-associative.</p>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Precedence (high → low)</th><th>Operators</th></tr></thead>
@@ -163,7 +160,7 @@ count ..= <span class="str">" total"</span>
       <li><strong>for/in:</strong> Iterates arrays and objects. Use <code>for value in array</code> or <code>for index, value in array</code>. Objects yield <code>key</code> + <code>value</code> pairs.</li>
       <li><strong>while:</strong> Evaluated each loop. Once the condition becomes false or the iteration cap is hit the loop exits.</li>
     </ul>
-    <div class="warn">A global iteration guard (<code>kLoopIterationLimit = 100000</code> in <code>interpreter.cpp</code>) applies to <code>for</code> and <code>while</code>. Hitting the limit raises “loop limit exceeded”.</div>
+    <div class="note">Loops stop with an error after 100,000 iterations, which helps catch accidental infinite loops.</div>
   </section>
 
   <section id="functions">
@@ -183,7 +180,7 @@ count ..= <span class="str">" total"</span>
 <span class="tag">%&gt;</span></code></pre>
     <ul>
       <li>Functions capture their surrounding environment; returning a nested <code>function</code> produces a closure.</li>
-      <li>Parameters default to <code>null</code> when callers omit arguments (see <code>eval_call</code>).</li>
+      <li>Parameters default to <code>null</code> when callers omit arguments.</li>
       <li><code>return</code> exits the nearest function. If no value is provided, <code>null</code> is returned.</li>
       <li>Named functions are self-recursive because the interpreter binds the function name inside its environment.</li>
     </ul>
@@ -195,21 +192,15 @@ count ..= <span class="str">" total"</span>
     <pre><code><span class="tag">&lt;%</span> include <span class="str">"partials/nav.pol"</span> <span class="tag">%&gt;</span></code></pre>
     <ul>
       <li>Paths are resolved relative to the including file’s directory.</li>
-      <li>The renderer canonicalizes paths and enforces a depth limit of 50. Circular chains raise “include cycle detected.”</li>
+      <li>Includes may nest up to 50 levels. Circular include chains raise an error.</li>
       <li>Variables defined before the include remain readable and writable inside the partial.</li>
-      <li>Includes are disabled outside template rendering (you will see “include not supported here” if no include callback is registered).</li>
+      <li>Includes are available while rendering templates.</li>
     </ul>
-  </section>
-
-  <section id="runtime-references">
-    <h2>Runtime References</h2>
-    <p>This page describes the Polonio Language: syntax, values, expressions, control flow, and functions. Template rendering, HTTP requests and responses, storage, SQLite, sessions, uploads, and mail are runtime capabilities rather than language syntax.</p>
-    <p>See <a href="builtins.html">Built-in Functions</a> for canonical names, aliases, and layers; <a href="runtime.html">Runtime Guide</a> for Template, Web, and Data Runtime behavior; and <a href="examples.html">Examples</a> for runnable Reference Distribution routes.</p>
   </section>
 
   <section id="truthiness">
     <h2>Truthiness</h2>
-    <p>The interpreter uses <code>Value::is_truthy</code>:</p>
+    <p>Conditions treat values as follows:</p>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Value</th><th>Truthy?</th></tr></thead>
@@ -219,7 +210,7 @@ count ..= <span class="str">" total"</span>
           <tr><td><code>true</code></td><td>true</td></tr>
           <tr><td><code>number</code></td><td>false if <code>0.0</code>, otherwise true.</td></tr>
           <tr><td><code>string</code></td><td>false if empty, otherwise true.</td></tr>
-          <tr><td><code>array</code> / <code>object</code></td><td>true (even if empty) because they store shared pointers.</td></tr>
+          <tr><td><code>array</code> / <code>object</code></td><td>true, even when empty.</td></tr>
           <tr><td><code>function</code></td><td>Always true.</td></tr>
         </tbody>
       </table>
@@ -228,14 +219,19 @@ count ..= <span class="str">" total"</span>
 
   <section id="scope">
     <h2>Scope &amp; Closures</h2>
-    <p>Polonio uses lexical environments (<code>Env</code>):</p>
+    <p>Polonio uses lexical scope:</p>
     <ul>
-      <li>Each <code>function</code> stores a pointer to the environment active at definition time (<code>closure</code> in <code>FunctionValue</code>).</li>
-      <li>Loops create child environments when binding <code>for</code> indices/values, so inner assignments don’t leak out unless you write to outer variables explicitly.</li>
+      <li>Each <code>function</code> remembers the values available when it is defined.</li>
+      <li>Loop bindings are local to the loop; assignments to existing outer variables still update those variables.</li>
       <li><code>include</code> does not create a new environment; partials share the same scope to keep template variables fluid.</li>
-      <li>Globals live in the interpreter’s root environment, which is preloaded with builtins.</li>
+      <li>Built-in functions are available in global scope.</li>
     </ul>
     <div class="note">Use helper functions to hide state when needed. Large templates often wrap logic in <code>function render_item(item)</code> and call it immediately to avoid polluting globals.</div>
+  </section>
+
+  <section id="next">
+    <h2>Next steps</h2>
+    <p>Practice these ideas in the <a href="examples.html">Examples</a>, then use the <a href="builtins.html">Built-in Functions</a> reference as you build. When a template needs requests, sessions, files, or SQLite, continue to the <a href="runtime.html">Runtime guide</a>. The <a href="../polonio_language_spec_v0_1.md">language specification</a> is the precise v0.1 contract.</p>
   </section>
 </main>
 <script src="highlight.js"></script>

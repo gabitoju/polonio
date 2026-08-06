@@ -1,9 +1,9 @@
 # Polonio Conformance Profiles
 
-This document applies RFC 0003. A profile is a capability claim, not a
-namespace or a new runtime feature. The official reference distribution ships
-all profiles; a conforming alternate implementation may ship a smaller set and
-must state that set accurately.
+This document defines capability claims for Polonio implementations. A profile
+states what an implementation provides; it is not a namespace or a new runtime
+feature. The official Reference Distribution ships every profile. Another
+implementation may ship a smaller set, provided it states that set accurately.
 
 ## Language Core
 
@@ -89,7 +89,7 @@ bodies, and SMTP delivery.
 
 **Typical implementation:** the official `polonio` executable.
 
-## Inheritance and Compatibility
+## How profiles relate
 
 Language Core is required by every profile. Reference Standard Library is
 required by Web Runtime and Data Runtime. Template Runtime is independently
@@ -99,5 +99,5 @@ required registered canonical APIs. RFC 0001 compatibility aliases remain
 accepted spellings for applicable operations and do not add profiles or
 operations.
 
-`docs/CONFORMANCE_MATRIX.md` is the quick-reference matrix. The builtin
+Use `docs/CONFORMANCE_MATRIX.md` as the quick-reference table. The built-in
 inventory records each registered name's layer and profile availability.

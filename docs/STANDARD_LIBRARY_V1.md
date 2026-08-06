@@ -1,4 +1,8 @@
-# Polonio v1 Builtin Inventory
+# Polonio v1 Built-in Inventory
+
+This is the implementation-facing inventory of registered built-in names and
+their availability. For a task-oriented reference with examples, start with
+the [Built-in Functions page](site/builtins.html).
 
 The reviewed machine-readable inventory is
 [builtins_v1_manifest.tsv](builtins_v1_manifest.tsv). It lists every

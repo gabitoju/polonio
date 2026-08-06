@@ -1,149 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Home &mdash; Polonio</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Home — Polonio</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
 <aside class="sidebar">
-  <div class="sidebar-brand">
-    <h2>Polonio</h2>
-    <div class="tagline">v0.1.0</div>
-  </div>
+  <div class="sidebar-brand"><h2>Polonio</h2><div class="tagline">v0.1.0</div></div>
   <nav>
-    <div class="nav-section">Getting Started</div>
+    <div class="nav-section">Start</div>
     <a href="index.html" class="active">Home</a>
-    <a class="sub" href="index.html#quickstart">Quick Start</a>
-    <a class="sub" href="index.html#cli">CLI Reference</a>
-    <div class="nav-section">Reference</div>
-    <a href="language.html">Language</a>
-    <a href="builtins.html">Built-in Functions</a>
-    <a href="runtime.html">Runtime</a>
+    <a class="sub" href="#quickstart">Quick start</a>
     <div class="nav-section">Learn</div>
+    <a href="language.html">Language</a>
     <a href="examples.html">Examples</a>
+    <a href="builtins.html">Built-in functions</a>
+    <a href="runtime.html">Runtime</a>
     <div class="nav-section">This Page</div>
     <a href="#what-is">What is Polonio?</a>
-    <a href="#quickstart">Quick Start</a>
-    <a href="#cli">CLI Reference</a>
-    <a href="#docs">Documentation</a>
+    <a href="#quickstart">Quick start</a>
+    <a href="#next">Where next?</a>
   </nav>
 </aside>
 <main class="content">
-  <h1>Polonio v0.1.0</h1>
-  <p class="subtitle">A readable templating language for HTML, from simple rendering to local web applications.</p>
+  <h1>Polonio</h1>
+  <p class="subtitle">A small, readable language for HTML templates and local web applications.</p>
 
-  <section class="hero" id="hero">
-    <h2>Build HTML the 2005 way, with 2026 tooling.</h2>
-    <p>Polonio mixes straightforward HTML with `<% %>` code blocks, `$var` interpolation, loops, functions, and includes. Start by rendering a file locally; when needed, the Reference Distribution also supplies CGI and a local development server.</p>
-    <p>Its v0.1 syntax is frozen while the v1 planning work documents stable builtin names, runtime layers, and conformance profiles.</p>
+  <section class="hero">
+    <h2>Keep the page visible.</h2>
+    <p>Polonio lets HTML stay HTML. Add a variable, a loop, or a condition only where the page needs one, then render the template with a single command.</p>
+    <pre><code>&lt;% var name = "World" %&gt;
+&lt;h1&gt;Hello $name!&lt;/h1&gt;</code></pre>
+    <p>Use it for straightforward server-rendered pages, local tools, or CGI-capable hosts. The bundled runtime can also handle forms, uploads, sessions, storage, and SQLite when you need them.</p>
   </section>
 
   <section id="what-is">
     <h2>What is Polonio?</h2>
-    <p>Polonio started as a CGI experiment and now has a modern lexer, Pratt parser, tree-walking interpreter, and template renderer. The official reference distribution packages those layers with Web and Data Runtimes in one binary. Templates stay readable because HTML and Polonio code coexist without ceremony, so designers can skim markup while developers wire in loops, includes, and functions.</p>
-    <p>Core pillars:</p>
-    <ul>
-      <li>HTML-first templates: literal HTML interleaved with `<% ... %>` and `<% echo expr %>` blocks.</li>
-      <li>7 fundamental types (`null`, `bool`, `number`, `string`, `array`, `object`, `function`) with lexical scoping and closures.</li>
-      <li>A Standard Library of string, array, object, math, date, and URL helpers; template output and HTTP helpers are separate runtime layers.</li>
-      <li>The reference distribution's Web Runtime supplies `_GET`, `_POST`, `_COOKIE`, `_SERVER`, response helpers such as `http_status`, CGI, and the local development server.</li>
-    </ul>
-    <p>Most users run the complete <strong>Reference Distribution</strong>. Other implementations may claim <strong>Language Core</strong> alone or add the <strong>Reference Standard Library</strong>, <strong>Template Runtime</strong>, <strong>Web Runtime</strong>, or <strong>Data Runtime</strong>. See the <a href="../CONFORMANCE_PROFILES.md">conformance profiles</a> for the precise guarantees.</p>
+    <p>Polonio is a server-side templating language for people who want to work close to their markup. Literal text is emitted as written; embedded code supplies values and decisions. There is no framework layer to learn before you can render a page.</p>
+    <div class="grid-2">
+      <div class="card"><h3>HTML first</h3><p>Use code blocks, interpolation, and includes without losing sight of the document you are building.</p></div>
+      <div class="card"><h3>Small but capable</h3><p>Use arrays, objects, functions, loops, and concise helpers for common template work.</p></div>
+      <div class="card"><h3>Useful locally</h3><p>Run a template directly or use the bundled development server while building a small application.</p></div>
+      <div class="card"><h3>Optional runtime features</h3><p>Add HTTP, sessions, files, and SQLite only when your project calls for them.</p></div>
+    </div>
   </section>
 
   <section id="quickstart">
-    <h2>Quick Start</h2>
+    <h2>Quick start</h2>
     <div class="grid-2">
       <div class="card">
-        <h3>1. Build the CLI</h3>
-        <p>Polonio uses a simple Makefile. Build and run tests from the project root:</p>
-        <pre><code>$ make
-$ make test</code></pre>
-        <p>The binary lands at <code>build/polonio</code>.</p>
+        <h3>1. Build</h3>
+        <pre><code>make
+make test</code></pre>
+        <p>The executable is <code>build/polonio</code>.</p>
       </div>
       <div class="card">
-        <h3>2. Hello World</h3>
-        <p>Create <code>hello.pol</code>:</p>
-        <pre><code>&lt;% <span class="kw">var</span> <span class="var">name</span> = <span class="str">"World"</span> %&gt;
-&lt;h1&gt;Hello $name!&lt;/h1&gt;</code></pre>
-        <p>Render it:</p>
-        <pre><code>$ ./build/polonio run hello.pol</code></pre>
+        <h3>2. Render a template</h3>
+        <pre><code>./build/polonio run hello.pol</code></pre>
+        <p>Start with the small template above, then learn the syntax in the Language guide.</p>
       </div>
       <div class="card">
-        <h3>3. Start the Dev Server</h3>
-        <p><code>polonio serve</code> is a local development server. It binds <code>127.0.0.1</code>, serves static files and <code>.pol</code> templates, and supports GET/POST forms and uploads.</p>
-        <pre><code>$ ./build/polonio serve --port 8080 --root ./examples
-Serving ./examples on http://127.0.0.1:8080</code></pre>
-        <div class="note">The server is sequential and loopback-only: use it for development, not public production deployment.</div>
+        <h3>3. Try the examples</h3>
+        <pre><code>./build/polonio serve --root ./examples --port 8080</code></pre>
+        <p>Open <code>http://127.0.0.1:8080/</code> to explore runnable routes.</p>
       </div>
     </div>
+    <div class="note">The bundled server is loopback-only and for local development. See Runtime before deploying it anywhere else.</div>
   </section>
 
-  <section id="cli">
-    <h2>CLI Reference</h2>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Command</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>polonio help</code></td>
-            <td>Show usage and commands.</td>
-          </tr>
-          <tr>
-            <td><code>polonio version</code></td>
-            <td>Print the frozen version string (<code>0.1.0</code>).</td>
-          </tr>
-          <tr>
-            <td><code>polonio run &lt;file.pol&gt;</code></td>
-            <td>Render a template. If the file contains `<%`, the template engine runs; otherwise Polonio executes pure code.</td>
-          </tr>
-          <tr>
-            <td><code>polonio &lt;file.pol&gt;</code></td>
-            <td>Shorthand for <code>run</code>.</td>
-          </tr>
-          <tr>
-            <td><code>polonio --dump-ast &lt;expr&gt;</code></td>
-            <td>Developer helper that prints the Pratt parser AST for the inline expression.</td>
-          </tr>
-          <tr>
-            <td><code>polonio serve [--port N] [--root DIR]</code></td>
-            <td>Local development server. Defaults to the current directory and port 8080; serves static files and <code>.pol</code> templates.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section id="docs">
-    <h2>Documentation</h2>
+  <section id="next">
+    <h2>Where next?</h2>
     <div class="grid-2">
-      <a class="card" href="language.html">
-        <h3>Language Reference</h3>
-        <p>Syntax, expressions, operators, scope, and includes straight from the v0.1.0 spec.</p>
-      </a>
-      <a class="card" href="builtins.html">
-        <h3>Built-in Functions</h3>
-        <p>Canonical builtin names, compatibility aliases, layers, and examples.</p>
-      </a>
-      <a class="card" href="runtime.html">
-        <h3>HTTP &amp; Runtime</h3>
-        <p>Web Runtime behavior: CGI, superglobals, response helpers, and the local development server.</p>
-      </a>
-      <a class="card" href="examples.html">
-        <h3>Examples &amp; Cookbook</h3>
-        <p>Runnable hello, forms, JSON, sessions, uploads, storage, SQLite, download, and mail examples.</p>
-      </a>
+      <a class="card" href="language.html"><h3>Learn the language</h3><p>Start with template structure, values, and control flow.</p></a>
+      <a class="card" href="examples.html"><h3>Follow examples</h3><p>Move from a basic template to forms and data-backed routes.</p></a>
+      <a class="card" href="builtins.html"><h3>Find a helper</h3><p>Browse concise grouped references when you need a function.</p></a>
+      <a class="card" href="runtime.html"><h3>Use runtime features</h3><p>Understand web and data capabilities, contexts, and limits.</p></a>
     </div>
+    <p>For the formal contract, read the <a href="../polonio_language_spec_v0_1.md">language specification</a>. Implementers can use the <a href="../CONFORMANCE_PROFILES.md">conformance profiles</a>.</p>
   </section>
 </main>
-<script src="highlight.js"></script>
 </body>
 </html>

@@ -1,11 +1,11 @@
 # Polonio Conformance Matrix
 
-This is the definitive quick reference for RFC 0003 profiles. **Required** is
-guaranteed by a profile; **Optional** may be supplied but is not guaranteed;
-**Unavailable** is outside that profile. The Web Runtime requires its Layer 4
-API surface, but CGI and `polonio serve` are optional adapters. `send_file`
-and `send_mail` are required Web Runtime APIs and use the reference Data
-Runtime storage model when run by the official distribution.
+Use this table to compare the capabilities guaranteed by each conformance
+profile. **Required** is guaranteed; **Optional** may be supplied but is not
+guaranteed; **Unavailable** is outside the profile. The Web Runtime requires
+its Layer 4 API surface, but CGI and `polonio serve` are optional adapters.
+`send_file` and `send_mail` are required Web Runtime APIs and use the reference
+Data Runtime storage model when run by the official distribution.
 
 | Capability | Language Core | Reference Standard Library | Template Runtime | Web Runtime | Data Runtime | Reference Distribution |
 |---|---|---|---|---|---|---|
