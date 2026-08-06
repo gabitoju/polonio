@@ -43,7 +43,10 @@ const Value& ensure_arg(const std::string& name,
         ErrorDetails details;
         details.function_name = name;
         details.operation = "argument";
-        details.argument_index = index;
+        details.argument_index = index + 1;
+        details.builtin_reason = BuiltinFailureReason::Arity;
+        details.expected_arity_min = index + 1;
+        details.actual_arity = args.size();
         throw PolonioError(ErrorCategory::Runtime,
                            name + ": expected at least " + std::to_string(index + 1) + " argument(s)",
                            interp.path(),
@@ -52,15 +55,30 @@ const Value& ensure_arg(const std::string& name,
     return args[index];
 }
 
+[[noreturn]] void throw_builtin_type_error(const std::string& name,
+                                           std::size_t argument_index,
+                                           const std::string& expected,
+                                           const Value& actual,
+                                           Interpreter& interp,
+                                           const Location& loc) {
+    ErrorDetails details;
+    details.function_name = name;
+    details.builtin_reason = BuiltinFailureReason::Type;
+    details.argument_index = argument_index;
+    details.expected_type = expected;
+    details.actual_type = actual.type_name();
+    throw PolonioError(ErrorCategory::Runtime,
+                       name + ": argument " + std::to_string(argument_index) +
+                           " must be " + expected + ", got " + actual.type_name(),
+                       interp.path(), loc, std::move(details));
+}
+
 std::string require_storage_path_arg(const std::string& builtin_name,
                                      const Value& value,
                                      Interpreter& interp,
                                      const Location& loc) {
     if (!std::holds_alternative<std::string>(value.storage())) {
-        throw PolonioError(ErrorKind::Runtime,
-                           builtin_name + ": path must be string",
-                           interp.path(),
-                           loc);
+        throw_builtin_type_error(builtin_name, 1, "string", value, interp, loc);
     }
     return std::get<std::string>(value.storage());
 }
@@ -71,10 +89,8 @@ std::string require_string_value(const std::string& builtin_name,
                                  const Location& loc,
                                  const std::string& message) {
     if (!std::holds_alternative<std::string>(value.storage())) {
-        throw PolonioError(ErrorKind::Runtime,
-                           builtin_name + ": " + message,
-                           interp.path(),
-                           loc);
+        (void)message;
+        throw_builtin_type_error(builtin_name, 1, "string", value, interp, loc);
     }
     return std::get<std::string>(value.storage());
 }
@@ -85,10 +101,8 @@ Value::ArrayPtr require_array_value(const std::string& builtin_name,
                                     const Location& loc,
                                     const std::string& message) {
     if (!std::holds_alternative<Value::ArrayPtr>(value.storage())) {
-        throw PolonioError(ErrorKind::Runtime,
-                           builtin_name + ": " + message,
-                           interp.path(),
-                           loc);
+        (void)message;
+        throw_builtin_type_error(builtin_name, 2, "array", value, interp, loc);
     }
     return std::get<Value::ArrayPtr>(value.storage());
 }
@@ -292,8 +306,9 @@ ResponseContext* require_cgi_context(const std::string& name, Interpreter& inter
     auto* ctx = interp.response_context();
     if (!ctx) {
         ErrorDetails details;
-        details.capability = "web response";
+        details.capability = "web-response";
         details.operation = name;
+        details.builtin_reason = BuiltinFailureReason::Context;
         throw PolonioError(ErrorCategory::Capability, name + ": CGI mode only", interp.path(), loc, std::move(details));
     }
     if (ctx->headers_sent) {
@@ -346,8 +361,10 @@ SessionContext* require_session_context(const std::string& name,
     }
     if (ctx->is_cgi && ctx->secret_missing) {
         ErrorDetails details;
-        details.capability = "session secret";
+        details.capability = "session";
         details.operation = name;
+        details.builtin_reason = BuiltinFailureReason::Configuration;
+        details.configuration_name = "POLONIO_SESSION_SECRET";
         throw PolonioError(ErrorCategory::Capability, "missing session secret", interp.path(), loc, std::move(details));
     }
     return ctx;
@@ -597,7 +614,15 @@ Value builtin_debug(Interpreter& interp, const std::vector<Value>& args, const L
 }
 
 Value builtin_htmlspecialchars(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
-    Value value = ensure_arg("htmlspecialchars", 0, args, interp, loc);
+    if (args.size() != 1) {
+        ErrorDetails details;
+        details.builtin_reason = BuiltinFailureReason::Arity;
+        details.expected_arity_min = 1;
+        details.expected_arity_max = 1;
+        details.actual_arity = args.size();
+        throw PolonioError(ErrorKind::Runtime, "htmlspecialchars: expected 1 argument", interp.path(), loc, std::move(details));
+    }
+    Value value = args[0];
     std::string text = OutputBuffer::value_to_string(value);
     std::string out;
     out.reserve(text.size());
@@ -2229,14 +2254,14 @@ Value builtin_send_mail(Interpreter& interp, const std::vector<Value>& args, con
 
 void install_builtins(Env& env) {
     env.set_local("type", Value(BuiltinFunction{"type", builtin_type}));
-    env.set_local("tostring", Value(BuiltinFunction{"tostring", builtin_tostring}));
+    env.set_local("tostring", Value(BuiltinFunction{"tostring", builtin_tostring, "to_string"}));
     env.set_local("to_string", Value(BuiltinFunction{"to_string", builtin_to_string}));
     env.set_local("to_number", Value(BuiltinFunction{"to_number", builtin_to_number}));
     env.set_local("print", Value(BuiltinFunction{"print", builtin_print}));
     env.set_local("println", Value(BuiltinFunction{"println", builtin_println}));
     env.set_local("debug", Value(BuiltinFunction{"debug", builtin_debug}));
     env.set_local("nl2br", Value(BuiltinFunction{"nl2br", builtin_nl2br}));
-    env.set_local("htmlspecialchars", Value(BuiltinFunction{"htmlspecialchars", builtin_htmlspecialchars}));
+    env.set_local("htmlspecialchars", Value(BuiltinFunction{"htmlspecialchars", builtin_htmlspecialchars, "html_escape"}));
     env.set_local("html_escape", Value(BuiltinFunction{"html_escape", builtin_html_escape}));
     env.set_local("len", Value(BuiltinFunction{"len", builtin_len}));
     env.set_local("substr", Value(BuiltinFunction{"substr", builtin_substr}));
@@ -2302,8 +2327,8 @@ void install_builtins(Env& env) {
     env.set_local("is_object", Value(BuiltinFunction{"is_object", builtin_is_object}));
     env.set_local("is_function", Value(BuiltinFunction{"is_function", builtin_is_function}));
     env.set_local("now", Value(BuiltinFunction{"now", builtin_now}));
-    env.set_local("status", Value(BuiltinFunction{"status", builtin_status}));
-    env.set_local("header", Value(BuiltinFunction{"header", builtin_header}));
+    env.set_local("status", Value(BuiltinFunction{"status", builtin_status, "http_status"}));
+    env.set_local("header", Value(BuiltinFunction{"header", builtin_header, "http_header"}));
     env.set_local("http_status", Value(BuiltinFunction{"http_status", builtin_status}));
     env.set_local("http_header", Value(BuiltinFunction{"http_header", builtin_header}));
     env.set_local("http_content_type", Value(BuiltinFunction{"http_content_type", builtin_http_content_type}));

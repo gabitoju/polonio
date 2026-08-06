@@ -62,3 +62,12 @@ new generic globals require an RFC. Runtime-specific names use established
 `http_`, `request_`, `session_`, `file_`, `dir_`, and `db_` prefixes. Existing
 `get`, `set`, `keys`, and `values` remain valid but do not justify new generic
 globals.
+
+## Builtin diagnostics
+
+Builtin call failures use the RFC 0004 category plus RFC 0005 structured facts.
+They identify the called name and canonical operation, use one-based argument
+positions and the seven Polonio type names, and follow arity, type, shape,
+value, context/configuration, resource, then operation validation. Compatibility
+aliases preserve the same failure facts and behavior. Message wording is not a
+compatibility contract; sensitive values are redacted.

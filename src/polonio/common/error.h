@@ -21,6 +21,12 @@ enum class ErrorCategory {
     IO = Source,
 };
 
+// RFC 0005 models builtin failure facts without adding public error codes.
+enum class BuiltinFailureReason {
+    Arity, Type, Value, Shape, UnsupportedValue, Context, Configuration,
+    Resource, Operation,
+};
+
 using ErrorKind = ErrorCategory;
 
 struct ErrorDetails {
@@ -31,6 +37,17 @@ struct ErrorDetails {
     std::string resource;
     std::vector<std::string> include_chain;
     std::string host_detail;
+    std::string canonical_function_name;
+    std::optional<BuiltinFailureReason> builtin_reason;
+    std::optional<std::size_t> expected_arity_min;
+    std::optional<std::size_t> expected_arity_max;
+    std::optional<std::size_t> actual_arity;
+    std::string expected_type;
+    std::string actual_type;
+    std::string expected_value;
+    std::string actual_value_summary;
+    std::string option_name;
+    std::string configuration_name;
 };
 
 class PolonioError : public std::runtime_error {
@@ -51,6 +68,8 @@ public:
     bool has_location() const noexcept { return has_location_; }
     const std::string& message() const noexcept { return message_; }
     const ErrorDetails& details() const noexcept { return details_; }
+    ErrorDetails& mutable_details() noexcept { return details_; }
+    void set_category(ErrorCategory category) noexcept { category_ = category; }
     void add_include_frame(std::string frame);
 
     std::string format() const;

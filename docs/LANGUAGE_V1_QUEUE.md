@@ -64,7 +64,15 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC 0004c — Adapter presentation consistency
    - [DONE] RFC 0004d — Error-model conformance tests
    - [BLOCKED] RFC 0004e — Freeze error model in Language Specification v1
-2. [ACCEPTED] RFC 0005 — Builtin Error Consistency
+2. [IMPLEMENTED] RFC 0005 — Builtin Error Consistency
+   - [DONE] RFC 0005a — Structured builtin failure metadata
+   - [DONE] RFC 0005b — Shared validation helpers
+   - [DONE] RFC 0005c — Core and standard-library migration
+   - [DONE] RFC 0005d — Web-runtime migration
+   - [DONE] RFC 0005e — Data-runtime migration
+   - [DONE] RFC 0005f — Alias and family conformance tests
+   - [DONE] RFC 0005g — Final builtin error audit
+   - [BLOCKED] RFC 0005h — Freeze builtin error contract in Language Specification v1
 3. [RFC] RFC 0006 — User-Level Error Handling
 4. [RFC] RFC 0007 — Type and Conversion Semantics
 5. [RFC] RFC 0008 — Truthiness

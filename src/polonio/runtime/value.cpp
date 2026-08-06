@@ -127,4 +127,21 @@ const Value::Storage& Value::storage() const { return storage_; }
 
 Value::Storage& Value::storage() { return storage_; }
 
+std::string safe_value_summary(const Value& value) {
+    return std::visit([](const auto& alt) -> std::string {
+        using T = std::decay_t<decltype(alt)>;
+        if constexpr (std::is_same_v<T, std::monostate>) return "null";
+        else if constexpr (std::is_same_v<T, bool>) return alt ? "true" : "false";
+        else if constexpr (std::is_same_v<T, double>) return std::to_string(alt);
+        else if constexpr (std::is_same_v<T, std::string>) {
+            if (alt.size() > 64) return "string(length=" + std::to_string(alt.size()) + ")";
+            return "string(\"" + alt + "\")";
+        } else if constexpr (std::is_same_v<T, Value::ArrayPtr>) {
+            return "array(count=" + std::to_string(alt ? alt->size() : 0) + ")";
+        } else if constexpr (std::is_same_v<T, Value::ObjectPtr>) {
+            return "object(count=" + std::to_string(alt ? alt->size() : 0) + ")";
+        } else return "function";
+    }, value.storage());
+}
+
 } // namespace polonio

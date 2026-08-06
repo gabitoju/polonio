@@ -31,6 +31,8 @@ std::string storage_root(Interpreter& interp,
         ErrorDetails details;
         details.capability = "storage";
         details.operation = builtin_name;
+        details.builtin_reason = BuiltinFailureReason::Configuration;
+        details.configuration_name = "POLONIO_STORAGE_PATH";
         throw PolonioError(ErrorCategory::Capability,
                            builtin_name + ": missing storage root",
                            interp.path(),
@@ -45,25 +47,25 @@ std::string resolve_storage_path(const std::string& relative,
                                  const Location& loc) {
     std::string root = storage_root(interp, builtin_name, loc);
     if (relative.empty()) {
-        throw PolonioError(ErrorKind::Runtime,
-                           builtin_name + ": empty path",
-                           interp.path(),
-                           loc);
+        ErrorDetails details;
+        details.builtin_reason = BuiltinFailureReason::Value;
+        details.expected_value = "non-empty relative path";
+        throw PolonioError(ErrorKind::Runtime, builtin_name + ": empty path", interp.path(), loc, std::move(details));
     }
     std::filesystem::path rel_path(relative);
     if (rel_path.is_absolute()) {
-        throw PolonioError(ErrorKind::Runtime,
-                           builtin_name + ": absolute path not allowed",
-                           interp.path(),
-                           loc);
+        ErrorDetails details;
+        details.builtin_reason = BuiltinFailureReason::Value;
+        details.expected_value = "relative path";
+        throw PolonioError(ErrorKind::Runtime, builtin_name + ": absolute path not allowed", interp.path(), loc, std::move(details));
     }
     auto normalized = rel_path.lexically_normal();
     for (const auto& part : normalized) {
         if (part == "..") {
-            throw PolonioError(ErrorKind::Runtime,
-                               builtin_name + ": path traversal",
-                               interp.path(),
-                               loc);
+            ErrorDetails details;
+            details.builtin_reason = BuiltinFailureReason::Value;
+            details.expected_value = "path within storage root";
+            throw PolonioError(ErrorKind::Runtime, builtin_name + ": path traversal", interp.path(), loc, std::move(details));
         }
     }
     std::filesystem::path base(root);
@@ -87,10 +89,10 @@ std::string resolve_storage_path(const std::string& relative,
     if (target_str.size() < root_str.size() ||
         target_str.compare(0, root_str.size(), root_str) != 0 ||
         (target_str.size() > root_str.size() && target_str[root_str.size()] != '/')) {
-        throw PolonioError(ErrorKind::Runtime,
-                           builtin_name + ": path traversal",
-                           interp.path(),
-                           loc);
+        ErrorDetails details;
+        details.builtin_reason = BuiltinFailureReason::Value;
+        details.expected_value = "path within storage root";
+        throw PolonioError(ErrorKind::Runtime, builtin_name + ": path traversal", interp.path(), loc, std::move(details));
     }
     return target_str;
 }

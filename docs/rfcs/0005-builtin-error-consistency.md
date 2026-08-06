@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Implemented.
 
 ## Context
 
@@ -313,3 +313,16 @@ can build recovery on reasons and facts without adopting codes now.
 - Add error conformance and formatter/redaction tests.
 - Update standard-library signature/options documentation.
 - Draft RFC 0006 — User-Level Error Handling.
+
+## Implementation notes
+
+The reference implementation stores `BuiltinFailureReason` and RFC 0005 facts
+in `ErrorDetails`. The builtin invocation boundary records both the registered
+and canonical names, including all four compatibility aliases. Argument indexes
+emitted by common validation are one-based. Storage-root and session-secret
+failures carry `POLONIO_STORAGE_PATH` and `POLONIO_SESSION_SECRET`; SQLite
+connection absence carries `database-connection`.
+
+The implementation uses bounded safe value summaries for non-sensitive values.
+Credential, session, token, cookie, request-body, mail-body, upload-content,
+and SQL-parameter validation paths intentionally leave summaries empty.

@@ -51,9 +51,10 @@ void DatabaseConnection::connect_relative(const std::string& relative_path,
         }
         ErrorDetails details;
         details.resource = "sqlite";
-        details.operation = builtin_name;
+        details.operation = "open-database";
+        details.builtin_reason = BuiltinFailureReason::Operation;
         throw PolonioError(ErrorCategory::Resource,
-                           builtin_name + ": sqlite open failed: " + message,
+                           builtin_name + ": failed to open database",
                            interp.path(),
                            loc, std::move(details));
     }
@@ -80,9 +81,10 @@ void sqlite_exec_or_throw(sqlite3* handle,
         }
         ErrorDetails details;
         details.resource = "sqlite";
-        details.operation = builtin_name;
+        details.operation = "execute-statement";
+        details.builtin_reason = BuiltinFailureReason::Operation;
         throw PolonioError(ErrorCategory::Resource,
-                           builtin_name + ": sqlite error: " + message,
+                           builtin_name + ": sqlite operation failed",
                            interp.path(),
                            loc, std::move(details));
     }
@@ -95,8 +97,10 @@ void DatabaseConnection::begin_transaction(const std::string& builtin_name,
                                            const Location& loc) {
     if (!handle_) {
         ErrorDetails details;
-        details.capability = "database";
-        details.operation = builtin_name;
+        details.capability = "sqlite";
+        details.operation = "begin-transaction";
+        details.builtin_reason = BuiltinFailureReason::Configuration;
+        details.configuration_name = "database-connection";
         throw PolonioError(ErrorCategory::Capability,
                            "database not connected",
                            interp.path(),
@@ -116,10 +120,11 @@ void DatabaseConnection::commit_transaction(const std::string& builtin_name,
                                             Interpreter& interp,
                                             const Location& loc) {
     if (!handle_) {
-        throw PolonioError(ErrorKind::Runtime,
-                           "database not connected",
-                           interp.path(),
-                           loc);
+        ErrorDetails details;
+        details.capability = "sqlite";
+        details.builtin_reason = BuiltinFailureReason::Configuration;
+        details.configuration_name = "database-connection";
+        throw PolonioError(ErrorCategory::Capability, "database not connected", interp.path(), loc, std::move(details));
     }
     if (!transaction_active_) {
         throw PolonioError(ErrorKind::Runtime,
@@ -135,10 +140,11 @@ void DatabaseConnection::rollback_transaction(const std::string& builtin_name,
                                               Interpreter& interp,
                                               const Location& loc) {
     if (!handle_) {
-        throw PolonioError(ErrorKind::Runtime,
-                           "database not connected",
-                           interp.path(),
-                           loc);
+        ErrorDetails details;
+        details.capability = "sqlite";
+        details.builtin_reason = BuiltinFailureReason::Configuration;
+        details.configuration_name = "database-connection";
+        throw PolonioError(ErrorCategory::Capability, "database not connected", interp.path(), loc, std::move(details));
     }
     if (!transaction_active_) {
         throw PolonioError(ErrorKind::Runtime,
@@ -156,10 +162,11 @@ sqlite3* require_db_handle(Interpreter& interp,
     (void)builtin_name;
     auto* conn = interp.db_connection();
     if (!conn || !conn->is_open()) {
-        throw PolonioError(ErrorKind::Runtime,
-                           "database not connected",
-                           interp.path(),
-                           loc);
+        ErrorDetails details;
+        details.capability = "sqlite";
+        details.builtin_reason = BuiltinFailureReason::Configuration;
+        details.configuration_name = "database-connection";
+        throw PolonioError(ErrorCategory::Capability, "database not connected", interp.path(), loc, std::move(details));
     }
     return conn->handle();
 }

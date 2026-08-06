@@ -373,7 +373,103 @@ Value Interpreter::eval_call(const CallExpr& call) {
         if (!builtin.callback) {
             runtime_error("attempt to call non-function value");
         }
-        return builtin.callback(*this, args, call.location());
+        try {
+            return builtin.callback(*this, args, call.location());
+        } catch (PolonioError& error) {
+            // Storage and SQLite helpers do not know which compatibility name
+            // was invoked. The invocation boundary completes RFC 0005 facts.
+            auto& details = error.mutable_details();
+            details.function_name = builtin.name;
+            details.canonical_function_name = builtin.canonical_name.empty()
+                ? builtin.name : builtin.canonical_name;
+            const std::string& message = error.message();
+            const bool data_builtin = builtin.name.rfind("file_", 0) == 0 ||
+                builtin.name.rfind("dir_", 0) == 0 || builtin.name.rfind("db_", 0) == 0 ||
+                builtin.name == "send_file" || builtin.name == "upload_save" ||
+                builtin.name == "send_mail";
+            if (data_builtin && error.category() == ErrorCategory::Runtime &&
+                details.builtin_reason.has_value() &&
+                *details.builtin_reason == BuiltinFailureReason::Value) {
+                // Explicit path/value diagnostics remain RuntimeError. Other
+                // data-runtime failures are configured resource operations.
+                if (message.find("path traversal") == std::string::npos &&
+                    message.find("absolute path") == std::string::npos &&
+                    message.find("empty path") == std::string::npos &&
+                    message.find("database not connected") == std::string::npos) {
+                    error.set_category(ErrorCategory::Resource);
+                    details.builtin_reason = (message.find("not found") != std::string::npos ||
+                        message.find("temporary file missing") != std::string::npos)
+                        ? BuiltinFailureReason::Resource : BuiltinFailureReason::Operation;
+                }
+            }
+            if (message.find("database not connected") != std::string::npos) {
+                error.set_category(ErrorCategory::Capability);
+                details.builtin_reason = BuiltinFailureReason::Configuration;
+                details.capability = "sqlite";
+                details.configuration_name = "database-connection";
+            }
+            if (!details.builtin_reason.has_value()) {
+                if (error.category() == ErrorCategory::Capability) {
+                    details.builtin_reason = message.find("missing") != std::string::npos
+                        ? BuiltinFailureReason::Configuration : BuiltinFailureReason::Context;
+                } else if (error.category() == ErrorCategory::Resource) {
+                    details.builtin_reason = BuiltinFailureReason::Operation;
+                } else if (message.find("argument") != std::string::npos ||
+                           message.find("expected 0") != std::string::npos ||
+                           message.find("expected 1") != std::string::npos ||
+                           message.find("expected 2") != std::string::npos ||
+                           message.find("expected 3") != std::string::npos) {
+                    details.builtin_reason = BuiltinFailureReason::Arity;
+                } else if (message.find("opts") != std::string::npos ||
+                           message.find("tmp_path") != std::string::npos ||
+                           message.find("file object") != std::string::npos ||
+                           message.find("headers must") != std::string::npos) {
+                    details.builtin_reason = BuiltinFailureReason::Shape;
+                } else if (message.find("unsupported parameter") != std::string::npos ||
+                           message.find("serializable") != std::string::npos) {
+                    details.builtin_reason = BuiltinFailureReason::UnsupportedValue;
+                } else if (message.find("expected") != std::string::npos ||
+                           message.find("must be string") != std::string::npos ||
+                           message.find("must be bool") != std::string::npos) {
+                    details.builtin_reason = BuiltinFailureReason::Type;
+                } else {
+                    details.builtin_reason = BuiltinFailureReason::Value;
+                }
+            }
+            if (*details.builtin_reason == BuiltinFailureReason::Arity) {
+                details.actual_arity = args.size();
+                if (!details.expected_arity_min.has_value()) {
+                    std::vector<std::size_t> numbers;
+                    for (std::size_t i = 0; i < message.size();) {
+                        if (!std::isdigit(static_cast<unsigned char>(message[i]))) { ++i; continue; }
+                        std::size_t value = 0;
+                        while (i < message.size() && std::isdigit(static_cast<unsigned char>(message[i]))) {
+                            value = value * 10 + static_cast<std::size_t>(message[i++] - '0');
+                        }
+                        numbers.push_back(value);
+                    }
+                    if (!numbers.empty()) {
+                        details.expected_arity_min = numbers.front();
+                        if (message.find(" or ") != std::string::npos && numbers.size() > 1) {
+                            details.expected_arity_max = numbers[1];
+                        } else if (message.find("at least") == std::string::npos) {
+                            details.expected_arity_max = numbers.front();
+                        }
+                    }
+                }
+            }
+            if (data_builtin && error.category() == ErrorCategory::Runtime &&
+                (*details.builtin_reason == BuiltinFailureReason::Value) &&
+                message.find("path traversal") == std::string::npos &&
+                message.find("absolute path") == std::string::npos &&
+                message.find("empty path") == std::string::npos) {
+                error.set_category(ErrorCategory::Resource);
+                details.builtin_reason = (message.find("not found") != std::string::npos ||
+                    message.find("temporary file missing") != std::string::npos)
+                    ? BuiltinFailureReason::Resource : BuiltinFailureReason::Operation;
+            }
+            throw;
+        }
     }
 
     if (!std::holds_alternative<FunctionValue>(callee.storage())) {

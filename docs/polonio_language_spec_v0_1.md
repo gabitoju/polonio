@@ -494,6 +494,12 @@ their available location, and template include diagnostics retain include
 context. Exact English message wording is not a compatibility guarantee; see
 `docs/rfcs/0004-error-model.md` for the v1 design and adapter rules.
 
+Builtin invocation failures additionally expose structured reason and safe
+facts: arity, type, value, shape, unsupported value, context, configuration,
+resource, or operation. Argument positions are one-based. Exact prose is not
+stable, and diagnostics redact credentials, tokens, cookies, request bodies,
+mail bodies, upload contents, and SQL parameter values.
+
 ------------------------------------------------------------------------
 
 ## Language and runtime boundary
