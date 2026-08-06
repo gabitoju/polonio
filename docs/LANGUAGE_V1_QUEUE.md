@@ -75,7 +75,12 @@ Acceptance criteria:
 
 ---
 
-## [ACCEPTED] L1-2 Builtin Categorization and Namespace Policy
+## [IMPLEMENTED] L1-2 Builtin Categorization and Namespace Policy
+
+- [DONE] L1-2a Create authoritative builtin inventory
+- [DONE] L1-2b Apply layer classifications to public documentation
+- [DONE] L1-2c Add builtin classification validation
+- [BLOCKED] L1-2d Freeze builtin and namespace policy in Language Specification v1
 
 Polonio currently exposes a large global builtin surface.
 
