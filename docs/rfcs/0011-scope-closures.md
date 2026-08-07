@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Implemented.
 
 ## Purpose
 
@@ -102,5 +102,6 @@ rejected or deferred as unnecessary for current goals.
 
 ## Follow-up
 
-Implementation work is limited to conformance tests and concise documentation
-alignment. RFC 0012 — Collection Mutation and Aliasing remains separate.
+Conformance coverage verifies the accepted behavior; no runtime semantic
+correction was required. RFC 0012 — Collection Mutation and Aliasing remains
+separate.
