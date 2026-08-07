@@ -102,7 +102,12 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC0009c — Truthiness conformance tests
    - [DONE] RFC0009d — Documentation alignment
    - [BLOCKED] RFC0009e — Freeze truthiness in Language Specification v1
-7. [RFC] RFC 0010 — Equality and Comparison
+7. [ACCEPTED] RFC 0010 — Equality and Comparison
+   - [TODO] RFC0010a — Normalize equality semantics
+   - [TODO] RFC0010b — Normalize ordered comparison semantics
+   - [TODO] RFC0010c — Add comparison conformance tests
+   - [TODO] RFC0010d — Documentation alignment
+   - [BLOCKED] RFC0010e — Freeze equality and comparison in Language Specification v1
 8. [RFC] RFC 0011 — Scope and Closures
 9. [RFC] RFC 0012 — Collection Mutation and Aliasing
 10. [RFC] RFC 0013 — Function Semantics
