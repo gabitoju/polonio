@@ -16,6 +16,21 @@ Open `http://127.0.0.1:8080/` and start with `/hello`. Then try `/forms`,
 present in the storage root (for example `downloads/example.txt`). Runtime data
 belongs in `.polonio-storage/`, which is ignored by Git.
 
+## Conway's Game of Life
+
+`game_of_life.pol` is a standalone CLI validation example. From the repository
+root, run:
+
+```sh
+./build/polonio run examples/game_of_life.pol
+```
+
+It renders generations 0 through 4 of a glider on a finite board. The board is
+an array of independently constructed rows, each containing boolean cell
+values; `#` is live and `.` is dead. The example exercises nested arrays and
+indexing, loops, functions, arithmetic and comparisons, truthiness, output,
+and reference-like collection mutation while building a separate next grid.
+
 `send_mail` writes `.eml` files below `.polonio-storage/outbox`; it does not
 deliver email. These examples use the official Reference Distribution's Web
 and Data Runtimes. The included server is for local development only; see the
