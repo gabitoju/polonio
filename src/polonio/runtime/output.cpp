@@ -1,6 +1,9 @@
 #include "polonio/runtime/output.h"
 
 #include <sstream>
+#include <locale>
+#include <cmath>
+#include <iomanip>
 #include <type_traits>
 
 namespace polonio {
@@ -8,8 +11,11 @@ namespace polonio {
 namespace {
 
 std::string format_number(double value) {
+    if (!std::isfinite(value)) return "[number]";
+    if (value == 0.0) return "0";
     std::ostringstream oss;
-    oss << value;
+    oss.imbue(std::locale::classic());
+    oss << std::setprecision(6) << value;
     return oss.str();
 }
 

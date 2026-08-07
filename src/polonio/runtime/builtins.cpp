@@ -1,6 +1,9 @@
 #include "polonio/runtime/builtins.h"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
+#include <regex>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -522,8 +525,10 @@ Value builtin_to_number(Interpreter& interp, const std::vector<Value>& args, con
     }
     if (std::holds_alternative<std::string>(value.storage())) {
         std::string text = trim(std::get<std::string>(value.storage()));
-        if (text.empty()) {
-            return Value(0.0);
+        if (text.empty()) return Value(0.0);
+        static const std::regex decimal(R"([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)");
+        if (!std::regex_match(text, decimal)) {
+            throw PolonioError(ErrorKind::Runtime, "to_number: invalid numeric string", interp.path(), loc);
         }
         std::size_t idx = 0;
         try {
@@ -531,6 +536,7 @@ Value builtin_to_number(Interpreter& interp, const std::vector<Value>& args, con
             if (idx != text.size()) {
                 throw std::invalid_argument("trailing");
             }
+            if (!std::isfinite(number)) throw std::out_of_range("non-finite");
             return Value(number);
         } catch (const std::exception&) {
             throw PolonioError(ErrorKind::Runtime, "to_number: invalid numeric string", interp.path(), loc);
@@ -669,6 +675,11 @@ int coerce_int(const std::string& name, const std::string& param, const Value& v
         throw PolonioError(ErrorKind::Runtime, name + ": expected number for " + param, interp.path(), loc);
     }
     double number = std::get<double>(value.storage());
+    if (!std::isfinite(number) || std::floor(number) != number ||
+        number < static_cast<double>(std::numeric_limits<int>::min()) ||
+        number > static_cast<double>(std::numeric_limits<int>::max())) {
+        throw PolonioError(ErrorKind::Runtime, name + ": expected integral number for " + param, interp.path(), loc);
+    }
     return static_cast<int>(number);
 }
 
@@ -898,8 +909,8 @@ Value builtin_randint(Interpreter& interp, const std::vector<Value>& args, const
     if (!std::holds_alternative<double>(min_value.storage()) || !std::holds_alternative<double>(max_value.storage())) {
         throw PolonioError(ErrorKind::Runtime, "randint: expected numbers", interp.path(), loc);
     }
-    int min_int = static_cast<int>(std::get<double>(min_value.storage()));
-    int max_int = static_cast<int>(std::get<double>(max_value.storage()));
+    int min_int = coerce_int("randint", "min", min_value, interp, loc);
+    int max_int = coerce_int("randint", "max", max_value, interp, loc);
     if (max_int < min_int) {
         throw PolonioError(ErrorKind::Runtime, "randint: invalid range", interp.path(), loc);
     }
@@ -952,7 +963,7 @@ Value builtin_is_array(Interpreter& interp, const std::vector<Value>& args, cons
 
 Value builtin_is_object(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value value = ensure_arg("is_object", 0, args, interp, loc);
-    return Value(std::holds_alternative<Value::ObjectPtr>(value.storage()));
+    return Value(std::holds_alternative<Value::ObjectPtr>(value.storage()) || std::holds_alternative<Value::ReadOnlyObjectPtr>(value.storage()));
 }
 
 Value builtin_is_function(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
@@ -1672,6 +1683,10 @@ Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const L
         throw PolonioError(ErrorKind::Runtime, "range: expected number", interp.path(), loc);
     }
     double number = std::get<double>(count.storage());
+    if (!std::isfinite(number) || std::floor(number) != number || number < 0 ||
+        number > static_cast<double>(std::numeric_limits<std::size_t>::max())) {
+        throw PolonioError(ErrorKind::Runtime, "range: expected non-negative integral number", interp.path(), loc);
+    }
     Value::Array values;
     if (number > 0) {
         for (std::size_t i = 0; i < static_cast<std::size_t>(number); ++i) {
@@ -1683,6 +1698,12 @@ Value builtin_range(Interpreter& interp, const std::vector<Value>& args, const L
 
 Value builtin_keys(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value object_value = ensure_arg("keys", 0, args, interp, loc);
+    if (std::holds_alternative<Value::ReadOnlyObjectPtr>(object_value.storage())) {
+        const auto& obj = std::get<Value::ReadOnlyObjectPtr>(object_value.storage());
+        std::vector<std::string> names; if (obj) for (const auto& entry : *obj) names.push_back(entry.first);
+        std::sort(names.begin(), names.end()); Value::Array values; for (const auto& name : names) values.emplace_back(name);
+        return Value(std::move(values));
+    }
     if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
         throw PolonioError(ErrorKind::Runtime, "keys: expected object", interp.path(), loc);
     }
@@ -1705,6 +1726,10 @@ Value builtin_keys(Interpreter& interp, const std::vector<Value>& args, const Lo
 Value builtin_has_key(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value object_value = ensure_arg("has_key", 0, args, interp, loc);
     Value key_value = ensure_arg("has_key", 1, args, interp, loc);
+    if (std::holds_alternative<Value::ReadOnlyObjectPtr>(object_value.storage())) {
+        const auto& obj = std::get<Value::ReadOnlyObjectPtr>(object_value.storage());
+        return Value(obj && obj->find(OutputBuffer::value_to_string(key_value)) != obj->end());
+    }
     if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
         throw PolonioError(ErrorKind::Runtime, "has_key: expected object", interp.path(), loc);
     }
@@ -1720,6 +1745,12 @@ Value builtin_get(Interpreter& interp, const std::vector<Value>& args, const Loc
     Value object_value = ensure_arg("get", 0, args, interp, loc);
     Value key_value = ensure_arg("get", 1, args, interp, loc);
     Value default_value = args.size() > 2 ? args[2] : Value();
+    if (std::holds_alternative<Value::ReadOnlyObjectPtr>(object_value.storage())) {
+        const auto& obj = std::get<Value::ReadOnlyObjectPtr>(object_value.storage());
+        if (!obj) return default_value;
+        auto it = obj->find(OutputBuffer::value_to_string(key_value));
+        return it == obj->end() ? default_value : it->second;
+    }
     if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
         throw PolonioError(ErrorKind::Runtime, "get: expected object", interp.path(), loc);
     }
@@ -1757,6 +1788,12 @@ Value builtin_set(Interpreter& interp, const std::vector<Value>& args, const Loc
 
 Value builtin_values(Interpreter& interp, const std::vector<Value>& args, const Location& loc) {
     Value object_value = ensure_arg("values", 0, args, interp, loc);
+    if (std::holds_alternative<Value::ReadOnlyObjectPtr>(object_value.storage())) {
+        const auto& obj = std::get<Value::ReadOnlyObjectPtr>(object_value.storage());
+        std::vector<std::string> names; if (obj) for (const auto& entry : *obj) names.push_back(entry.first);
+        std::sort(names.begin(), names.end()); Value::Array result; if (obj) for (const auto& name : names) result.emplace_back(obj->at(name));
+        return Value(std::move(result));
+    }
     if (!std::holds_alternative<Value::ObjectPtr>(object_value.storage())) {
         throw PolonioError(ErrorKind::Runtime, "values: expected object", interp.path(), loc);
     }

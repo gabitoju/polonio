@@ -88,9 +88,14 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC 0007e — Recovery conformance tests
    - [DONE] RFC 0007f — Documentation and examples
    - [BLOCKED] RFC 0007g — Freeze attempt/recover in Language Specification v1
-5. [ACCEPTED] RFC 0008 — Type and Conversion Semantics
-   - [DONE] Define the v1 type and conversion contract.
-   - [TODO] Normalize implementation divergences and add conversion conformance tests.
+5. [IMPLEMENTED] RFC 0008 — Type and Conversion Semantics
+   - [DONE] RFC 0008a — Normalize numeric parsing
+   - [DONE] RFC 0008b — Normalize display and number formatting
+   - [DONE] RFC 0008c — Enforce integral index/range semantics
+   - [DONE] RFC 0008d — Normalize Error object introspection
+   - [DONE] RFC 0008e — Conversion conformance tests
+   - [DONE] RFC 0008f — Documentation and examples
+   - [BLOCKED] RFC 0008g — Freeze type/conversion semantics in Language Specification v1
 6. [RFC] RFC 0009 — Truthiness
 7. [RFC] RFC 0010 — Equality and Comparison
 8. [RFC] RFC 0011 — Scope and Closures
