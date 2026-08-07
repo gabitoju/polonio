@@ -21,7 +21,16 @@ std::string format_number(double value) {
 
 } // namespace
 
-void OutputBuffer::write(const Value& value) { buffer_ += value_to_string(value); }
+void OutputBuffer::write(const Value& value) { write_text(value_to_string(value)); }
+
+void OutputBuffer::write_text(const std::string& text) {
+    if (sink_) {
+        sink_(text);
+    }
+    if (capture_output_) {
+        buffer_ += text;
+    }
+}
 
 std::string OutputBuffer::value_to_string(const Value& value) {
     return std::visit(

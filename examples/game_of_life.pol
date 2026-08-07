@@ -70,13 +70,10 @@ var grid = [
 ]
 
 var generation = 0
-while generation < 5
+while true
   println("Generation " .. generation)
   render_grid(grid)
 
-  if generation < 4
-    grid = next_generation(grid)
-  end
-
+  grid = next_generation(grid)
   generation += 1
 end%>

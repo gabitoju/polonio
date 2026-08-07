@@ -477,6 +477,10 @@ Run template:
     polonio run file.pol
     polonio file.pol
 
+The CLI writes ordinary template and program output to standard output as it is
+emitted. Output already written remains visible if a later error terminates the
+program. CGI and development-server responses retain their response buffering.
+
 Dev server:
 
     polonio serve --port 3000 --root ./examples

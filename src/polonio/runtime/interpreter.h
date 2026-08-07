@@ -55,6 +55,9 @@ public:
     std::shared_ptr<Env> env() const { return env_; }
     const std::string& path() const { return path_; }
     void write_text(const std::string& text);
+    void set_output_sink(OutputBuffer::Sink sink, bool capture_output = false) {
+        output_.set_sink(std::move(sink), capture_output);
+    }
     void clear_output();
     using IncludeCallback = std::function<void(const std::string&, const Location&)>;
     void set_include_callback(IncludeCallback cb) { include_callback_ = std::move(cb); }
