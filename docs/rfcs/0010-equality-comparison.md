@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Implemented.
 
 ## Purpose
 
@@ -105,8 +105,10 @@ equality is needed for these cases.
 | Other/mixed ordering | rejected through numeric requirement | matches required `RuntimeError`; diagnostics need comparison/operator and type conformance coverage |
 | Chained comparisons | left-associative ordinary binary expressions | documentation-only clarification |
 
-There is no equality or comparison implementation work in this RFC draft.
-The listed changes are implementation work for the subsequent RFC 0010 task.
+The reference implementation uses active `(left, right)` container pairs for
+structural equality, so repeated acyclic sharing is valid while a recursive
+pair raises `RuntimeError`. Function and Error views carry opaque identities;
+only copied references compare equal. String ordering compares raw bytes.
 
 ## Out of scope
 
