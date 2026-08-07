@@ -248,6 +248,7 @@ end</code></pre>
     </ul>
     <div class="note">Use helper functions to hide state when needed. Large templates often wrap logic in <code>function render_item(item)</code> and call it immediately to avoid polluting globals.</div>
   </section>
+  <section id="collections"><h2>Collection Mutation</h2><p>Arrays and mutable objects are shared reference-like values. Assignment, calls, returns, and nesting do not deep-copy them. Mutating builtins update the shared collection; <code>slice</code> and <code>concat</code> create new outer arrays.</p></section>
 
   <section id="next">
     <h2>Next steps</h2>

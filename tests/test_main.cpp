@@ -3983,6 +3983,15 @@ TEST_CASE("Array builtins: shift and unshift mutate arrays") {
     CHECK(run_program_output("var a = [2,3]\nvar b = a\nunshift(b, 1)\necho join(a, \",\")") == "1,2,3");
 }
 
+TEST_CASE("RFC 0012 collection aliasing conformance") {
+    CHECK(run_program_output("var a=[1,2] var b=a push(b,3) echo a==[1,2,3] b=[] echo a==[1,2,3]") == "truetrue");
+    CHECK(run_program_output("var a={\"n\":\"Juan\"} var b=a set(b,\"n\",\"Pedro\") echo a[\"n\"]") == "Pedro");
+    CHECK(run_program_output("function add(x) push(x,3) end function replace(x) x=[] end var a=[1,2] add(a) replace(a) echo a==[1,2,3]") == "true");
+    CHECK(run_program_output("var saved=null function make() var x=[] saved=x return x end var x=make() push(x,1) echo saved==[1]") == "true");
+    CHECK(run_program_output("var inner=[] var a=[inner] var b=slice(a,0,1) push(inner,1) echo a[0]==b[0] var row=[] var grid=[] push(grid,row) push(grid,row) push(row,true) echo grid[0]==grid[1]") == "truetrue");
+    CHECK_THROWS_AS(run_program_output("var a=[] push(a,a) echo a==a"), polonio::PolonioError);
+}
+
 TEST_CASE("Array builtin concat returns new array without mutating inputs") {
     const char* program = R"(
 var a = [1,2]

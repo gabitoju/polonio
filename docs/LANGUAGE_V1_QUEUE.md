@@ -119,11 +119,16 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC0011e — Include/template scope conformance
    - [DONE] RFC0011f — Documentation alignment
    - [BLOCKED] RFC0011g — Freeze scope semantics in Language Specification v1
-9. [ACCEPTED] RFC 0012 — Collection Mutation and Aliasing
-   - [TODO] RFC0012a — Collection aliasing conformance
-   - [TODO] RFC0012b — Mutation builtin conformance
-   - [TODO] RFC0012c — Documentation alignment
-   - [BLOCKED] RFC0012d — Freeze collection semantics in Language Specification v1
+9. [IMPLEMENTED] RFC 0012 — Collection Mutation and Aliasing
+   - [DONE] RFC0012a — Assignment aliasing conformance
+   - [DONE] RFC0012b — Parameter and return aliasing conformance
+   - [DONE] RFC0012c — Nested collection aliasing conformance
+   - [DONE] RFC0012d — Mutating builtin conformance
+   - [DONE] RFC0012e — New-collection builtin conformance
+   - [DONE] RFC0012f — Closure/include aliasing conformance
+   - [DONE] RFC0012g — Cycle conformance
+   - [DONE] RFC0012h — Documentation alignment
+   - [BLOCKED] RFC0012i — Freeze collection semantics in Language Specification v1
 10. [RFC] RFC 0013 — Function Semantics
 11. [RFC] RFC 0014 — Include Semantics
 12. [RFC] RFC 0015 — Evaluation and Output Order

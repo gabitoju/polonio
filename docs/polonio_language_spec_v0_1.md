@@ -363,6 +363,13 @@ conditionals, `while`, `attempt`, includes, and template blocks do not.
 Closures capture bindings by reference. `recover` has its own scope and its
 optional Error binding does not leak.
 
+## 8.7 Collection mutation
+
+Arrays and mutable objects are reference-like: assignment, calls, returns, and
+nesting share collections. `push`, `pop`, `shift`, `unshift`, and `set` mutate
+in place; `concat`, `slice`, `keys`, `values`, and `range` create new outer
+collections without deep-copying contained values.
+
 ------------------------------------------------------------------------
 
 # 9. Functions
