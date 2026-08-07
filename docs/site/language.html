@@ -218,13 +218,16 @@ end</code></pre>
           <tr><td><code>null</code></td><td>false</td></tr>
           <tr><td><code>false</code></td><td>false</td></tr>
           <tr><td><code>true</code></td><td>true</td></tr>
-          <tr><td><code>number</code></td><td>false if <code>0.0</code>, otherwise true.</td></tr>
-          <tr><td><code>string</code></td><td>false if empty, otherwise true.</td></tr>
-          <tr><td><code>array</code> / <code>object</code></td><td>true, even when empty.</td></tr>
+          <tr><td><code>number</code></td><td>false if zero (including <code>-0</code>), otherwise true.</td></tr>
+          <tr><td><code>string</code></td><td>false if empty; <code>"0"</code>, whitespace, and every other non-empty byte string are true.</td></tr>
+          <tr><td><code>array</code></td><td>false if empty, otherwise true.</td></tr>
+          <tr><td><code>object</code></td><td>false if empty, otherwise true.</td></tr>
           <tr><td><code>function</code></td><td>Always true.</td></tr>
+          <tr><td><code>Error</code> view</td><td>Always true.</td></tr>
         </tbody>
       </table>
     </div>
+    <p>Conditions do not convert values. The same table is used by <code>if</code>, <code>elseif</code>, <code>while</code>, <code>not</code>, <code>and</code>, and <code>or</code>.</p>
   </section>
 
   <section id="scope">

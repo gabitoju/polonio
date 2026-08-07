@@ -337,6 +337,15 @@ Object iteration: - `for key, value in object`
 <% end %>
 ```
 
+## 8.4 Truthiness
+
+`if`, `elseif`, `while`, and logical operators use one truthiness rule:
+`null`, `false`, numeric zero (including `-0`), empty strings, empty arrays,
+and empty objects are false. Every other finite number and every non-empty
+byte string (including `"0"`, whitespace, `"false"`, and `"null"`) are true.
+Non-empty arrays and objects, user and builtin functions, and immutable Error
+views are true. Boolean contexts do not perform number or string conversion.
+
 ------------------------------------------------------------------------
 
 # 9. Functions

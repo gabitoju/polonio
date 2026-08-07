@@ -3463,14 +3463,92 @@ TEST_CASE("Value reports type names") {
 TEST_CASE("Value truthiness respects spec rules") {
     CHECK_FALSE(polonio::Value().is_truthy());
     CHECK_FALSE(polonio::Value(false).is_truthy());
+    CHECK(polonio::Value(true).is_truthy());
     CHECK_FALSE(polonio::Value(0).is_truthy());
-    CHECK(polonio::Value(0.1).is_truthy());
+    CHECK_FALSE(polonio::Value(-0.0).is_truthy());
+    CHECK(polonio::Value(1).is_truthy());
+    CHECK(polonio::Value(-1).is_truthy());
+    CHECK(polonio::Value(0.5).is_truthy());
     CHECK_FALSE(polonio::Value("").is_truthy());
-    CHECK(polonio::Value("x").is_truthy());
-    polonio::Value::Array arr;
-    CHECK(polonio::Value(arr).is_truthy());
-    polonio::Value::Object obj;
-    CHECK(polonio::Value(obj).is_truthy());
+    CHECK(polonio::Value("0").is_truthy());
+    CHECK(polonio::Value(" ").is_truthy());
+    CHECK(polonio::Value("\n").is_truthy());
+    CHECK(polonio::Value("false").is_truthy());
+    CHECK_FALSE(polonio::Value(polonio::Value::Array{}).is_truthy());
+    CHECK(polonio::Value(polonio::Value::Array{polonio::Value()}).is_truthy());
+    CHECK_FALSE(polonio::Value(polonio::Value::Object{}).is_truthy());
+    CHECK(polonio::Value(polonio::Value::Object{{"key", polonio::Value()}}).is_truthy());
+
+    polonio::FunctionValue user_function;
+    user_function.name = "truthy";
+    user_function.closure = std::make_shared<polonio::Env>();
+    CHECK(polonio::Value(user_function).is_truthy());
+    CHECK(polonio::Value(polonio::BuiltinFunction{"builtin", nullptr}).is_truthy());
+    CHECK(polonio::Value(std::make_shared<const polonio::Value::Object>()).is_truthy());
+}
+
+TEST_CASE("RFC 0009 applies one truthiness table in every boolean context") {
+    CHECK(run_program_output(R"(
+function user_function()
+end
+if null echo "x" else echo "n" end
+if false echo "x" else echo "f" end
+if true echo "t" else echo "x" end
+if 0 echo "x" else echo "z" end
+if -0 echo "x" else echo "Z" end
+if 1 echo "1" end
+if -1 echo "m" end
+if 0.5 echo "h" end
+if "" echo "x" else echo "e" end
+if "0" echo "s" end
+if " " echo "p" end
+if "false" echo "b" end
+if [] echo "x" else echo "a" end
+if [null] echo "A" end
+if {} echo "x" else echo "o" end
+if {"key": null} echo "O" end
+if user_function echo "u" end
+if len echo "l" end
+if [] echo "x" elseif {} echo "y" elseif "0" echo "q" else echo "z" end
+)") == "nftzZ1mhespbaAoOulq");
+
+    CHECK(run_program_output(R"(
+var outer = 2
+while outer
+  if outer
+    var inner = 1
+    while inner
+      if [inner]
+        echo outer
+      end
+      inner -= 1
+    end
+  end
+  outer -= 1
+end
+while [] echo "x" end
+while {} echo "y" end
+)") == "21");
+
+    CHECK(eval_runtime_expr("not []") == polonio::Value(true));
+    CHECK(eval_runtime_expr("not {}") == polonio::Value(true));
+    CHECK(eval_runtime_expr("\"0\" and true") == polonio::Value(true));
+    CHECK(eval_runtime_expr("[] or true") == polonio::Value(true));
+    CHECK(eval_runtime_expr("[1] and true") == polonio::Value(true));
+}
+
+TEST_CASE("RFC 0009 Error views are true in recover conditions") {
+    CHECK(run_program_output(R"(
+attempt
+  http_status(200)
+recover error
+  if error
+    echo "true"
+  else
+    echo "false"
+  end
+end
+)") == "true");
 }
 
 TEST_CASE("Value equality handles nested structures") {
