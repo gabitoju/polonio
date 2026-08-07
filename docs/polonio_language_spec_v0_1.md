@@ -337,6 +337,10 @@ Object iteration: - `for key, value in object`
 <% end %>
 ```
 
+Polonio does not impose a language-level iteration limit on `while` or `for`
+loops. They continue according to their ordinary condition or iteration
+semantics until execution exits or the host process is interrupted.
+
 ## 8.4 Truthiness
 
 `if`, `elseif`, `while`, and logical operators use one truthiness rule:
