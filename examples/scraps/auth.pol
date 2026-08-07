@@ -1,0 +1,9 @@
+<%
+function current_user()
+  var user_id = session_get("scraps_user_id")
+  if user_id == null return null end
+  var users = db_query("select id, username, email from users where id = ?", [user_id])
+  if count(users) == 0 return null end
+  return users[0]
+end
+%>

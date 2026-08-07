@@ -1,0 +1,119 @@
+<%
+include "db.pol"
+include "auth.pol"
+include "helpers.pol"
+var route = get(_GET, "route", "home")
+var viewer = current_user()
+var page_title = "Scraps"
+var form_error = null
+var form_username = ""
+var form_email = ""
+var form_name = ""
+var form_content = ""
+var public_user = null
+var public_scrap = null
+var scrap_rows = []
+var show_view = route
+
+if route == "register" and _SERVER["REQUEST_METHOD"] == "POST"
+  form_username = trim(get(_POST, "username", ""))
+  form_email = trim(get(_POST, "email", ""))
+  var password = get(_POST, "password", "")
+  if not csrf_verify(get(_POST, "csrf", "")) form_error = "Your form expired. Please try again."
+  elseif form_username == "" or form_email == "" or password == "" form_error = "Username, email, and password are required."
+  elseif count(db_query("select id from users where username = ? or email = ?", [form_username, form_email])) > 0 form_error = "That username or email is already registered."
+  else
+    db_exec("insert into users(username, email, password_hash) values(?, ?, ?)", [form_username, form_email, hash_password(password)])
+    session_set("scraps_user_id", db_last_insert_id())
+    redirect("/scraps/")
+    show_view = "redirected"
+  end
+end
+if route == "login" and _SERVER["REQUEST_METHOD"] == "POST"
+  form_username = trim(get(_POST, "username", ""))
+  var login_password = get(_POST, "password", "")
+  if not csrf_verify(get(_POST, "csrf", "")) form_error = "Your form expired. Please try again."
+  elseif form_username == "" or login_password == "" form_error = "Username and password are required."
+  else
+    var matches = db_query("select id, username, password_hash from users where username = ?", [form_username])
+    if count(matches) == 0 or not verify_password(login_password, matches[0]["password_hash"]) form_error = "Invalid username or password."
+    else
+      session_set("scraps_user_id", matches[0]["id"])
+      redirect("/scraps/")
+      show_view = "redirected"
+    end
+  end
+end
+if route == "logout" and _SERVER["REQUEST_METHOD"] == "POST"
+  if csrf_verify(get(_POST, "csrf", ""))
+    session_clear()
+    redirect("/scraps/")
+    show_view = "redirected"
+  else
+    http_status(403)
+    form_error = "Invalid CSRF token."
+    show_view = "error"
+  end
+end
+if route == "publish" and _SERVER["REQUEST_METHOD"] == "POST"
+  form_name = trim(get(_POST, "name", ""))
+  form_content = get(_POST, "content", "")
+  if viewer == null
+    redirect(route_url("login"))
+    show_view = "redirected"
+  elseif not csrf_verify(get(_POST, "csrf", ""))
+    http_status(403)
+    form_error = "Invalid CSRF token."
+    show_view = "error"
+  elseif form_name == "" or form_content == ""
+    form_error = "Name and content are required."
+    show_view = "new"
+  else
+    var existing = db_query("select id from scraps where user_id = ? and name = ?", [viewer["id"], form_name])
+    if count(existing) == 0 db_exec("insert into scraps(user_id, name, content) values(?, ?, ?)", [viewer["id"], form_name, form_content])
+    else db_exec("update scraps set content = ?, updated_at = current_timestamp where id = ?", [form_content, existing[0]["id"]]) end
+    redirect(scrap_url(viewer["username"], form_name))
+    show_view = "redirected"
+  end
+end
+if route == "new" and viewer == null
+  redirect(route_url("login"))
+  show_view = "redirected"
+elseif route == "user" or route == "scrap"
+  var users = db_query("select id, username from users where username = ?", [get(_GET, "username", "")])
+  if count(users) == 0
+    http_status(404)
+    form_error = "User not found."
+    show_view = "error"
+  else
+    public_user = users[0]
+    if route == "user"
+      scrap_rows = db_query("select name, updated_at from scraps where user_id = ? order by updated_at desc, id desc", [public_user["id"]])
+    else
+      var scraps = db_query("select name, content, updated_at from scraps where user_id = ? and name = ?", [public_user["id"], get(_GET, "name", "")])
+      if count(scraps) == 0
+        http_status(404)
+        form_error = "Scrap not found."
+        show_view = "error"
+      else public_scrap = scraps[0] end
+    end
+  end
+end
+if show_view != "redirected"
+  if show_view == "register" page_title = "Register"
+  elseif show_view == "login" page_title = "Log in"
+  elseif show_view == "new" page_title = "New scrap"
+  elseif show_view == "user" and public_user != null page_title = public_user["username"]
+  elseif show_view == "scrap" and public_scrap != null page_title = public_scrap["name"]
+  elseif show_view == "error" page_title = "Error" end
+  include "views/layout.pol"
+  if show_view == "home" include "views/home.pol"
+  elseif show_view == "register" include "views/register.pol"
+  elseif show_view == "login" include "views/login.pol"
+  elseif show_view == "new" include "views/new.pol"
+  elseif show_view == "user" and public_user != null include "views/user.pol"
+  elseif show_view == "scrap" and public_scrap != null include "views/scrap.pol"
+  else %><h1>Error</h1><p class="error"><% echo html_escape(form_error) %></p><% end
+  include "views/footer.pol"
+end
+%>

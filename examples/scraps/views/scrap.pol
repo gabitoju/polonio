@@ -1,0 +1,1 @@
+<h1><% echo html_escape(public_user["username"]) %> / <% echo html_escape(public_scrap["name"]) %></h1><p><a href="<% echo user_url(public_user["username"]) %>">All scraps by <% echo html_escape(public_user["username"]) %></a></p><pre><% echo html_escape(public_scrap["content"]) %></pre>

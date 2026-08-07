@@ -1,0 +1,5 @@
+<%
+function route_url(route) return "/scraps/?route=" .. urlencode(route) end
+function user_url(username) return route_url("user") .. "&username=" .. urlencode(username) end
+function scrap_url(username, name) return route_url("scrap") .. "&username=" .. urlencode(username) .. "&name=" .. urlencode(name) end
+%>

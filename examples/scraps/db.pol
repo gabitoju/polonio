@@ -1,0 +1,5 @@
+<%
+db_connect("scraps.sqlite")
+db_exec("create table if not exists users (id integer primary key autoincrement, username text not null unique, email text not null unique, password_hash text not null, created_at text not null default current_timestamp)")
+db_exec("create table if not exists scraps (id integer primary key autoincrement, user_id integer not null, name text not null, content text not null, created_at text not null default current_timestamp, updated_at text not null default current_timestamp, unique(user_id, name), foreign key(user_id) references users(id))")
+%>

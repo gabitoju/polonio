@@ -1,0 +1,1 @@
+<h1><% echo html_escape(public_user["username"]) %>'s scraps</h1><% if count(scrap_rows) == 0 %><p>No scraps yet.</p><% else %><ul><% for row in scrap_rows %><li><a href="<% echo scrap_url(public_user["username"], row["name"]) %>"><% echo html_escape(row["name"]) %></a> <small>updated <% echo html_escape(row["updated_at"]) %></small></li><% end %></ul><% end %>
