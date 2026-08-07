@@ -111,7 +111,12 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC0010f — Conformance tests
    - [DONE] RFC0010g — Documentation alignment
    - [BLOCKED] RFC0010h — Freeze equality/comparison in Language Specification v1
-8. [RFC] RFC 0011 — Scope and Closures
+8. [ACCEPTED] RFC 0011 — Scope and Closures
+   - [TODO] RFC0011a — Scope and assignment conformance
+   - [TODO] RFC0011b — Closure and loop-binding conformance
+   - [TODO] RFC0011c — Recovery/include/template scope conformance
+   - [TODO] RFC0011d — Documentation alignment
+   - [BLOCKED] RFC0011e — Freeze scope and closures in Language Specification v1
 9. [RFC] RFC 0012 — Collection Mutation and Aliasing
 10. [RFC] RFC 0013 — Function Semantics
 11. [RFC] RFC 0014 — Include Semantics
