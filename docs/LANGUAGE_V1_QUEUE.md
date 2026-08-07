@@ -119,11 +119,17 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC0011e — Include/template scope conformance
    - [DONE] RFC0011f — Documentation alignment
    - [BLOCKED] RFC0011g — Freeze scope semantics in Language Specification v1
-9. [RFC] RFC 0012 — Collection Mutation and Aliasing
+9. [ACCEPTED] RFC 0012 — Collection Mutation and Aliasing
+   - [TODO] RFC0012a — Collection aliasing conformance
+   - [TODO] RFC0012b — Mutation builtin conformance
+   - [TODO] RFC0012c — Documentation alignment
+   - [BLOCKED] RFC0012d — Freeze collection semantics in Language Specification v1
 10. [RFC] RFC 0013 — Function Semantics
 11. [RFC] RFC 0014 — Include Semantics
 12. [RFC] RFC 0015 — Evaluation and Output Order
 13. [RFC] RFC 0016 — Template Interpolation and Escaping
+
+**STOP — Validate the language with Conway's Game of Life and Scraps before proposing additional language features.**
 
 RFC 0007 is the next implementation item. Its accepted recovery semantics must
 be implemented before later L2 language-semantics RFCs are taken up.
