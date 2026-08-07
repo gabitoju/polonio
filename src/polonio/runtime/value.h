@@ -4,6 +4,7 @@
 #include <memory>
 #include <memory>
 #include <string>
+#include <stdexcept>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -25,6 +26,7 @@ struct FunctionValue {
     std::vector<std::string> params;
     std::vector<std::shared_ptr<Stmt>> body;
     std::shared_ptr<Env> closure;
+    std::shared_ptr<void> identity;
 
     bool operator==(const FunctionValue& other) const {
         return name == other.name && params == other.params && body == other.body && closure == other.closure;
@@ -35,6 +37,7 @@ struct BuiltinFunction {
     std::string name;
     BuiltinCallback callback = nullptr;
     std::string canonical_name;
+    std::shared_ptr<void> identity;
 
     BuiltinFunction() = default;
     BuiltinFunction(std::string registered_name,
@@ -46,6 +49,11 @@ struct BuiltinFunction {
     bool operator==(const BuiltinFunction& other) const {
         return name == other.name && canonical_name == other.canonical_name && callback == other.callback;
     }
+};
+
+class EqualityCycleError : public std::runtime_error {
+public:
+    EqualityCycleError() : std::runtime_error("cyclic collection equality is not supported") {}
 };
 
 class Value {

@@ -68,6 +68,12 @@
     <div class="note">Use <code>/* ... */</code> for block comments. In HTML segments, those comments are removed before rendering.</div>
   </section>
 
+  <section id="comparison">
+    <h2>Equality &amp; Comparison</h2>
+    <p><code>==</code> never converts values: different types are unequal. Arrays and objects compare structurally; functions and Error views compare by identity. <code>!=</code> is its negation.</p>
+    <p><code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code> support two numbers or two strings only. Strings use byte-wise lexicographic order; other pairs raise a RuntimeError.</p>
+  </section>
+
   <section id="types">
     <h2>Types</h2>
     <p>Polonio has seven value types.</p>

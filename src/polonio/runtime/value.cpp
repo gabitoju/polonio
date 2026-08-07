@@ -1,6 +1,7 @@
 #include "polonio/runtime/value.h"
 
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 
 namespace polonio {
@@ -31,9 +32,15 @@ Value::Value(Object&& object) : storage_(std::make_shared<Object>(std::move(obje
 
 Value::Value(ReadOnlyObjectPtr object) : storage_(std::move(object)) {}
 
-Value::Value(FunctionValue fn) : storage_(std::move(fn)) {}
+Value::Value(FunctionValue fn) {
+    if (!fn.identity) fn.identity = std::make_shared<int>(0);
+    storage_ = std::move(fn);
+}
 
-Value::Value(BuiltinFunction fn) : storage_(std::move(fn)) {}
+Value::Value(BuiltinFunction fn) {
+    if (!fn.identity) fn.identity = std::make_shared<int>(0);
+    storage_ = std::move(fn);
+}
 
 std::string Value::type_name() const {
     return std::visit(
@@ -87,51 +94,80 @@ bool Value::is_truthy() const {
         storage_);
 }
 
-bool Value::operator==(const Value& other) const {
+namespace {
+struct PairHash {
+    std::size_t operator()(const std::pair<const void*, const void*>& pair) const noexcept {
+        return std::hash<const void*>{}(pair.first) ^ (std::hash<const void*>{}(pair.second) << 1);
+    }
+};
+using ActivePairs = std::unordered_set<std::pair<const void*, const void*>, PairHash>;
+struct ActivePairGuard {
+    ActivePairs& pairs;
+    std::pair<const void*, const void*> pair;
+    ~ActivePairGuard() { pairs.erase(pair); }
+};
+
+bool values_equal(const Value& left, const Value& right,
+                  ActivePairs& active) {
     return std::visit(
-        [](const auto& lhs, const auto& rhs) -> bool {
+        [&](const auto& lhs, const auto& rhs) -> bool {
             using L = std::decay_t<decltype(lhs)>;
             using R = std::decay_t<decltype(rhs)>;
             if constexpr (!std::is_same_v<L, R>) {
                 return false;
             } else if constexpr (std::is_same_v<L, std::monostate>) {
                 return true;
-            } else if constexpr (std::is_same_v<L, ArrayPtr>) {
+            } else if constexpr (std::is_same_v<L, Value::ArrayPtr>) {
                 if (!lhs || !rhs) {
                     return !lhs && !rhs;
                 }
+                auto pair = std::make_pair(static_cast<const void*>(lhs.get()), static_cast<const void*>(rhs.get()));
+                if (!active.insert(pair).second) throw EqualityCycleError();
+                ActivePairGuard guard{active, pair};
                 if (lhs->size() != rhs->size()) {
                     return false;
                 }
                 for (std::size_t i = 0; i < lhs->size(); ++i) {
-                    if ((*lhs)[i] != (*rhs)[i]) {
+                    if (!values_equal((*lhs)[i], (*rhs)[i], active)) {
                         return false;
                     }
                 }
                 return true;
-            } else if constexpr (std::is_same_v<L, ObjectPtr>) {
+            } else if constexpr (std::is_same_v<L, Value::ObjectPtr>) {
                 if (!lhs || !rhs) {
                     return !lhs && !rhs;
                 }
+                auto pair = std::make_pair(static_cast<const void*>(lhs.get()), static_cast<const void*>(rhs.get()));
+                if (!active.insert(pair).second) throw EqualityCycleError();
+                ActivePairGuard guard{active, pair};
                 if (lhs->size() != rhs->size()) {
                     return false;
                 }
                 for (const auto& kv : *lhs) {
                     auto it = rhs->find(kv.first);
-                    if (it == rhs->end() || kv.second != it->second) {
+                    if (it == rhs->end() || !values_equal(kv.second, it->second, active)) {
                         return false;
                     }
                 }
                 return true;
-            } else if constexpr (std::is_same_v<L, ReadOnlyObjectPtr>) {
-                if (!lhs || !rhs) return !lhs && !rhs;
-                return *lhs == *rhs;
+            } else if constexpr (std::is_same_v<L, Value::ReadOnlyObjectPtr>) {
+                return lhs == rhs;
+            } else if constexpr (std::is_same_v<L, FunctionValue>) {
+                return lhs.identity == rhs.identity;
+            } else if constexpr (std::is_same_v<L, BuiltinFunction>) {
+                return lhs.identity == rhs.identity;
             } else {
                 return lhs == rhs;
             }
         },
-        storage_,
-        other.storage_);
+        left.storage(),
+        right.storage());
+}
+} // namespace
+
+bool Value::operator==(const Value& other) const {
+    ActivePairs active;
+    return values_equal(*this, other, active);
 }
 
 bool Value::operator!=(const Value& other) const { return !(*this == other); }

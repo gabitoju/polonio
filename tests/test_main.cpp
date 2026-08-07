@@ -3569,6 +3569,45 @@ TEST_CASE("Value equality handles nested structures") {
     CHECK_FALSE(polonio::Value(obj1) == polonio::Value(obj3));
 }
 
+TEST_CASE("RFC 0010 equality and ordering conformance") {
+    CHECK(run_program_output("echo (null == null) .. \"|\" .. (null != false) .. \"|\" .. (false != 0)") == "true|true|true");
+    CHECK(run_program_output("echo (1 == 1) .. \"|\" .. (1 != 2) .. \"|\" .. (0 == -0) .. \"|\" .. (\"abc\" == \"abc\") .. \"|\" .. (\"abc\" != \"ABC\") .. \"|\" .. (\"0\" != 0)") == "true|true|true|true|true|true");
+    CHECK(run_program_output("echo ([] == []) .. \"|\" .. ([1,2] == [1,2]) .. \"|\" .. ([1,2] != [2,1]) .. \"|\" .. ([1,{\"a\":[2]}] == [1,{\"a\":[2]}])") == "true|true|true|true");
+    CHECK(run_program_output("echo ({\"a\":1,\"b\":2} == {\"b\":2,\"a\":1}) .. \"|\" .. ({\"a\":1} != {\"a\":\"1\"})") == "true|true");
+    CHECK(run_program_output("function f() end var g = f function h() end echo (f == g) .. \"|\" .. (f != h)") == "true|true");
+    CHECK(run_program_output("echo (\"\" < \"a\") .. \"|\" .. (\"a\" < \"ab\") .. \"|\" .. (\"A\" < \"a\") .. \"|\" .. (\"a\" <= \"a\") .. \"|\" .. (2 < 10) .. \"|\" .. (10 >= 10)") == "true|true|true|true|true|true");
+    for (const auto& expr : {"1 < \"2\"", "true < false", "null < null", "[] < []", "{} >= {}", "type > type"}) CHECK_THROWS_AS(run_program_output("attempt echo " + std::string(expr) + " recover echo \"caught\" end"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("var a=[] push(a,a) echo a == a"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("var o={} set(o,\"self\",o) echo o == o"), polonio::PolonioError);
+    CHECK(run_program_output("var child=[1] var a=[child,child] var b=[child,child] echo a == b") == "true");
+
+    polonio::FunctionValue definition;
+    definition.name = "identity";
+    definition.closure = std::make_shared<polonio::Env>();
+    polonio::Value function(definition);
+    polonio::Value function_copy = function;
+    polonio::Value distinct_function(definition);
+    CHECK(function == function_copy);
+    CHECK_FALSE(function == distinct_function);
+
+    auto error_fields = std::make_shared<const polonio::Value::Object>();
+    polonio::Value error(error_fields);
+    polonio::Value error_copy(error_fields);
+    polonio::Value distinct_error(std::make_shared<const polonio::Value::Object>());
+    CHECK(error == error_copy);
+    CHECK_FALSE(error == distinct_error);
+
+    auto first = std::make_shared<polonio::Value::Array>();
+    auto second = std::make_shared<polonio::Value::Object>();
+    polonio::Value first_value;
+    polonio::Value second_value;
+    first_value.storage() = first;
+    second_value.storage() = second;
+    first->push_back(second_value);
+    (*second)["back"] = first_value;
+    CHECK_THROWS_AS([&] { (void)(first_value == first_value); }(), polonio::EqualityCycleError);
+}
+
 TEST_CASE("Env supports lexical scoping and assignment") {
     auto global = std::make_shared<polonio::Env>();
     global->set_local("x", polonio::Value(1));

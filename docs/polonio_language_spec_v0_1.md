@@ -346,6 +346,14 @@ byte string (including `"0"`, whitespace, `"false"`, and `"null"`) are true.
 Non-empty arrays and objects, user and builtin functions, and immutable Error
 views are true. Boolean contexts do not perform number or string conversion.
 
+## 8.5 Equality and comparison
+
+`==` compares without conversion: different types are unequal. Arrays and
+ordinary objects compare structurally; functions and immutable Error views
+compare by identity. `!=` negates `==`. Ordered comparison supports only two
+numbers or two strings. Strings use byte-wise lexicographic order; every other
+ordered comparison is a non-recoverable RuntimeError.
+
 ------------------------------------------------------------------------
 
 # 9. Functions

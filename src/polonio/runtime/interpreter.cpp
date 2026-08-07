@@ -276,22 +276,29 @@ Value Interpreter::eval_binary(const BinaryExpr& binary) {
         return Value(lhs + rhs);
     }
     if (op == "==") {
-        return Value(left == right);
+        try { return Value(left == right); }
+        catch (const EqualityCycleError& error) { runtime_error(error.what()); }
     }
     if (op == "!=") {
-        return Value(left != right);
+        try { return Value(left != right); }
+        catch (const EqualityCycleError& error) { runtime_error(error.what()); }
     }
-    if (op == "<") {
-        return Value(require_number(left, "<") < require_number(right, "<"));
-    }
-    if (op == "<=") {
-        return Value(require_number(left, "<=") <= require_number(right, "<="));
-    }
-    if (op == ">") {
-        return Value(require_number(left, ">") > require_number(right, ">"));
-    }
-    if (op == ">=") {
-        return Value(require_number(left, ">=") >= require_number(right, ">="));
+    if (op == "<" || op == "<=" || op == ">" || op == ">=") {
+        if (std::holds_alternative<double>(left.storage()) && std::holds_alternative<double>(right.storage())) {
+            const double lhs = std::get<double>(left.storage()), rhs = std::get<double>(right.storage());
+            if (op == "<") return Value(lhs < rhs);
+            if (op == "<=") return Value(lhs <= rhs);
+            if (op == ">") return Value(lhs > rhs);
+            return Value(lhs >= rhs);
+        }
+        if (std::holds_alternative<std::string>(left.storage()) && std::holds_alternative<std::string>(right.storage())) {
+            const auto& lhs = std::get<std::string>(left.storage()); const auto& rhs = std::get<std::string>(right.storage());
+            if (op == "<") return Value(lhs < rhs);
+            if (op == "<=") return Value(lhs <= rhs);
+            if (op == ">") return Value(lhs > rhs);
+            return Value(lhs >= rhs);
+        }
+        runtime_error("ordered comparison requires two numbers or two strings");
     }
 
     runtime_error("unsupported binary operator: " + op);
