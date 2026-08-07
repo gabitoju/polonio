@@ -1,4 +1,4 @@
 <!doctype html><html><head><link rel="stylesheet" href="/assets/style.css"><title>Polonio examples</title></head><body>
 <h1>Polonio examples</h1>
-<ul><li><a href="/hello">Hello</a></li><li><a href="/game_of_life">Game of Life (continuous CLI output)</a></li><li><a href="/forms">Forms</a></li><li><a href="/json">JSON</a></li><li><a href="/session">Session</a></li><li><a href="/upload">Upload</a></li><li><a href="/storage">Storage</a></li><li><a href="/sqlite">SQLite</a></li><li><a href="/mail">Mail</a></li></ul>
+<ul><li><a href="/hello">Hello</a></li><li><a href="/game_of_life">Game of Life (continuous)</a></li><li><a href="/forms">Forms</a></li><li><a href="/json">JSON</a></li><li><a href="/session">Session</a></li><li><a href="/upload">Upload</a></li><li><a href="/storage">Storage</a></li><li><a href="/sqlite">SQLite</a></li><li><a href="/mail">Mail</a></li></ul>
 </body></html>
