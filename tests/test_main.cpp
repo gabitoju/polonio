@@ -3675,6 +3675,23 @@ TEST_CASE("Builtins to_string and to_number convert values") {
     CHECK_THROWS_AS(run_program_output("echo to_number(\"abc\")"), polonio::PolonioError);
 }
 
+TEST_CASE("RFC 0008 conversion and integral conformance") {
+    CHECK(run_program_output("echo to_number(\"+12\") .. \"|\" .. to_number(\"1e2\")") == "12|100");
+    for (const auto& value : {"\"12abc\"", "\"0x10\"", "\"NaN\"", "\"Infinity\"", "[1]", "{}"}) {
+        CHECK_THROWS_AS(run_program_output("echo to_number(" + std::string(value) + ")"), polonio::PolonioError);
+    }
+    CHECK_THROWS_AS(run_program_output("echo substr(\"abc\", 1.5)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo range(1.5)"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("echo randint(1.5, 3)"), polonio::PolonioError);
+    CHECK(run_program_output("echo len(\"á\")") == "2");
+    CHECK_THROWS_AS(run_program_output("attempt to_number(\"abc\") recover echo \"caught\" end"), polonio::PolonioError);
+}
+
+TEST_CASE("RFC 0008 Error is an immutable object view") {
+    CHECK(run_program_output("attempt http_status(200) recover error echo type(error) .. \"|\" .. is_object(error) .. \"|\" .. get(error, \"category\") end") == "object|true|CapabilityError");
+    CHECK_THROWS_AS(run_program_output("attempt http_status(200) recover error set(error, \"x\", 1) end"), polonio::PolonioError);
+}
+
 TEST_CASE("Alias conformance: tostring matches canonical to_string") {
     const std::string canonical = run_program_output(
         "echo to_string(null) .. \"|\" .. to_string(true) .. \"|\" .. to_string(3.5) .. \"|\" .. "
