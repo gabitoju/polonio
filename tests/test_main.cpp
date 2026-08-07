@@ -383,6 +383,59 @@ TEST_CASE("CLI: run executes interpreter output") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("CLI: run streams template output before the program exits") {
+    auto path = create_temp_file_with_content(
+        "polonio_cli_stream",
+        "first\n<% println(\"ready\") %><% var i = 0 while i < 1000000 i += 1 end %>");
+    int pipe_fds[2];
+    REQUIRE(pipe(pipe_fds) == 0);
+
+    pid_t pid = fork();
+    REQUIRE(pid != -1);
+    if (pid == 0) {
+        close(pipe_fds[0]);
+        if (dup2(pipe_fds[1], STDOUT_FILENO) == -1) {
+            _exit(127);
+        }
+        close(pipe_fds[1]);
+        auto binary = (std::filesystem::current_path() / "build/polonio").string();
+        execl(binary.c_str(), binary.c_str(), "run", path.c_str(), static_cast<char*>(nullptr));
+        _exit(127);
+    }
+
+    close(pipe_fds[1]);
+    std::string streamed;
+    char chunk[64];
+    while (streamed.find("ready\n") == std::string::npos) {
+        const auto count = read(pipe_fds[0], chunk, sizeof(chunk));
+        if (count <= 0) {
+            break;
+        }
+        streamed.append(chunk, static_cast<std::size_t>(count));
+    }
+    close(pipe_fds[0]);
+
+    int status = 0;
+    const bool running = waitpid(pid, &status, WNOHANG) == 0;
+    if (running) {
+        kill(pid, SIGTERM);
+        waitpid(pid, &status, 0);
+    }
+    std::filesystem::remove(path);
+
+    CHECK(streamed.find("first\nready\n") != std::string::npos);
+    CHECK(running);
+}
+
+TEST_CASE("CLI: template output ordering remains intact") {
+    auto path = create_temp_file_with_content("polonio_cli_order", "A\n<% println(\"B\") %>\nC");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output == "A\nB\n\nC");
+    CHECK(result.stderr_output.empty());
+    std::filesystem::remove(path);
+}
+
 TEST_CASE("Game of Life example uses a continuous update loop") {
     const auto source = read_file("examples/game_of_life.pol");
     CHECK(source.find("while true") != std::string::npos);
@@ -393,6 +446,15 @@ TEST_CASE("CLI: run reports runtime errors") {
     auto path = create_temp_file_with_content("polonio_cli_rt", "echo y");
     auto result = run_polonio({"run", path});
     CHECK(result.exit_code != 0);
+    CHECK(result.stderr_output.find("undefined variable") != std::string::npos);
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("CLI: output before a later error remains visible") {
+    auto path = create_temp_file_with_content("polonio_cli_output_error", "println(\"before\")\necho missing");
+    auto result = run_polonio({"run", path});
+    CHECK(result.exit_code != 0);
+    CHECK(result.stdout_output == "before\n");
     CHECK(result.stderr_output.find("undefined variable") != std::string::npos);
     std::filesystem::remove(path);
 }

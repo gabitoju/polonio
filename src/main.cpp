@@ -74,9 +74,15 @@ int handle_run(const std::vector<std::string>& args) {
     session.secret_missing = false;
     polonio::Interpreter interpreter(std::make_shared<polonio::Env>(), source.path());
     interpreter.set_session_context(&session);
+    interpreter.set_output_sink([](const std::string& text) {
+        std::cout << text;
+        if (text.find('\n') != std::string::npos) {
+            std::cout.flush();
+        }
+    });
 
     if (source.content().find("<%") != std::string::npos) {
-        std::cout << polonio::render_template_with_interpreter(source, interpreter);
+        (void)polonio::render_template_with_interpreter(source, interpreter);
         return EXIT_SUCCESS;
     }
 
@@ -86,7 +92,6 @@ int handle_run(const std::vector<std::string>& args) {
     auto program = parser.parse_program();
 
     interpreter.exec_program(program);
-    std::cout << interpreter.output();
     return EXIT_SUCCESS;
 }
 
