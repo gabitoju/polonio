@@ -25,14 +25,12 @@ root, run:
 ./build/polonio run examples/game_of_life.pol
 ```
 
-It renders generations 0 through 4 of a glider on a finite board. The board is
-an array of independently constructed rows, each containing boolean cell
-values; `#` is live and `.` is dead. The example exercises nested arrays and
-indexing, loops, functions, arithmetic and comparisons, truthiness, output,
-and reference-like collection mutation while building a separate next grid.
-For continuous local execution, replace its fixed-generation loop with
-`while true` and advance/render `grid` in the loop; stop it with normal process
-interruption such as Ctrl-C.
+It continuously renders successive generations of a glider on a finite board;
+stop it with Ctrl-C. The board is an array of independently constructed rows,
+each containing boolean cell values; `#` is live and `.` is dead. The example
+exercises nested arrays and indexing, loops, functions, arithmetic and
+comparisons, truthiness, output, and reference-like collection mutation while
+building a separate next grid.
 
 `send_mail` writes `.eml` files below `.polonio-storage/outbox`; it does not
 deliver email. These examples use the official Reference Distribution's Web

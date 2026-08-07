@@ -383,43 +383,10 @@ TEST_CASE("CLI: run executes interpreter output") {
     std::filesystem::remove(path);
 }
 
-TEST_CASE("CLI: Game of Life example evolves a glider") {
-    auto result = run_polonio({"run", "examples/game_of_life.pol"});
-    CHECK(result.exit_code == 0);
-    CHECK(result.stdout_output ==
-R"(Generation 0
-.....
-..#..
-...#.
-.###.
-.....
-Generation 1
-.....
-.....
-.#.#.
-..##.
-..#..
-Generation 2
-.....
-.....
-...#.
-.#.#.
-..##.
-Generation 3
-.....
-.....
-..#..
-...##
-..##.
-Generation 4
-.....
-.....
-...#.
-....#
-..###
-
-)");
-    CHECK(result.stderr_output.empty());
+TEST_CASE("Game of Life example uses a continuous update loop") {
+    const auto source = read_file("examples/game_of_life.pol");
+    CHECK(source.find("while true") != std::string::npos);
+    CHECK(source.find("grid = next_generation(grid)") != std::string::npos);
 }
 
 TEST_CASE("CLI: run reports runtime errors") {
