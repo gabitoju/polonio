@@ -74,7 +74,13 @@ bool Value::is_truthy() const {
                 return alt != 0.0;
             } else if constexpr (std::is_same_v<T, std::string>) {
                 return !alt.empty();
+            } else if constexpr (std::is_same_v<T, ArrayPtr>) {
+                return alt && !alt->empty();
+            } else if constexpr (std::is_same_v<T, ObjectPtr>) {
+                return alt && !alt->empty();
             } else {
+                // ReadOnlyObjectPtr is the immutable Error view. Functions and
+                // Error views are present values and therefore always true.
                 return true;
             }
         },

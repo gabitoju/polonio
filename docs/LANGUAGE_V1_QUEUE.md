@@ -96,9 +96,12 @@ a planning title, not an accepted design, unless its RFC says otherwise.
    - [DONE] RFC 0008e — Conversion conformance tests
    - [DONE] RFC 0008f — Documentation and examples
    - [BLOCKED] RFC 0008g — Freeze type/conversion semantics in Language Specification v1
-6. [ACCEPTED] RFC 0009 — Truthiness
-   - [DONE] Define v1 boolean-context truthiness semantics.
-   - [TODO] Make empty arrays and objects false; add conformance tests.
+6. [IMPLEMENTED] RFC 0009 — Truthiness
+   - [DONE] RFC0009a — Normalize runtime truthiness
+   - [DONE] RFC0009b — Collection truthiness
+   - [DONE] RFC0009c — Truthiness conformance tests
+   - [DONE] RFC0009d — Documentation alignment
+   - [BLOCKED] RFC0009e — Freeze truthiness in Language Specification v1
 7. [RFC] RFC 0010 — Equality and Comparison
 8. [RFC] RFC 0011 — Scope and Closures
 9. [RFC] RFC 0012 — Collection Mutation and Aliasing

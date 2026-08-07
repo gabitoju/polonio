@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Implemented.
 
 ## Purpose
 
@@ -62,17 +62,16 @@ readability while retaining its own Error view. Ruby and Lua are rejected
 because empty collections and zero remain true, making common web-result
 conditions less direct.
 
-## Implementation audit
+## Implementation
 
-The current implementation already makes null, false, zero, empty strings,
-all non-empty strings, functions, and Error views behave as decided. It makes
-all arrays and objects true, including empty ones. That is an implementation
-change and a breaking semantic correction for programs relying on `if []` or
-`if {}`. No documentation-only divergence is known.
+`Value::is_truthy` is the single runtime truthiness helper. `if`, `elseif`,
+`while`, `not`, `and`, and `or` all use it. Empty arrays and mutable objects
+now evaluate false by element/key count; immutable Error views remain true.
+This is a breaking semantic correction for programs relying on `if []` or
+`if {}`. Truthiness does not invoke conversion or alter equality.
 
 ## Follow-up
 
-Implementation must update `Value::is_truthy`, add conformance coverage for
-all primary values and Error views in `if`/`elseif`/`while`, and preserve
-short-circuit behavior. RFC 0010 — Equality and Comparison is next; it is not
-decided here.
+Conformance coverage exercises every table row in `if`, `elseif`, `while`,
+logical operators, nested control flow, and `attempt`/`recover`. RFC 0010 —
+Equality and Comparison remains deferred and is not decided here.
