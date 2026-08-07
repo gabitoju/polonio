@@ -3731,6 +3731,15 @@ echo inc(41)
     CHECK(run_program_output(src) == "42");
 }
 
+TEST_CASE("RFC 0011 lexical scope and closure conformance") {
+    CHECK(run_program_output("var x = 2 function read_outer() return x end function shadow(x) var x = x + 1 return x end echo read_outer() .. \"|\" .. shadow(4) .. \"|\" .. x x = 3 echo read_outer() if true var if_value = 7 end var n = 0 while n < 1 var while_value = 8 n += 1 end attempt var attempt_value = 9 recover end echo if_value .. while_value .. attempt_value") == "2|5|23789");
+    CHECK(run_program_output("function counter() var n = 0 function next() n += 1 return n end return next end var c = counter() echo c() .. c() .. c() function fact(n) if n <= 1 return 1 end return n * fact(n - 1) end echo fact(5)") == "123120");
+    CHECK(run_program_output("var item = \"outer\" var funcs = [] for item in [1, 2, 3] function capture() return item end push(funcs, capture) end echo funcs[0]() .. funcs[1]() .. funcs[2]() .. item") == "123outer");
+    CHECK_THROWS_AS(run_program_output("for item in [1] end echo item"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("attempt echo error recover error echo error end"), polonio::PolonioError);
+    CHECK_THROWS_AS(run_program_output("attempt http_status(200) recover error var local = 1 end echo error"), polonio::PolonioError);
+}
+
 TEST_CASE("Interpreter handles return without value") {
     const char* src = R"(
 function f()

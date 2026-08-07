@@ -354,6 +354,15 @@ compare by identity. `!=` negates `==`. Ordered comparison supports only two
 numbers or two strings. Strings use byte-wise lexicographic order; every other
 ordered comparison is a non-recoverable RuntimeError.
 
+## 8.6 Scope and closures
+
+Lookup is lexical through enclosing environments. `var` binds the current
+environment; assignment updates the nearest existing binding or creates a
+current binding when absent. Functions and each `for` iteration create scopes;
+conditionals, `while`, `attempt`, includes, and template blocks do not.
+Closures capture bindings by reference. `recover` has its own scope and its
+optional Error binding does not leak.
+
 ------------------------------------------------------------------------
 
 # 9. Functions

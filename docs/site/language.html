@@ -238,6 +238,7 @@ end</code></pre>
 
   <section id="scope">
     <h2>Scope &amp; Closures</h2>
+    <p>Lookup is lexical. <code>var</code> binds the current scope; assignment updates the nearest existing binding or creates a current binding when absent. Functions and each <code>for</code> iteration create scopes, while conditionals, <code>while</code>, includes, and template blocks share their current scope.</p>
     <p>Polonio uses lexical scope:</p>
     <ul>
       <li>Each <code>function</code> remembers the values available when it is defined.</li>
