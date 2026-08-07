@@ -383,6 +383,45 @@ TEST_CASE("CLI: run executes interpreter output") {
     std::filesystem::remove(path);
 }
 
+TEST_CASE("CLI: Game of Life example evolves a glider") {
+    auto result = run_polonio({"run", "examples/game_of_life.pol"});
+    CHECK(result.exit_code == 0);
+    CHECK(result.stdout_output ==
+R"(Generation 0
+.....
+..#..
+...#.
+.###.
+.....
+Generation 1
+.....
+.....
+.#.#.
+..##.
+..#..
+Generation 2
+.....
+.....
+...#.
+.#.#.
+..##.
+Generation 3
+.....
+.....
+..#..
+...##
+..##.
+Generation 4
+.....
+.....
+...#.
+....#
+..###
+
+)");
+    CHECK(result.stderr_output.empty());
+}
+
 TEST_CASE("CLI: run reports runtime errors") {
     auto path = create_temp_file_with_content("polonio_cli_rt", "echo y");
     auto result = run_polonio({"run", path});
@@ -4179,21 +4218,15 @@ end
     CHECK(run_program_output(src) == "01234");
 }
 
-TEST_CASE("Interpreter enforces while loop limit") {
+TEST_CASE("Interpreter while loops may exceed 100,000 iterations") {
     const char* src = R"(
-while true
-  echo 1
+var i = 0
+while i < 100001
+  i += 1
 end
+echo i
 )";
-    bool threw = false;
-    try {
-        run_program_output(src);
-    } catch (const polonio::PolonioError& err) {
-        threw = true;
-        CHECK(err.kind() == polonio::ErrorKind::Runtime);
-        CHECK(err.message().find("loop limit") != std::string::npos);
-    }
-    CHECK(threw);
+    CHECK(run_program_output(src) == "100001");
 }
 
 TEST_CASE("Interpreter executes for loops over arrays") {
@@ -4204,6 +4237,17 @@ for item in items
 end
 )";
     CHECK(run_program_output(src) == "123");
+}
+
+TEST_CASE("Interpreter for loops may exceed 100,000 iterations") {
+    const char* src = R"(
+var total = 0
+for value in range(100001)
+  total += 1
+end
+echo total
+)";
+    CHECK(run_program_output(src) == "100001");
 }
 
 TEST_CASE("Interpreter executes indexed for loops over arrays") {

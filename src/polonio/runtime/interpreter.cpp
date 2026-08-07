@@ -18,8 +18,6 @@ namespace polonio {
 
 namespace {
 
-constexpr std::size_t kLoopIterationLimit = 100000;
-
 bool is_integer(double value) {
     return std::floor(value) == value;
 }
@@ -627,14 +625,10 @@ void Interpreter::exec_if(const IfStmt& stmt) {
 }
 
 void Interpreter::exec_while(const WhileStmt& stmt) {
-    std::size_t iterations = 0;
     while (true) {
         Value condition = eval_expr_internal(stmt.condition());
         if (!condition.is_truthy()) {
             break;
-        }
-        if (++iterations > kLoopIterationLimit) {
-            runtime_error("loop limit exceeded");
         }
         exec_block(stmt.body());
     }
@@ -642,11 +636,7 @@ void Interpreter::exec_while(const WhileStmt& stmt) {
 
 void Interpreter::exec_for(const ForStmt& stmt) {
     Value iterable = eval_expr_internal(stmt.iterable());
-    std::size_t iterations = 0;
     auto run_iteration = [&](std::optional<Value> index_value, Value value) {
-        if (++iterations > kLoopIterationLimit) {
-            runtime_error("loop limit exceeded");
-        }
         auto loop_env = std::make_shared<Env>(env_);
         if (stmt.index_name()) {
             if (index_value.has_value()) {

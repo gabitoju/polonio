@@ -1,0 +1,82 @@
+<%
+function count_neighbors(grid, row, col)
+  var neighbors = 0
+
+  for row_offset in [-1, 0, 1]
+    for col_offset in [-1, 0, 1]
+      if not (row_offset == 0 and col_offset == 0)
+        var neighbor_row = row + row_offset
+        var neighbor_col = col + col_offset
+
+        if neighbor_row >= 0 and neighbor_row < count(grid) and neighbor_col >= 0 and neighbor_col < count(grid[neighbor_row])
+          if grid[neighbor_row][neighbor_col]
+            neighbors += 1
+          end
+        end
+      end
+    end
+  end
+
+  return neighbors
+end
+
+function next_generation(grid)
+  var next_grid = []
+
+  for row_index in range(count(grid))
+    var next_row = []
+
+    for col_index in range(count(grid[row_index]))
+      var live = grid[row_index][col_index]
+      var neighbors = count_neighbors(grid, row_index, col_index)
+
+      if live and (neighbors == 2 or neighbors == 3)
+        push(next_row, true)
+      elseif not live and neighbors == 3
+        push(next_row, true)
+      else
+        push(next_row, false)
+      end
+    end
+
+    push(next_grid, next_row)
+  end
+
+  return next_grid
+end
+
+function render_grid(grid)
+  for row in grid
+    var line = ""
+
+    for cell in row
+      if cell
+        line ..= "#"
+      else
+        line ..= "."
+      end
+    end
+
+    println(line)
+  end
+end
+
+var grid = [
+  [false, false, false, false, false],
+  [false, false, true, false, false],
+  [false, false, false, true, false],
+  [false, true, true, true, false],
+  [false, false, false, false, false]
+]
+
+var generation = 0
+while generation < 5
+  println("Generation " .. generation)
+  render_grid(grid)
+
+  if generation < 4
+    grid = next_generation(grid)
+  end
+
+  generation += 1
+end%>

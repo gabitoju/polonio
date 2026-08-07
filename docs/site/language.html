@@ -164,9 +164,9 @@ count ..= <span class="str">" total"</span>
     </div>
     <ul>
       <li><strong>for/in:</strong> Iterates arrays and objects. Use <code>for value in array</code> or <code>for index, value in array</code>. Objects yield <code>key</code> + <code>value</code> pairs.</li>
-      <li><strong>while:</strong> Evaluated each loop. Once the condition becomes false or the iteration cap is hit the loop exits.</li>
+      <li><strong>while:</strong> Evaluated each loop until its condition becomes false or execution otherwise exits the loop.</li>
     </ul>
-    <div class="note">Loops stop with an error after 100,000 iterations, which helps catch accidental infinite loops.</div>
+    <div class="note">Polonio does not impose a language-level iteration limit on loops; stop an intentional infinite program through normal process interruption.</div>
   </section>
 
   <section id="functions">

@@ -136,6 +136,12 @@ a planning title, not an accepted design, unless its RFC says otherwise.
 
 **STOP — Validate the language with Conway's Game of Life and Scraps before proposing additional language features.**
 
+# Application Validation
+
+- [DONE] Conway's Game of Life
+- [DONE] Remove artificial 100,000-iteration loop guard discovered by Game of Life validation
+- [TODO] Scraps
+
 RFC 0007 is the next implementation item. Its accepted recovery semantics must
 be implemented before later L2 language-semantics RFCs are taken up.
 
